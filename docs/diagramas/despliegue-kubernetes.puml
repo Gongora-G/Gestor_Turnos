@@ -1,0 +1,44 @@
+@startuml despliegue-simple
+title Gráfica 10: Despliegue - Kubernetes (Simplificado)
+
+node "Load Balancer" {
+    [CloudFlare] as lb
+}
+
+node "Kubernetes Cluster" {
+    [React App] as frontend
+    [API Gateway] as gateway
+    [Auth Service] as auth
+    [Scheduling Service] as sched
+    [Notifications Service] as notif
+}
+
+node "Databases" {
+    database "PostgreSQL" as db
+    [RabbitMQ] as queue
+}
+
+node "External Services" {
+    [Email Service] as email
+    [SMS Service] as sms
+}
+
+' Conexiones
+lb --> frontend
+lb --> gateway
+
+gateway --> auth
+gateway --> sched
+gateway --> notif
+
+auth --> db
+sched --> db
+notif --> db
+
+sched --> queue
+notif --> queue
+
+notif --> email
+notif --> sms
+
+@enduml

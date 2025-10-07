@@ -1,0 +1,29 @@
+@startuml secuencia-reserva-simple
+title Gráfica 7: Secuencia - Reservar Turno (Simplificado)
+
+participant "Cliente" as C
+participant "Frontend" as F
+participant "API" as A
+participant "Database" as D
+
+C -> F: Seleccionar turno
+F -> A: Consultar disponibilidad
+A -> D: Verificar cupos
+D -> A: Cupos disponibles
+A -> F: Mostrar turnos
+F -> C: Turnos disponibles
+
+C -> F: Confirmar reserva
+F -> A: Crear reserva
+A -> D: Guardar reserva
+D -> A: Reserva creada
+A -> F: Confirmación
+F -> C: Código confirmación
+
+note over A, D
+  Sistema envía
+  notificaciones
+  automáticamente
+end note
+
+@enduml

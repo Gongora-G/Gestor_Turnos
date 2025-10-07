@@ -1,0 +1,30 @@
+@startuml secuencia-auth-simple
+title Gráfica 8: Secuencia - Autenticación (Simplificado)
+
+participant "Usuario" as U
+participant "Frontend" as F
+participant "Auth API" as A
+participant "Database" as D
+
+U -> F: Ingresar credenciales
+F -> A: POST /login
+A -> D: Verificar usuario
+D -> A: Usuario válido
+
+alt Credenciales correctas
+    A -> A: Generar JWT
+    A -> F: Token + datos usuario
+    F -> U: Acceso concedido
+else Credenciales incorrectas
+    A -> F: Error 401
+    F -> U: Mostrar error
+end
+
+note over A
+  JWT incluye:
+  - ID usuario
+  - Rol
+  - Expiración 24h
+end note
+
+@enduml

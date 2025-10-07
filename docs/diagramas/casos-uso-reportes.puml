@@ -1,0 +1,24 @@
+@startuml reportes-simple
+title Gráfica 4: Casos de Uso - Reportes (Simplificado)
+
+actor "Coordinador" as C
+actor "Administrador" as A
+
+package "Reportes" {
+  usecase "Generar Reportes" as UC1
+  usecase "Ver Dashboard" as UC2
+  usecase "Exportar Datos" as UC3
+  usecase "Configurar Métricas" as UC4
+}
+
+C --> UC1
+C --> UC2
+C --> UC3
+
+A --> UC4
+A --> UC1
+
+UC1 ..> UC3 : <<include>>
+UC2 ..> UC1 : <<extend>>
+
+@enduml

@@ -1,0 +1,51 @@
+@startuml casos-uso-gestion-general
+title Gráfica 12: Casos de Uso - Gestión General del Sistema
+
+left to right direction
+
+actor "Coordinador" as C
+actor "Cliente" as CL
+actor "Empleado" as E
+actor "Sistema" as S
+
+package "Gestión General de Turnos" {
+  usecase "Publicar Turnos" as UC1
+  usecase "Consultar Disponibilidad" as UC2
+  usecase "Reservar Turno" as UC3
+  usecase "Gestionar Lista Espera" as UC4
+  usecase "Enviar Recordatorios" as UC5
+  usecase "Registrar Asistencia" as UC6
+  usecase "Generar Estadísticas" as UC7
+  usecase "Marcar No Show" as UC8
+}
+
+C --> UC1
+C --> UC7
+
+CL --> UC2
+CL --> UC3
+
+E --> UC6
+E --> UC8
+
+S --> UC4
+S --> UC5
+
+UC3 ..> UC2 : <<include>>
+UC3 ..> UC4 : <<extend>>
+UC6 ..> UC7 : <<include>>
+UC8 ..> UC7 : <<include>>
+
+note right of UC3
+  Requiere verificar
+  disponibilidad antes
+  de confirmar
+end note
+
+note bottom of UC4
+  Se activa cuando
+  no hay cupos
+  disponibles
+end note
+
+@enduml

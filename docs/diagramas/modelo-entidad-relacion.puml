@@ -1,0 +1,85 @@
+@startuml modelo-er-completo
+title Gráfica 5: Modelo Entidad-Relación - Base de Datos Completa
+
+!theme plain
+
+entity "users" as users {
+  * id : UUID <<PK>>
+  --
+  * email : VARCHAR(255) <<UK>>
+  * password_hash : VARCHAR(255)
+  * first_name : VARCHAR(100)
+  * last_name : VARCHAR(100)
+  * role : ENUM(admin, coordinator, employee, client)
+  * status : ENUM(active, inactive, suspended)
+  * created_at : TIMESTAMP
+}
+
+entity "shifts" as shifts {
+  * id : UUID <<PK>>
+  --
+  * coordinator_id : UUID <<FK>>
+  * title : VARCHAR(200)
+  * start_datetime : TIMESTAMP
+  * end_datetime : TIMESTAMP
+  * max_capacity : INTEGER
+  * status : ENUM(scheduled, active, completed, cancelled)
+  * location : VARCHAR(200)
+  * created_at : TIMESTAMP
+}
+
+entity "reservations" as reservations {
+  * id : UUID <<PK>>
+  --
+  * shift_id : UUID <<FK>>
+  * user_id : UUID <<FK>>
+  * status : ENUM(confirmed, pending, attended, no_show, cancelled)
+  * confirmation_code : VARCHAR(10)
+  * notes : TEXT
+  * created_at : TIMESTAMP
+}
+
+entity "waiting_list" as waiting_list {
+  * id : UUID <<PK>>
+  --
+  * shift_id : UUID <<FK>>
+  * user_id : UUID <<FK>>
+  * position : INTEGER
+  * joined_at : TIMESTAMP
+  * status : ENUM(waiting, converted, expired)
+}
+
+entity "notifications" as notifications {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * type : ENUM(email, sms, push)
+  * message : TEXT
+  * status : ENUM(pending, sent, failed)
+  * sent_at : TIMESTAMP
+}
+
+entity "audit_logs" as audit_logs {
+  * id : UUID <<PK>>
+  --
+  * user_id : UUID <<FK>>
+  * entity_type : VARCHAR(50)
+  * action : VARCHAR(50)
+  * created_at : TIMESTAMP
+}
+
+' Relaciones principales
+users ||--o{ shifts
+users ||--o{ reservations
+shifts ||--o{ reservations
+shifts ||--o{ waiting_list
+users ||--o{ waiting_list
+users ||--o{ notifications
+users ||--o{ audit_logs
+
+' Índices importantes
+note top of users : "PK: id, UK: email"
+note top of shifts : "FK: coordinator_id"
+note top of reservations : "FK: shift_id, user_id"
+
+@enduml

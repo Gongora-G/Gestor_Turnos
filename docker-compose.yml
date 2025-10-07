@@ -1,0 +1,94 @@
+# 🐳 Gestor de Turnos - Docker Services
+# Solo infraestructura: PostgreSQL + pgAdmin + Redis
+# Backend y Frontend corren localmente para desarrollo rápido
+
+version: '3.8'
+
+services:
+  # 🐘 PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: gestor-turnos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gestor_turnos
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init-db:/docker-entrypoint-initdb.d
+    networks:
+      - gestor-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gestor_turnos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # 🔧 pgAdmin - Database Management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: gestor-turnos-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@gestorturnos.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5051:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - gestor-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # 🚀 Redis - Cache & Sessions (Optional)
+  redis:
+    image: redis:7-alpine
+    container_name: gestor-turnos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - gestor-network
+    command: redis-server --appendonly yes --requirepass redis123
+
+  # 🐰 RabbitMQ - Message Queue (Para microservicios futuros)
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: gestor-turnos-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq123
+    ports:
+      - "5673:5672"    # AMQP port (cambiado para evitar conflicto)
+      - "15673:15672"  # Management UI (cambiado para evitar conflicto)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - gestor-network
+
+# 📦 Volumes persistentes
+volumes:
+  postgres_data:
+    name: gestor_turnos_postgres_data
+  pgadmin_data:
+    name: gestor_turnos_pgadmin_data
+  redis_data:
+    name: gestor_turnos_redis_data
+  rabbitmq_data:
+    name: gestor_turnos_rabbitmq_data
+
+# 🌐 Network para comunicación entre servicios
+networks:
+  gestor-network:
+    name: gestor_turnos_network
+    driver: bridge

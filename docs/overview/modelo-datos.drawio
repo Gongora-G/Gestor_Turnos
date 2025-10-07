@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2025-10-02T00:00:00.000Z" agent="5.0 (Windows)" version="24.7.8">
+  <diagram id="QRRtQ7-Wv1h6Sdzh_tgt" name="Modelo ER">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="users" value="users\n- id (uuid)\n- email\n- password_hash\n- role\n- status" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="80" y="80" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="employees" value="employees\n- id (uuid)\n- full_name\n- skill_level\n- status" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="360" y="80" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="shifts" value="shifts\n- id (uuid)\n- shift_date\n- start_time\n- end_time\n- location" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="80" y="260" width="200" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="assignments" value="assignments\n- id (uuid)\n- shift_id\n- employee_id\n- assignment_status" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="360" y="260" width="220" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="events" value="events\n- id (uuid)\n- title\n- event_type\n- scheduled_at\n- coordinator_id" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="640" y="80" width="220" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="event_assignments" value="event_assignments\n- id (uuid)\n- event_id\n- employee_id\n- role" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="640" y="260" width="220" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="change_requests" value="change_requests\n- id (uuid)\n- assignment_id\n- requester_id\n- reason\n- decision" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#f4cccc;strokeColor=#cc0000;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="360" y="440" width="220" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="audit_logs" value="audit_logs\n- id (uuid)\n- actor_id\n- action\n- metadata" style="shape=rectangle;rounded=1;whiteSpace=wrap;html=1;fillColor=#c9daf8;strokeColor=#6d9eeb;fontSize=12;align=left;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_users_employees" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="users" target="employees">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="0" y="0" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="edge_employees_assignments" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="employees" target="assignments">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_shifts_assignments" style="endArrow=classic;html=1;exitX=1;exitY=0.5;exitPerimeter=1;entryX=0;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="shifts" target="assignments">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_events_event_assignments" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="events" target="event_assignments">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_event_assignments_assignments" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=1;entryY=0.5;entryPerimeter=1;" edge="1" parent="1" source="event_assignments" target="assignments">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_assignments_change_requests" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="assignments" target="change_requests">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_users_audit" style="endArrow=classic;html=1;exitX=0.5;exitY=1;exitPerimeter=1;entryX=0.5;entryY=0;entryPerimeter=1;" edge="1" parent="1" source="users" target="audit_logs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge_shifts_events" style="endArrow=classic;html=1;exitX=0.5;exitY=0;exitPerimeter=1;entryX=0.5;entryY=1;entryPerimeter=1;" edge="1" parent="1" source="shifts" target="events">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

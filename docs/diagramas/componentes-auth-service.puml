@@ -1,0 +1,29 @@
+@startuml componentes-simple
+title Gráfica 9: Componentes - Auth Service (Simplificado)
+
+package "Auth Service" {
+    [AuthController] as ctrl
+    [AuthService] as svc
+    [UsersRepository] as repo
+    [JwtGuard] as guard
+}
+
+package "External" {
+    database "PostgreSQL" as db
+    [Email Service] as email
+}
+
+ctrl --> svc
+svc --> repo
+repo --> db
+svc --> email
+
+guard ..> ctrl : protege
+
+note right of svc
+  - Validación credenciales
+  - Generación JWT
+  - Hash passwords
+end note
+
+@enduml

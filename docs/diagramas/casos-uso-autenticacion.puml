@@ -1,0 +1,28 @@
+@startuml autenticacion-simple
+title Gráfica 2: Casos de Uso - Autenticación (Simplificado)
+
+actor "Usuario" as U
+actor "Coordinador" as C
+actor "Administrador" as A
+
+package "Autenticación" {
+  usecase "Iniciar Sesión" as UC1
+  usecase "Cerrar Sesión" as UC2
+  usecase "Restablecer Contraseña" as UC3
+  usecase "Gestionar Perfiles" as UC4
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+
+C --> UC1
+C --> UC2
+C --> UC4
+
+A --> UC4
+
+UC1 ..> UC2 : <<include>>
+UC3 ..> UC1 : <<extend>>
+
+@enduml

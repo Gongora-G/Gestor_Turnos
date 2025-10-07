@@ -1,0 +1,36 @@
+@startuml arquitectura-simple
+title Gráfica 6: Arquitectura de Microservicios (Simplificado)
+
+package "Frontend" {
+  [React App] as frontend
+}
+
+package "API" {
+  [API Gateway] as gateway
+}
+
+package "Servicios" {
+  [Auth Service] as auth
+  [Scheduling Service] as scheduling
+  [Notifications Service] as notifications
+}
+
+package "Datos" {
+  database "PostgreSQL" as db
+  [RabbitMQ] as queue
+}
+
+' Conexiones principales
+frontend --> gateway
+gateway --> auth
+gateway --> scheduling
+gateway --> notifications
+
+auth --> db
+scheduling --> db
+notifications --> db
+
+scheduling --> queue
+notifications --> queue
+
+@enduml

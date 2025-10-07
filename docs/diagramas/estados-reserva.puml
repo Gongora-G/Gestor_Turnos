@@ -1,0 +1,28 @@
+@startuml estados-simple
+title Gráfica 11: Estados - Ciclo de Reserva (Simplificado)
+
+[*] --> Solicitada
+
+Solicitada --> Confirmada : Turno disponible
+Solicitada --> EnEspera : Turno lleno
+Solicitada --> Rechazada : Error validación
+
+EnEspera --> Confirmada : Lugar liberado
+EnEspera --> Cancelada : Usuario cancela
+
+Confirmada --> Atendida : Cliente se presenta
+Confirmada --> NoShow : Cliente no asiste
+Confirmada --> Cancelada : Cancelación
+
+Atendida --> [*]
+NoShow --> [*]
+Cancelada --> [*]
+Rechazada --> [*]
+
+note right of Confirmada
+  Sistema envía
+  recordatorios
+  automáticamente
+end note
+
+@enduml

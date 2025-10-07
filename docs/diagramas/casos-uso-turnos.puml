@@ -1,0 +1,27 @@
+@startuml turnos-simple
+title Gráfica 3: Casos de Uso - Gestión de Turnos (Simplificado)
+
+actor "Coordinador" as C
+actor "Cliente" as CL
+actor "Empleado" as E
+
+package "Gestión de Turnos" {
+  usecase "Crear Turno" as UC1
+  usecase "Consultar Disponibilidad" as UC2
+  usecase "Reservar Turno" as UC3
+  usecase "Confirmar Asistencia" as UC4
+  usecase "Cancelar Turno" as UC5
+}
+
+C --> UC1
+C --> UC5
+
+CL --> UC2
+CL --> UC3
+
+E --> UC4
+
+UC3 ..> UC2 : <<include>>
+UC1 ..> UC2 : <<extend>>
+
+@enduml
