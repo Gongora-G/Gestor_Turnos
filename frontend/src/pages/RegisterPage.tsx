@@ -214,9 +214,9 @@ export const RegisterPage: React.FC = () => {
           <div style={{ width: '100%', maxWidth: '400px', margin: '0 auto' }}>
             <h2 style={{
               color: 'white',
-              fontSize: '24px',
+              fontSize: '22px',
               fontWeight: '600',
-              marginBottom: '24px',
+              marginBottom: '20px',
               textAlign: 'center'
             }}>
               Crea tu cuenta
@@ -241,9 +241,9 @@ export const RegisterPage: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               {/* Nombre y Apellido */}
-              <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '14px' }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                  <label style={{ color: '#9ca3af', fontSize: '13px', marginBottom: '4px', display: 'block' }}>
                     Nombre
                   </label>
                   <div style={{ position: 'relative' }}>
