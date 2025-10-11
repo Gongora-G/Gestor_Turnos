@@ -2,7 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts';
 import { ProtectedRoute, PublicRoute } from './components';
-import { LoginPage, RegisterPage, DashboardPage } from './pages';
+import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage } from './pages';
 
 function App() {
   return (
@@ -26,6 +26,22 @@ function App() {
                   <RegisterPage />
                 </PublicRoute>
               }
+            />
+            
+            {/* Auth Callback Route */}
+            <Route
+              path="/auth/callback"
+              element={<AuthCallbackPage />}
+            />
+
+            {/* Legal Pages - Public */}
+            <Route
+              path="/terms-of-service"
+              element={<TermsOfServicePage />}
+            />
+            <Route
+              path="/privacy-policy"
+              element={<PrivacyPolicyPage />}
             />
 
             {/* Protected Routes */}

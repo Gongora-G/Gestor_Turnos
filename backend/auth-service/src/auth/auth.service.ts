@@ -139,6 +139,50 @@ export class AuthService {
     return user;
   }
 
+  async validateGoogleUser(googleUser: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    picture?: string;
+  }): Promise<{ user: User; isNewUser: boolean }> {
+    const { email, firstName, lastName, picture } = googleUser;
+    console.log('🔍 AuthService.validateGoogleUser - Input:', { email, firstName, lastName });
+
+    // Verificar si el usuario ya existe
+    let user = await this.userRepository.findOne({
+      where: { email },
+    });
+    console.log('🔍 AuthService.validateGoogleUser - Existing user:', user ? `Found: ${user.email}` : 'Not found');
+
+    let isNewUser = false;
+
+    if (!user) {
+      // Crear nuevo usuario con Google OAuth
+      user = this.userRepository.create({
+        email,
+        firstName,
+        lastName,
+        // Para usuarios OAuth, generar una contraseña aleatoria (no se usará)
+        password: await this.hashPassword(Math.random().toString(36).substring(2, 15)),
+        status: UserStatus.ACTIVE,
+        lastLoginAt: new Date(),
+      });
+
+      user = await this.userRepository.save(user);
+      isNewUser = true;
+      console.log('🔍 AuthService.validateGoogleUser - Created new user:', user.email);
+    } else {
+      // Actualizar lastLoginAt para usuario existente
+      await this.userRepository.update(user.id, { 
+        lastLoginAt: new Date() 
+      });
+      console.log('🔍 AuthService.validateGoogleUser - Updated existing user:', user.email);
+    }
+
+    console.log('🔍 AuthService.validateGoogleUser - Returning user:', { id: user.id, email: user.email, isNewUser });
+    return { user, isNewUser };
+  }
+
   private async hashPassword(password: string): Promise<string> {
     const saltRounds = 12;
     return bcrypt.hash(password, saltRounds);
@@ -146,5 +190,30 @@ export class AuthService {
 
   private async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
+  }
+
+  async generateJwtToken(user: User): Promise<AuthResponseDto> {
+    // Generar token JWT
+    const payload = { 
+      sub: user.id, 
+      email: user.email, 
+      role: user.role 
+    };
+    
+    const access_token = this.jwtService.sign(payload);
+
+    // Actualizar lastLoginAt solo si tenemos un ID válido
+    if (user.id) {
+      await this.userRepository.update({ id: user.id }, { 
+        lastLoginAt: new Date() 
+      });
+    }
+
+    return {
+      access_token,
+      user: new UserInfoDto(user),
+      expires_in: 3600, // 1 hora
+      token_type: 'Bearer',
+    };
   }
 }

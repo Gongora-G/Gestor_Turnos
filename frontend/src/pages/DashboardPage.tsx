@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts';
+import { useSearchParams } from 'react-router-dom';
 // Los componentes ahora usan CSS moderno directo
 import { formatDateTime, getInitials } from '../utils';
 import type { UserRole } from '../types';
@@ -19,6 +20,33 @@ import {
 
 export const DashboardPage: React.FC = () => {
   const { user, logout } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [successMessage, setSuccessMessage] = useState<string>('');
+
+  useEffect(() => {
+    const success = searchParams.get('success');
+    const oauthResult = searchParams.get('oauth_result');
+    const message = searchParams.get('message');
+    
+    if (success === 'true' && oauthResult) {
+      if (oauthResult === 'register') {
+        setSuccessMessage(message || '¡Registro con Google exitoso! Bienvenido a Gestor de Turnos.');
+      } else if (oauthResult === 'login') {
+        setSuccessMessage(message || '¡Inicio de sesión con Google exitoso!');
+      }
+    } else if (success === 'registered') {
+      setSuccessMessage('¡Registro completado exitosamente! Bienvenido a Gestor de Turnos.');
+    } else if (success === 'logged_in') {
+      setSuccessMessage('¡Has iniciado sesión correctamente!');
+    }
+    
+    // Limpiar los parámetros de la URL
+    if (success || oauthResult) {
+      setSearchParams({});
+      // Auto-ocultar el mensaje después de 5 segundos
+      setTimeout(() => setSuccessMessage(''), 5000);
+    }
+  }, [searchParams, setSearchParams]);
 
   if (!user) {
     return null;
@@ -94,6 +122,43 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div style={{
+          position: 'fixed',
+          top: '80px',
+          right: '20px',
+          backgroundColor: '#10b981',
+          color: 'white',
+          padding: '16px 24px',
+          borderRadius: '12px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          maxWidth: '400px',
+          animation: 'slideInRight 0.3s ease-out'
+        }}>
+          <CheckCircle size={20} />
+          <span style={{ fontSize: '14px', fontWeight: '500' }}>{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage('')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              padding: '4px',
+              borderRadius: '4px',
+              marginLeft: '8px'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">

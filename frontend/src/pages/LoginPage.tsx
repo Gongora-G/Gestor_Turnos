@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts';
-import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Info } from 'lucide-react';
 import type { LoginCredentials, ApiError } from '../types';
 
 export const LoginPage: React.FC = () => {
@@ -11,8 +11,21 @@ export const LoginPage: React.FC = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>('');
+  const [message, setMessage] = useState<string>('');
+  const [searchParams] = useSearchParams();
   const { login, loading } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Manejar mensajes de URL
+    const urlMessage = searchParams.get('message');
+    const urlEmail = searchParams.get('email');
+    
+    if (urlMessage === 'user_exists' && urlEmail) {
+      setMessage(`La cuenta ${urlEmail} ya existe. Por favor, inicia sesión con Google o usa tu contraseña.`);
+      setCredentials(prev => ({ ...prev, email: decodeURIComponent(urlEmail) }));
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,6 +101,23 @@ export const LoginPage: React.FC = () => {
           }}>
             <AlertCircle size={16} color="#f87171" />
             <span style={{ color: '#fca5a5', fontSize: '14px' }}>{error}</span>
+          </div>
+        )}
+
+        {/* Mensaje informativo */}
+        {message && (
+          <div style={{
+            backgroundColor: '#1e3a8a',
+            border: '1px solid #3b82f6',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <Info size={16} color="#60a5fa" />
+            <span style={{ color: '#93c5fd', fontSize: '14px' }}>{message}</span>
           </div>
         )}
 
@@ -242,6 +272,42 @@ export const LoginPage: React.FC = () => {
               </>
             )}
           </button>
+
+          {/* Iniciar sesión con Google */}
+          <button
+            type="button"
+            onClick={() => {
+              // Marcar contexto de login y redirigir
+              sessionStorage.setItem('oauth_context', 'login');
+              window.location.href = 'http://localhost:3002/auth/google?context=login';
+            }}
+            style={{
+              width: '100%',
+              height: '44px',
+              backgroundColor: '#2d2d3a',
+              border: '1px solid #374151',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'background-color 0.2s',
+              marginTop: '16px'
+            }}
+            onMouseEnter={(e) => {
+              (e.target as HTMLButtonElement).style.backgroundColor = '#374151';
+            }}
+            onMouseLeave={(e) => {
+              (e.target as HTMLButtonElement).style.backgroundColor = '#2d2d3a';
+            }}
+          >
+            <Mail size={16} />
+            <span>Iniciar sesión con Google</span>
+          </button>
         </form>
 
         {/* Enlaces */}
@@ -272,25 +338,37 @@ export const LoginPage: React.FC = () => {
             justifyContent: 'center',
             gap: '8px'
           }}>
-            <a 
-              href="#" 
+            <button
+              type="button"
               style={{
+                background: 'none',
+                border: 'none',
                 color: '#4c6ef5',
-                textDecoration: 'none'
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: 0,
+                font: 'inherit'
               }}
+              onClick={() => navigate('/terms-of-service')}
             >
               Términos de Servicio
-            </a>
+            </button>
             <span>•</span>
-            <a 
-              href="#" 
+            <button
+              type="button"
               style={{
+                background: 'none',
+                border: 'none',
                 color: '#4c6ef5',
-                textDecoration: 'none'
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                padding: 0,
+                font: 'inherit'
               }}
+              onClick={() => navigate('/privacy-policy')}
             >
               Política de Privacidad
-            </a>
+            </button>
           </div>
         </div>
       </div>

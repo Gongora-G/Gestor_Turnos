@@ -682,6 +682,9 @@ export const RegisterPage: React.FC = () => {
               {/* Registrarse con Google */}
               <button
                 type="button"
+                onClick={() => {
+                  window.location.href = 'http://localhost:3002/auth/google?context=register';
+                }}
                 style={{
                   width: '100%',
                   height: '36px',
@@ -736,25 +739,37 @@ export const RegisterPage: React.FC = () => {
                   lineHeight: '1.3'
                 }}>
                   Al crear una cuenta, aceptas nuestros{' '}
-                  <a 
-                    href="#" 
+                  <button
+                    type="button"
                     style={{
+                      background: 'none',
+                      border: 'none',
                       color: '#4c6ef5',
-                      textDecoration: 'none'
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      padding: 0,
+                      font: 'inherit'
                     }}
+                    onClick={() => navigate('/terms-of-service')}
                   >
-                    Términos
-                  </a>
+                    Términos de Servicio
+                  </button>
                   {' '}y{' '}
-                  <a 
-                    href="#" 
+                  <button
+                    type="button"
                     style={{
+                      background: 'none',
+                      border: 'none',
                       color: '#4c6ef5',
-                      textDecoration: 'none'
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      padding: 0,
+                      font: 'inherit'
                     }}
+                    onClick={() => navigate('/privacy-policy')}
                   >
-                    Privacidad
-                  </a>
+                    Política de Privacidad
+                  </button>
                 </div>
               </div>
             </form>
