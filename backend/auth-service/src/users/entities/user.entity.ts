@@ -4,14 +4,16 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
+import { Club } from './club.entity';
 
 export enum UserRole {
-  ADMIN = 'admin',
-  COORDINATOR = 'coordinator',
-  EMPLOYEE = 'employee',
-  CLIENT = 'client',
+  SUPER_ADMIN = 'super_admin',
+  CADDIE_MASTER = 'caddie_master',
+  PROFESOR = 'profesor',
 }
 
 export enum UserStatus {
@@ -41,7 +43,7 @@ export class User {
   @Column({
     type: 'enum',
     enum: UserRole,
-    default: UserRole.CLIENT,
+    default: UserRole.CADDIE_MASTER,
   })
   role: UserRole;
 
@@ -58,6 +60,13 @@ export class User {
   @Column({ nullable: true })
   avatar?: string;
 
+  @Column({ nullable: true })
+  clubId?: string;
+
+  @ManyToOne(() => Club, (club) => club.users)
+  @JoinColumn({ name: 'clubId' })
+  club?: Club;
+
   @Column({ type: 'timestamp', nullable: true })
   lastLoginAt?: Date;
 
@@ -72,9 +81,19 @@ export class User {
     return `${this.firstName} ${this.lastName}`;
   }
 
-  // Método helper para verificar si es admin
-  get isAdmin(): boolean {
-    return this.role === UserRole.ADMIN;
+  // Método helper para verificar si es super admin
+  get isSuperAdmin(): boolean {
+    return this.role === UserRole.SUPER_ADMIN;
+  }
+
+  // Método helper para verificar si es caddie master
+  get isCaddieMaster(): boolean {
+    return this.role === UserRole.CADDIE_MASTER;
+  }
+
+  // Método helper para verificar si es profesor
+  get isProfesor(): boolean {
+    return this.role === UserRole.PROFESOR;
   }
 
   // Método helper para verificar si está activo

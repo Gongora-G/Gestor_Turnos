@@ -1,41 +1,93 @@
 import React from 'react';
 
 interface LoadingSpinnerProps {
-  size?: 'sm' | 'md' | 'lg';
+  size?: number;
+  color?: string;
+  thickness?: number;
+}
+
+export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({ 
+  size = 20, 
+  color = '#3b82f6',
+  thickness = 2 
+}) => {
+  const spinnerStyle: React.CSSProperties = {
+    width: `${size}px`,
+    height: `${size}px`,
+    border: `${thickness}px solid transparent`,
+    borderTop: `${thickness}px solid ${color}`,
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+  };
+
+  // Inyectar keyframes si no existen
+  React.useEffect(() => {
+    if (!document.getElementById('spinner-keyframes')) {
+      const style = document.createElement('style');
+      style.id = 'spinner-keyframes';
+      style.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
+  return <div style={spinnerStyle} />;
+};
+
+interface LoadingButtonProps {
+  loading?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
+  style?: React.CSSProperties;
   className?: string;
 }
 
-export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
-  size = 'md',
+export const LoadingButton: React.FC<LoadingButtonProps> = ({
+  loading = false,
+  children,
+  onClick,
+  disabled = false,
+  type = 'button',
+  style,
   className,
 }) => {
-  const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-6 h-6',
-    lg: 'w-8 h-8',
+  const buttonStyle: React.CSSProperties = {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    padding: '12px 24px',
+    backgroundColor: '#3b82f6',
+    color: 'white',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: loading || disabled ? 'not-allowed' : 'pointer',
+    opacity: loading || disabled ? 0.7 : 1,
+    transition: 'all 0.2s ease',
+    ...style,
   };
 
   return (
-    <div className={`animate-spin ${sizeClasses[size]} ${className}`}>
-      <svg
-        fill="none"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          d="m15 12a3 3 0 11-6 0 3 3 0 016 0z"
-          fill="currentColor"
-        />
-      </svg>
-    </div>
+    <button
+      type={type}
+      onClick={onClick}
+      disabled={loading || disabled}
+      style={buttonStyle}
+      className={className}
+    >
+      {loading && <LoadingSpinner size={16} color="white" />}
+      <span style={{ opacity: loading ? 0.7 : 1 }}>
+        {loading ? 'Procesando...' : children}
+      </span>
+    </button>
   );
 };

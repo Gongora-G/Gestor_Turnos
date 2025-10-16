@@ -1,10 +1,11 @@
 import { Injectable, ConflictException, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
-import { User, UserStatus } from '../users/entities/user.entity';
+import { User, UserStatus, UserRole } from '../users/entities/user.entity';
+import { Club, ClubStatus } from '../users/entities/club.entity';
 import { RegisterDto, LoginDto, AuthResponseDto, UserInfoDto } from './dto';
 
 @Injectable()
@@ -12,11 +13,28 @@ export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Club)
+    private readonly clubRepository: Repository<Club>,
     private readonly jwtService: JwtService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async register(registerDto: RegisterDto): Promise<AuthResponseDto> {
-    const { email, password, firstName, lastName, phone } = registerDto;
+    const { 
+      email, 
+      password, 
+      firstName, 
+      lastName, 
+      phone, 
+      role,
+      clubName,
+      clubAddress,
+      clubCity,
+      clubCountry,
+      totalCourts,
+      clubContactEmail,
+      clubContactPhone
+    } = registerDto;
 
     // Verificar si el usuario ya existe
     const existingUser = await this.userRepository.findOne({
@@ -27,42 +45,71 @@ export class AuthService {
       throw new ConflictException('Este correo electrónico ya está registrado con otra cuenta. Por favor, usa un email diferente o inicia sesión.');
     }
 
-    // Hashear la contraseña
-    const hashedPassword = await this.hashPassword(password);
-
-    // Crear nuevo usuario
-    const user = this.userRepository.create({
-      email,
-      password: hashedPassword,
-      firstName,
-      lastName,
-      phone,
-      status: UserStatus.ACTIVE,
+    // Verificar si el club ya existe
+    const existingClub = await this.clubRepository.findOne({
+      where: { name: clubName },
     });
 
-    // Guardar usuario
-    const savedUser = await this.userRepository.save(user);
+    if (existingClub) {
+      throw new ConflictException('Ya existe un club registrado con este nombre. Por favor, contacta soporte si este es tu club.');
+    }
 
-    // Generar token JWT
-    const payload = { 
-      sub: savedUser.id, 
-      email: savedUser.email, 
-      role: savedUser.role 
-    };
-    
-    const access_token = this.jwtService.sign(payload);
+    // Usar transacción para crear club y usuario
+    return await this.dataSource.transaction(async manager => {
+      // Crear nuevo club
+      const club = manager.create(Club, {
+        name: clubName,
+        address: clubAddress,
+        city: clubCity,
+        country: clubCountry,
+        totalCourts,
+        contactEmail: clubContactEmail,
+        contactPhone: clubContactPhone,
+        status: ClubStatus.ACTIVE,
+        monthlyFee: 0, // Gratis por ahora
+      });
 
-    // Actualizar lastLoginAt
-    await this.userRepository.update(savedUser.id, { 
-      lastLoginAt: new Date() 
+      const savedClub = await manager.save(club);
+
+      // Hashear la contraseña
+      const hashedPassword = await this.hashPassword(password);
+
+      // Crear nuevo usuario
+      const user = manager.create(User, {
+        email,
+        password: hashedPassword,
+        firstName,
+        lastName,
+        phone,
+        role: role || UserRole.CADDIE_MASTER, // Default role
+        clubId: savedClub.id,
+        status: UserStatus.ACTIVE,
+      });
+
+      // Guardar usuario
+      const savedUser = await manager.save(user);
+
+      // Generar token JWT
+      const payload = { 
+        sub: savedUser.id, 
+        email: savedUser.email, 
+        role: savedUser.role 
+      };
+      
+      const access_token = this.jwtService.sign(payload);
+
+      // Actualizar lastLoginAt
+      await manager.update(User, savedUser.id, { 
+        lastLoginAt: new Date() 
+      });
+
+      return {
+        access_token,
+        user: new UserInfoDto(savedUser),
+        expires_in: 3600, // 1 hora
+        token_type: 'Bearer',
+      };
     });
-
-    return {
-      access_token,
-      user: new UserInfoDto(savedUser),
-      expires_in: 3600, // 1 hora
-      token_type: 'Bearer',
-    };
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -215,5 +262,64 @@ export class AuthService {
       expires_in: 3600, // 1 hora
       token_type: 'Bearer',
     };
+  }
+
+  // Métodos auxiliares para Google OAuth
+  async exchangeCodeForToken(code: string): Promise<any> {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = 'http://localhost:3002/auth/google/callback';
+
+    const tokenUrl = 'https://oauth2.googleapis.com/token';
+    
+    const params = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+    });
+
+    const response = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to exchange code for token: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async getGoogleUserInfo(accessToken: string): Promise<any> {
+    const userInfoUrl = `https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`;
+    
+    const response = await fetch(userInfoUrl);
+
+    if (!response.ok) {
+      throw new Error(`Failed to get user info: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userRepository.findOne({
+      where: { email },
+      relations: ['club'],
+    });
+  }
+
+  async generateTokenForUser(user: User): Promise<AuthResponseDto> {
+    // Actualizar lastLoginAt
+    await this.userRepository.update({ id: user.id }, { 
+      lastLoginAt: new Date() 
+    });
+
+    return this.generateJwtToken(user);
   }
 }

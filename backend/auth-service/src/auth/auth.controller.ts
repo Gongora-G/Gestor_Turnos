@@ -29,6 +29,7 @@ export class AuthController {
   async register(
     @Body(ValidationPipe) registerDto: RegisterDto
   ): Promise<AuthResponseDto> {
+    console.log('📥 Datos recibidos en el backend:', registerDto);
     return this.authService.register(registerDto);
   }
 
@@ -92,19 +93,63 @@ export class AuthController {
     
     const context = state || 'login';
     const isRegister = context === 'register';
-    
-    console.log('Final context:', context, 'Is Register:', isRegister);
-    
-    // Aquí implementarías la lógica de OAuth
-    // Redirigir según el contexto
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
     
-    if (isRegister) {
-      // Para registro: ir al dashboard con mensaje de éxito
-      return res.redirect(`${frontendUrl}/dashboard?oauth_result=register&success=true&message=¡Registro exitoso! Bienvenido`);
-    } else {
-      // Para login: ir al dashboard con mensaje de bienvenida
-      return res.redirect(`${frontendUrl}/dashboard?oauth_result=login&success=true&message=¡Inicio de sesión exitoso!`);
+    try {
+      if (!code) {
+        throw new Error('No authorization code received');
+      }
+
+      // Obtener token de acceso de Google
+      const tokenResponse = await this.authService.exchangeCodeForToken(code);
+      
+      // Obtener información del usuario desde Google
+      const googleUser = await this.authService.getGoogleUserInfo(tokenResponse.access_token);
+      
+      console.log('Google user info:', googleUser);
+
+      if (isRegister) {
+        // Para registro híbrido: verificar si el usuario ya existe
+        const existingUser = await this.authService.findUserByEmail(googleUser.email);
+        
+        if (existingUser) {
+          // Si el usuario ya existe, redirigir al login con mensaje
+          return res.redirect(`${frontendUrl}/login?error=user_exists&message=${encodeURIComponent('Esta cuenta ya está registrada. Inicia sesión en su lugar.')}`);
+        }
+        
+        // Redirigir al formulario de registro con datos pre-llenados
+        const redirectUrl = `${frontendUrl}/register?` +
+          `google_email=${encodeURIComponent(googleUser.email)}&` +
+          `google_firstName=${encodeURIComponent(googleUser.given_name || '')}&` +
+          `google_lastName=${encodeURIComponent(googleUser.family_name || '')}`;
+        
+        return res.redirect(redirectUrl);
+      } else {
+        // Para login: verificar si el usuario existe y autenticarlo
+        const existingUser = await this.authService.findUserByEmail(googleUser.email);
+        
+        if (!existingUser) {
+          // Si el usuario no existe, redirigir al registro
+          return res.redirect(`${frontendUrl}/register?error=user_not_found&message=${encodeURIComponent('No tienes una cuenta. Regístrate primero.')}`);
+        }
+        
+        // Generar JWT token para el usuario existente
+        const authResult = await this.authService.generateTokenForUser(existingUser);
+        
+        // Redirigir al dashboard con token
+        return res.redirect(`${frontendUrl}/dashboard?token=${authResult.access_token}&message=${encodeURIComponent('¡Inicio de sesión exitoso!')}`);
+      }
+    } catch (error) {
+      console.error('Google OAuth callback error:', error);
+      
+      // Redirigir al frontend con error
+      const errorMessage = encodeURIComponent('Error en la autenticación con Google. Intenta de nuevo.');
+      
+      if (isRegister) {
+        return res.redirect(`${frontendUrl}/register?error=oauth_error&message=${errorMessage}`);
+      } else {
+        return res.redirect(`${frontendUrl}/login?error=oauth_error&message=${errorMessage}`);
+      }
     }
   }
 }

@@ -1,14 +1,33 @@
-# 🎯 Gestor de Turnos – Sistema Full-Stack Universitario
+# 🎾 CaddieFlow - Sistema de Gestión de Turnos para Clubs de Tenis
 
-Sistema completo de gestión de turnos desarrollado con **NestJS** y **React**, integrando tres materias universitarias: **IHC**, **IS** y **SD**.
+Sistema especializado para la **gestión automática de caddies y boleadores** en clubs de tenis, eliminando la manipulación manual de turnos y asegurando transparencia total. Desarrollado con arquitectura de microservicios usando **NestJS** y **React**.
 
-## 🎓 **Contexto Académico**
+## 🎯 **Problemática Real Solucionada**
 
-Este proyecto integra conocimientos de tres asignaturas:
+### **🏆 Club Puerto Peñaliza - Sede Tenis (Caso Real)**
+- **30 Caddies + 8 Boleadores** distribuidos en **2 jornadas (A y B)**
+- **12 canchas de tenis** disponibles
+- **Rotación diaria**: Jornada A (mañana→tarde), Jornada B (tarde→mañana)
+- **Problema crítico**: Caddies mienten sobre turnos realizados para mejorar su posición
 
-- **🎨 IHC (Interacción Humano-Computador)**: Diseño UX/UI, usabilidad, accesibilidad
-- **⚙️ IS (Ingeniería de Software)**: Arquitectura, metodologías ágiles, testing 
-- **🌐 SD (Sistemas Distribuidos)**: Microservicios, escalabilidad, comunicación asíncrona
+### **💡 Solución Tecnológica**
+**Registro automático con timestamp** → **Algoritmo transparente** → **Orden justo basado en datos reales**
+
+**Flujo Operacional:**
+1. **Caddie Master** registra llegadas con timestamp automático
+2. **Sistema** calcula orden basado en: puntualidad + turnos previos + reglas del club
+3. **Algoritmo** elimina manipulación humana del proceso
+4. **Reportes** automáticos para transparencia total
+
+### **👥 Usuarios del Sistema**
+- 👨‍💼 **Caddie Master**: Control total, registro llegadas, asignación tareas
+- 👨‍🏫 **Profesor de Tenis**: Backup del Caddie Master, supervisión  
+- 🎾 **Caddies/Boleadores**: Solo consulta orden y estadísticas (sin auto-registro)
+
+### **🎓 Proyecto Académico Integrado**
+- **🎨 IHC**: UX optimizado para uso diario en clubes deportivos
+- **⚙️ IS**: Arquitectura escalable multi-club con metodologías ágiles  
+- **🌐 SD**: Event-driven architecture con middleware y brokers de mensajería
 
 ## Stack tecnológico propuesto
 
@@ -22,22 +41,24 @@ Este proyecto integra conocimientos de tres asignaturas:
 | Contenedores | Docker + Docker Compose (futuro Kubernetes) | Empaquetado reproducible, despliegue consistente en cualquier entorno. |
 | CI/CD | GitHub Actions (o GitLab CI) | Automatización de pruebas, análisis estático y despliegue continuo. |
 
-## Estructura del repositorio
+## 🏗️ **Arquitectura del Sistema**
 
 ```
-Gestor-Turnos
+CaddieFlow/
 ├─ README.md
-├─ docs
-│  ├─ overview
-│  ├─ gestion-proyectos
-│  ├─ calidad
-│  └─ sistemas-distribuidos
-├─ services
-│  ├─ auth-service
-│  ├─ scheduling-service
-│  ├─ events-service
-│  ├─ notifications-service
-│  └─ reporting-service
+├─ docs/                        # 📚 Documentación académica completa
+│  ├─ overview/                 # Visión general y setup
+│  ├─ gestion-proyectos/        # Metodología y planificación
+│  ├─ calidad/                  # Testing y QA
+│  └─ sistemas-distribuidos/    # Arquitectura de microservicios
+├─ backend/
+│  └─ auth-service/ ✅          # Autenticación y roles
+├─ services/ (Por implementar)
+│  ├─ caddie-service/ 🔄        # Gestión caddies/boleadores/jornadas
+│  ├─ shift-service/ 📅         # Algoritmo turnos y prioridades
+│  ├─ reporting-service/ 📅     # Reportes diarios/semanales
+│  ├─ notifications-service/ 📅 # Alertas tiempo real
+│  └─ club-service/ 📅          # Multi-club configuration
 ├─ frontend
 └─ infrastructure
 ```

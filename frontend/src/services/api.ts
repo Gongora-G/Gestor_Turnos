@@ -6,8 +6,11 @@ class ApiService {
   private api: AxiosInstance;
 
   constructor() {
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3002';
+    console.log('🔧 API Service configurado con baseURL:', baseURL);
+    
     this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3002',
+      baseURL,
       timeout: 10000,
       headers: {
         'Content-Type': 'application/json',
@@ -21,6 +24,9 @@ class ApiService {
     // Request interceptor - Add auth token
     this.api.interceptors.request.use(
       (config) => {
+        console.log('📤 Enviando petición a:', config.method?.toUpperCase(), config.baseURL + config.url);
+        console.log('📤 Datos de la petición:', config.data);
+        
         const token = localStorage.getItem('auth_token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
@@ -28,6 +34,7 @@ class ApiService {
         return config;
       },
       (error) => {
+        console.error('❌ Error en request interceptor:', error);
         return Promise.reject(error);
       }
     );
@@ -35,9 +42,16 @@ class ApiService {
     // Response interceptor - Handle errors
     this.api.interceptors.response.use(
       (response) => {
+        console.log('✅ Respuesta recibida:', response.status, response.statusText);
+        console.log('📥 Datos de respuesta:', response.data);
         return response;
       },
       (error) => {
+        console.error('❌ Error en response interceptor:', error);
+        console.error('❌ Error response:', error.response);
+        console.error('❌ Error request:', error.request);
+        console.error('❌ Error message:', error.message);
+        
         if (error.response?.status === 401) {
           // Token expired or invalid
           localStorage.removeItem('auth_token');
@@ -46,7 +60,7 @@ class ApiService {
         }
 
         const apiError: ApiError = {
-          message: error.response?.data?.message || 'Ocurrió un error inesperado',
+          message: error.response?.data?.message || error.message || 'Ocurrió un error inesperado',
           statusCode: error.response?.status || 500,
           error: error.response?.data?.error || 'Internal Server Error',
         };

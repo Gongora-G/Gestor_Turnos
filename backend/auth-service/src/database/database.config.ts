@@ -1,6 +1,7 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../users/entities/user.entity';
+import { Club } from '../users/entities/club.entity';
 
 export const databaseConfig = (
   configService: ConfigService,
@@ -11,7 +12,7 @@ export const databaseConfig = (
   username: configService.get<string>('DATABASE_USERNAME'),
   password: configService.get<string>('DATABASE_PASSWORD'),
   database: configService.get<string>('DATABASE_NAME'),
-  entities: [User],
+  entities: [User, Club],
   synchronize: configService.get<string>('NODE_ENV') === 'development', // Solo en desarrollo
   logging: configService.get<string>('NODE_ENV') === 'development',
   migrations: ['dist/database/migrations/*.js'],

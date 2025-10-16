@@ -11,6 +11,15 @@ export const RegisterPage: React.FC = () => {
     firstName: '',
     lastName: '',
     phone: '',
+    role: 'caddie_master',
+    // Datos del Club
+    clubName: '',
+    clubAddress: '',
+    clubCity: '',
+    clubCountry: 'Colombia',
+    totalCourts: 1,
+    clubContactEmail: '',
+    clubContactPhone: '',
   });
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,7 +103,7 @@ export const RegisterPage: React.FC = () => {
               fontSize: '28px',
               fontWeight: 'bold'
             }}>
-              📅
+              🎾
             </div>
             
             <h1 style={{
@@ -103,8 +112,8 @@ export const RegisterPage: React.FC = () => {
               marginBottom: '16px',
               lineHeight: '1.2'
             }}>
-              Gestión de Turnos<br />
-              Inteligente
+              🎾 CaddieFlow<br />
+              Sistema de Gestión
             </h1>
             
             <p style={{
@@ -113,9 +122,8 @@ export const RegisterPage: React.FC = () => {
               marginBottom: '40px',
               lineHeight: '1.5'
             }}>
-              Únete a nuestra plataforma y organiza tus citas de manera
-              eficiente. Controla horarios, clientes y servicios desde
-              un solo lugar.
+              Registro exclusivo para <strong>Caddie Masters</strong> y <strong>Profesores</strong>.
+              Gestiona caddies, turnos y estadísticas de tu club de tenis.
             </p>
 
             {/* Ilustración de gestión de turnos */}
@@ -354,6 +362,263 @@ export const RegisterPage: React.FC = () => {
                       border: 'none',
                       borderRadius: '8px',
                       paddingLeft: '40px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Rol */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                  Tu Rol *
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  required
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    backgroundColor: '#2d2d3a',
+                    border: 'none',
+                    borderRadius: '8px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
+                    color: 'white',
+                    fontSize: '15px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <option value="caddie_master">Caddie Master</option>
+                  <option value="profesor">Profesor de Tenis</option>
+                </select>
+              </div>
+
+              {/* Separador */}
+              <div style={{ 
+                margin: '24px 0', 
+                padding: '16px 0', 
+                borderTop: '1px solid #374151',
+                borderBottom: '1px solid #374151' 
+              }}>
+                <h3 style={{ 
+                  color: '#f3f4f6', 
+                  fontSize: '16px', 
+                  fontWeight: '600', 
+                  margin: '0',
+                  textAlign: 'center'
+                }}>
+                  📍 Información del Club
+                </h3>
+                <p style={{ 
+                  color: '#9ca3af', 
+                  fontSize: '13px', 
+                  margin: '8px 0 0 0',
+                  textAlign: 'center'
+                }}>
+                  Registra tu club para empezar a usar CaddieFlow
+                </p>
+              </div>
+
+              {/* Nombre del Club */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                  Nombre del Club *
+                </label>
+                <input
+                  type="text"
+                  name="clubName"
+                  value={formData.clubName}
+                  onChange={handleChange}
+                  placeholder="Ej: Club Puerto Peñaliza - Sede Tenis"
+                  required
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    backgroundColor: '#2d2d3a',
+                    border: 'none',
+                    borderRadius: '8px',
+                    paddingLeft: '16px',
+                    paddingRight: '16px',
+                    color: 'white',
+                    fontSize: '15px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Dirección y Ciudad */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ flex: 2 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    Dirección *
+                  </label>
+                  <input
+                    type="text"
+                    name="clubAddress"
+                    value={formData.clubAddress}
+                    onChange={handleChange}
+                    placeholder="Calle 123 #45-67"
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    Ciudad *
+                  </label>
+                  <input
+                    type="text"
+                    name="clubCity"
+                    value={formData.clubCity}
+                    onChange={handleChange}
+                    placeholder="Medellín"
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* País y Canchas */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    País *
+                  </label>
+                  <select
+                    name="clubCountry"
+                    value={formData.clubCountry}
+                    onChange={handleChange}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <option value="Colombia">Colombia</option>
+                    <option value="México">México</option>
+                    <option value="Argentina">Argentina</option>
+                    <option value="Chile">Chile</option>
+                    <option value="Perú">Perú</option>
+                    <option value="Ecuador">Ecuador</option>
+                  </select>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    Nº Canchas *
+                  </label>
+                  <input
+                    type="number"
+                    name="totalCourts"
+                    value={formData.totalCourts}
+                    onChange={handleChange}
+                    min="1"
+                    max="50"
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Email y Teléfono del Club */}
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    Email del Club *
+                  </label>
+                  <input
+                    type="email"
+                    name="clubContactEmail"
+                    value={formData.clubContactEmail}
+                    onChange={handleChange}
+                    placeholder="info@miclub.com"
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
+                      paddingRight: '16px',
+                      color: 'white',
+                      fontSize: '15px',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '6px', display: 'block' }}>
+                    Teléfono del Club *
+                  </label>
+                  <input
+                    type="tel"
+                    name="clubContactPhone"
+                    value={formData.clubContactPhone}
+                    onChange={handleChange}
+                    placeholder="+57 4 123-4567"
+                    required
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: '#2d2d3a',
+                      border: 'none',
+                      borderRadius: '8px',
+                      paddingLeft: '16px',
                       paddingRight: '16px',
                       color: 'white',
                       fontSize: '15px',

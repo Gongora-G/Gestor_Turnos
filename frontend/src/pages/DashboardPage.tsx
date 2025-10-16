@@ -70,11 +70,13 @@ export const DashboardPage: React.FC = () => {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center shadow-medium">
-                <span className="text-white text-lg font-bold">GT</span>
+                <span className="text-white text-lg">🎾</span>
               </div>
               <div>
-                <h1 className="text-xl font-bold text-neutral-900">Gestor de Turnos</h1>
-                <p className="text-xs text-neutral-500">Sistema de gestión</p>
+                <h1 className="text-xl font-bold text-neutral-900">CaddieFlow</h1>
+                <p className="text-xs text-neutral-500">
+                  {user?.role === 'caddie_master' ? 'Panel Caddie Master' : 'Panel Profesor'}
+                </p>
               </div>
             </div>
             
@@ -185,15 +187,15 @@ export const DashboardPage: React.FC = () => {
           <div className="modern-stats-card" style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', borderLeftColor: 'var(--color-primary)' }}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium" style={{ color: '#1d4ed8' }}>Turnos Hoy</p>
-                <p className="text-2xl font-bold" style={{ color: '#1e3a8a' }}>12</p>
+                <p className="text-sm font-medium" style={{ color: '#1d4ed8' }}>Caddies Registrados</p>
+                <p className="text-2xl font-bold" style={{ color: '#1e3a8a' }}>18/30</p>
                 <p className="text-xs flex items-center mt-1" style={{ color: '#3730a3' }}>
                   <TrendingUp className="h-3 w-3 mr-1" />
-                  +15% vs ayer
+                  83% puntualidad
                 </p>
               </div>
               <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)' }}>
-                <Calendar className="h-6 w-6 text-white" />
+                <Users className="h-6 w-6 text-white" />
               </div>
             </div>
           </div>

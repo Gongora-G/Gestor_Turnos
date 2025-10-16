@@ -7,11 +7,12 @@ export interface User {
   status: UserStatus;
   phone?: string;
   avatar?: string;
+  clubId?: string;
   lastLoginAt?: Date;
   createdAt: Date;
 }
 
-export type UserRole = 'admin' | 'coordinator' | 'employee' | 'client';
+export type UserRole = 'super_admin' | 'caddie_master' | 'profesor';
 
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 
@@ -33,6 +34,15 @@ export interface RegisterData {
   firstName: string;
   lastName: string;
   phone?: string;
+  role: UserRole;
+  // Datos del Club
+  clubName: string;
+  clubAddress: string;
+  clubCity: string;
+  clubCountry: string;
+  totalCourts: number;
+  clubContactEmail: string;
+  clubContactPhone: string;
 }
 
 export interface AuthContextType {
