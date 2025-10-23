@@ -16,33 +16,37 @@ export class TurnosService {
 
   async create(createTurnoDto: CreateTurnoDto, clubId: string): Promise<Turno> {
     // Generar nombre automático secuencial para el día
-    const nombreAutomatico = await this.generarNombreSecuencial(createTurnoDto.fecha, clubId);
+    const { nombreAutomatico, numeroTurnoDia } = await this.generarNombreSecuencial(createTurnoDto.fecha, clubId);
     
     const turno = this.turnosRepository.create({
       ...createTurnoDto,
       nombre: nombreAutomatico,
+      numero_turno_dia: numeroTurnoDia,
       club_id: clubId,
     });
 
     return await this.turnosRepository.save(turno);
   }
 
-  private async generarNombreSecuencial(fecha: string, clubId: string): Promise<string> {
+  private async generarNombreSecuencial(fecha: string, clubId: string): Promise<{nombreAutomatico: string, numeroTurnoDia: number}> {
     // Extraer solo la fecha (YYYY-MM-DD)
     const fechaSolo = fecha.split('T')[0];
     
-    // Contar turnos existentes para la fecha específica
-    const count = await this.turnosRepository.count({
-      where: {
-        fecha: fechaSolo,
-        club_id: clubId,
-      },
-    });
+    // Usar MAX para obtener el número más alto del día y evitar problemas de concurrencia
+    const resultado = await this.turnosRepository
+      .createQueryBuilder('turno')
+      .select('MAX(turno.numero_turno_dia)', 'maxNumero')
+      .where('turno.fecha = :fecha AND turno.club_id = :clubId', { fecha: fechaSolo, clubId })
+      .getRawOne();
 
-    // Generar número secuencial (empezando desde 001)
-    const numeroSecuencial = (count + 1).toString().padStart(3, '0');
+    // Generar número secuencial (empezando desde 1)
+    const numeroTurnoDia = (resultado?.maxNumero || 0) + 1;
+    const numeroSecuencial = numeroTurnoDia.toString().padStart(3, '0');
     
-    return `Turno - ${numeroSecuencial}`;
+    return {
+      nombreAutomatico: `Turno - ${numeroSecuencial}`,
+      numeroTurnoDia: numeroTurnoDia
+    };
   }
 
   async findAll(filtros: FiltrosTurnosDto, clubId: string): Promise<any[]> {

@@ -190,6 +190,16 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
   };
 
   const getTurnoDisplayName = (turno: Turno) => {
+    // Usar el nombre del turno si existe, sino generar uno basado en el número del día
+    if (turno.nombre) {
+      return turno.nombre;
+    }
+    // Fallback para turnos sin nombre
+    if (turno.numero_turno_dia) {
+      const numeroSecuencial = turno.numero_turno_dia.toString().padStart(3, '0');
+      return `Turno - ${numeroSecuencial}`;
+    }
+    // Último recurso usando ID
     if (!turno.id) return 'Turno Sin ID';
     const numeroTurno = turno.id.slice(-3).toUpperCase();
     return `Turno #${numeroTurno}`;

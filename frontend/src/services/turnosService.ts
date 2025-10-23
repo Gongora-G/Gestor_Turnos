@@ -3,8 +3,8 @@ import { apiService } from './api';
 // Re-exportamos la interfaz Turno para que esté disponible para los componentes
 export interface Turno {
   id: string;
-  nombre: string;
-  numero_turno_dia: number;
+  nombre?: string;
+  numero_turno_dia?: number;
   fecha: string;
   hora_inicio: string;
   hora_fin: string;
