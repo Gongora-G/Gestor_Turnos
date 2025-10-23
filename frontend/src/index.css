@@ -39,7 +39,7 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
   background: #0f0f23;
   min-height: 100vh;
-  color: #1f2937;
+  color: #f9fafb;
   margin: 0;
   padding: 0;
   overflow: auto;
@@ -158,3 +158,26 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
 }
+
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.shrink-animation {
+  animation: shrink linear;
+}
+
+/* Estilos para opciones de select */
+select option {
+  background-color: #111827 !important;
+  color: #f9fafb !important;
+  padding: 8px 12px !important;
+}
+
+select option:checked {
+  background-color: #3b82f6 !important;
+  color: #ffffff !important;
+}
+
+

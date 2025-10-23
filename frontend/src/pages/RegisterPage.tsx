@@ -554,7 +554,7 @@ export const RegisterPage: React.FC = () => {
                     value={formData.totalCourts}
                     onChange={handleChange}
                     min="1"
-                    max="50"
+                    max="999"
                     required
                     style={{
                       width: '100%',

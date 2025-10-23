@@ -6,6 +6,9 @@ import { AppService } from './app.service';
 import { databaseConfig } from './database/database.config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ConfiguracionModule } from './configuracion/configuracion.module';
+import { TurnosModule } from './turnos/turnos.module';
+import { SociosModule } from './socios/socios.module';
 
 @Module({
   imports: [
@@ -20,10 +23,16 @@ import { UsersModule } from './users/users.module';
         databaseConfig(configService),
       inject: [ConfigService],
     }),
-    // � Users module
+    // 👥 Users module
     UsersModule,
-    // �🔐 Authentication module
+    // 🔐 Authentication module
     AuthModule,
+    // ⚙️ Configuration module
+    ConfiguracionModule,
+    // 📅 Turnos module
+    TurnosModule,
+    // 👤 Socios module
+    SociosModule,
   ],
   controllers: [AppController],
   providers: [AppService],

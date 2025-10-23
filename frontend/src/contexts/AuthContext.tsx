@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AuthContextType, User, LoginCredentials, RegisterData } from '../types';
-import { authService } from '../services';
+import { authService } from '../services/auth';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -18,23 +18,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const initializeAuth = async () => {
-    const storedToken = authService.getStoredToken();
-    const storedUser = authService.getStoredUser();
+    setLoading(true);
+    
+    // Intentar desde localStorage primero
+    let storedToken = localStorage.getItem('auth_token');
+    let storedUserStr = localStorage.getItem('auth_user');
+    
+    // Si no hay en localStorage, intentar desde sessionStorage
+    if (!storedToken) {
+      storedToken = sessionStorage.getItem('auth_token');
+      storedUserStr = sessionStorage.getItem('auth_user');
+    }
+    
+    let storedUser = null;
+    if (storedUserStr) {
+      try {
+        storedUser = JSON.parse(storedUserStr);
+      } catch (error) {
+        console.error('Error parseando usuario:', error);
+        // Limpiar datos corruptos
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_user');
+      }
+    }
 
     if (storedToken && storedUser) {
+      // Verificar si el token es válido haciendo una petición de validación
       try {
-        // Validate token with server
-        const validation = await authService.validateToken();
-        if (validation.valid) {
-          setToken(storedToken);
-          setUser(validation.user);
-        } else {
-          // Invalid token, clear storage
-          authService.logout();
-        }
+        console.log('🔍 Validando token almacenado...');
+        await authService.validateToken();
+        console.log('✅ Token válido');
+        setToken(storedToken);
+        setUser(storedUser);
       } catch (error) {
-        console.error('Token validation failed:', error);
-        authService.logout();
+        console.log('❌ Token inválido, limpiando autenticación');
+        // Token inválido, limpiar todo
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('auth_user');
+        setToken(null);
+        setUser(null);
       }
     }
 
@@ -44,8 +70,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginCredentials): Promise<void> => {
     setLoading(true);
     try {
-      // Bypass para desarrollo - usuario demo
+      // Intentar login real con el backend SIEMPRE
+      console.log('🎯 Intentando login con backend:', credentials.email);
+      const response = await authService.login(credentials);
+      console.log('✅ Login exitoso con backend:', response);
+      
+      setToken(response.access_token);
+      setUser(response.user);
+      
+    } catch (error) {
+      console.error('❌ Error en login con backend:', error);
+      
+      // Solo como fallback para demo si el backend falla
       if (credentials.email === 'demo@gestor.com' && credentials.password === 'password123') {
+        console.log('⚠️ Usando fallback demo debido a error del backend');
+        
         const demoUser: User = {
           id: '1',
           firstName: 'Demo',
@@ -57,25 +96,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
         const demoToken = 'demo-token-12345';
         
-        // Simular delay de red
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Guardar en localStorage Y sessionStorage como respaldo
+        localStorage.setItem('auth_token', demoToken);
+        localStorage.setItem('auth_user', JSON.stringify(demoUser));
+        sessionStorage.setItem('auth_token', demoToken);
+        sessionStorage.setItem('auth_user', JSON.stringify(demoUser));
         
         setToken(demoToken);
         setUser(demoUser);
-        
-        // Guardar en localStorage
-        localStorage.setItem('auth_token', demoToken);
-        localStorage.setItem('auth_user', JSON.stringify(demoUser));
-        
-        return;
+      } else {
+        throw error;
       }
-      
-      // Intentar login real con el backend
-      const response = await authService.login(credentials);
-      setToken(response.access_token);
-      setUser(response.user);
-    } catch (error) {
-      throw error;
     } finally {
       setLoading(false);
     }
@@ -96,6 +127,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = (): void => {
     authService.logout();
+    // También limpiar sessionStorage
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('auth_user');
     setToken(null);
     setUser(null);
   };

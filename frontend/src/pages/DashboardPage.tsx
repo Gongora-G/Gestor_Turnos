@@ -1,427 +1,261 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts';
 import { useSearchParams } from 'react-router-dom';
-// Los componentes ahora usan CSS moderno directo
 import { formatDateTime, getInitials } from '../utils';
 import type { UserRole } from '../types';
+import { GlobalNavigation } from '../components';
 import { 
   Calendar, 
   Clock, 
   Users, 
-  Settings, 
   BarChart3, 
-  Bell,
-  LogOut,
-  Plus,
-  Search,
+  TrendingUp,
+  DollarSign,
+  Activity,
   CheckCircle,
-  TrendingUp
+  XCircle,
+  AlertCircle
 } from 'lucide-react';
 
-export const DashboardPage: React.FC = () => {
-  const { user, logout } = useAuth();
+const DashboardPage: React.FC = () => {
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [successMessage, setSuccessMessage] = useState<string>('');
 
   useEffect(() => {
     const success = searchParams.get('success');
     const oauthResult = searchParams.get('oauth_result');
-    const message = searchParams.get('message');
     
-    if (success === 'true' && oauthResult) {
-      if (oauthResult === 'register') {
-        setSuccessMessage(message || '¡Registro con Google exitoso! Bienvenido a Gestor de Turnos.');
-      } else if (oauthResult === 'login') {
-        setSuccessMessage(message || '¡Inicio de sesión con Google exitoso!');
-      }
-    } else if (success === 'registered') {
-      setSuccessMessage('¡Registro completado exitosamente! Bienvenido a Gestor de Turnos.');
+    if (oauthResult === 'success') {
+      setSuccessMessage('¡OAuth configurado correctamente!');
     } else if (success === 'logged_in') {
       setSuccessMessage('¡Has iniciado sesión correctamente!');
     }
     
-    // Limpiar los parámetros de la URL
     if (success || oauthResult) {
       setSearchParams({});
-      // Auto-ocultar el mensaje después de 5 segundos
       setTimeout(() => setSuccessMessage(''), 5000);
     }
   }, [searchParams, setSearchParams]);
 
-  if (!user) {
-    return null;
-  }
+  // Datos de ejemplo para el dashboard
+  const estadisticas = {
+    turnosHoy: 12,
+    turnosActivos: 8,
+    turnosCompletados: 156,
+    sociosActivos: 247,
+    ingresosMensual: 45600,
+    canchasOcupadas: 4,
+    totalCanchas: 6
+  };
 
-  const getRoleDisplayName = (role: UserRole): string => {
-    const roleNames: Record<UserRole, string> = {
-      'admin': 'Administrador',
-      'coordinator': 'Coordinador',
-      'employee': 'Empleado',
-      'client': 'Cliente',
-    };
-    return roleNames[role] || role;
+  const turnosRecientes = [
+    { id: '1', socio: 'Juan Pérez', cancha: 1, hora: '10:00', estado: 'activo' },
+    { id: '2', socio: 'María García', cancha: 3, hora: '11:30', estado: 'activo' },
+    { id: '3', socio: 'Carlos López', cancha: 2, hora: '14:00', estado: 'completado' },
+    { id: '4', socio: 'Ana Martín', cancha: 5, hora: '16:00', estado: 'activo' }
+  ];
+
+  const getEstadoColor = (estado: string) => {
+    switch (estado) {
+      case 'activo': return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+      case 'completado': return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+      case 'cancelado': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+      default: return 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+    }
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%)' }}>
-      {/* Header */}
-      <header className="modern-header sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center shadow-medium">
-                <span className="text-white text-lg">🎾</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-neutral-900">CaddieFlow</h1>
-                <p className="text-xs text-neutral-500">
-                  {user?.role === 'caddie_master' ? 'Panel Caddie Master' : 'Panel Profesor'}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <button className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-white/60 rounded-xl transition-all duration-200">
-                <Search className="h-5 w-5" />
-              </button>
-              <button className="p-2 text-neutral-400 hover:text-neutral-600 hover:bg-white/60 rounded-xl transition-all duration-200 relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-error-500 rounded-full animate-pulse"></span>
-              </button>
-              
-              <div className="flex items-center space-x-3 pl-4 border-l border-neutral-200">
-                <div className="text-right">
-                  <div className="text-sm font-semibold text-neutral-900">
-                    {user.firstName} {user.lastName}
-                  </div>
-                  <div className="text-xs text-neutral-500 flex items-center justify-end">
-                    <span className="w-2 h-2 bg-success-500 rounded-full mr-1"></span>
-                    {user.email}
-                  </div>
-                </div>
-                <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center shadow-medium">
-                  <span className="text-white text-sm font-semibold">
-                    {getInitials(user.firstName, user.lastName)}
-                  </span>
-                </div>
-                <button
-                  onClick={logout}
-                  className="p-2 rounded-xl transition-all duration-200 hover:bg-red-50"
-                  style={{ color: '#6b7280' }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = '#dc2626';
-                    e.currentTarget.style.backgroundColor = '#fef2f2';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = '#6b7280';
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-gray-900 text-white">
+      <GlobalNavigation />
+      
       {/* Success Message */}
       {successMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '80px',
-          right: '20px',
-          backgroundColor: '#10b981',
-          color: 'white',
-          padding: '16px 24px',
-          borderRadius: '12px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          zIndex: 1000,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          maxWidth: '400px',
-          animation: 'slideInRight 0.3s ease-out'
-        }}>
-          <CheckCircle size={20} />
-          <span style={{ fontSize: '14px', fontWeight: '500' }}>{successMessage}</span>
-          <button
-            onClick={() => setSuccessMessage('')}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'white',
-              cursor: 'pointer',
-              padding: '4px',
-              borderRadius: '4px',
-              marginLeft: '8px'
-            }}
-          >
-            ✕
-          </button>
+        <div className="bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 text-center text-sm font-medium">
+          {successMessage}
         </div>
       )}
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-        {/* Welcome Section */}
+      <div className="p-6 max-w-7xl mx-auto">
+        {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold text-neutral-900 mb-2">
-                ¡Bienvenido, {user.firstName}!
-              </h2>
-              <p className="text-neutral-600 text-lg">
-                Este es tu panel de control del sistema de gestión de turnos.
-              </p>
-            </div>
-            <button className="modern-button modern-button-primary flex items-center gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo Turno
-            </button>
-          </div>
+          <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            Dashboard del Club de Tenis
+          </h1>
+          <p className="text-lg text-gray-400">
+            Resumen de actividades y estadísticas del día
+          </p>
         </div>
 
-        {/* Stats Cards */}
+        {/* Estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="modern-stats-card" style={{ background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', borderLeftColor: 'var(--color-primary)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium" style={{ color: '#1d4ed8' }}>Caddies Registrados</p>
-                <p className="text-2xl font-bold" style={{ color: '#1e3a8a' }}>18/30</p>
-                <p className="text-xs flex items-center mt-1" style={{ color: '#3730a3' }}>
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  83% puntualidad
-                </p>
+          {/* Turnos de hoy */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 hover:border-blue-500/50 transition-all duration-300 hover:scale-105 cursor-pointer group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-700 rounded-lg p-3 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Calendar size={24} className="text-white" />
               </div>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-primary)' }}>
-                <Users className="h-6 w-6 text-white" />
+              <div className="text-right">
+                <div className="text-3xl font-bold text-white">
+                  {estadisticas.turnosHoy}
+                </div>
+                <div className="text-sm text-gray-400">Turnos Hoy</div>
               </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              <span className="text-green-400 font-medium">+12%</span> vs ayer
             </div>
           </div>
 
-          <div className="modern-stats-card" style={{ background: 'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', borderLeftColor: 'var(--color-success)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium" style={{ color: '#065f46' }}>Completados</p>
-                <p className="text-2xl font-bold" style={{ color: '#064e3b' }}>8</p>
-                <p className="text-xs flex items-center mt-1" style={{ color: '#047857' }}>
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  66% tasa éxito
-                </p>
+          {/* Turnos activos */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 hover:border-yellow-500/50 transition-all duration-300 hover:scale-105 cursor-pointer group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-yellow-500 to-amber-600 rounded-lg p-3 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Clock size={24} className="text-white" />
               </div>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-success)' }}>
-                <CheckCircle className="h-6 w-6 text-white" />
+              <div className="text-right">
+                <div className="text-3xl font-bold text-white">
+                  {estadisticas.turnosActivos}
+                </div>
+                <div className="text-sm text-gray-400">En Progreso</div>
               </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Juegos en curso actualmente
             </div>
           </div>
 
-          <div className="modern-stats-card" style={{ background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', borderLeftColor: 'var(--color-warning)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium" style={{ color: '#92400e' }}>Pendientes</p>
-                <p className="text-2xl font-bold" style={{ color: '#78350f' }}>4</p>
-                <p className="text-xs flex items-center mt-1" style={{ color: '#a16207' }}>
-                  <Clock className="h-3 w-3 mr-1" />
-                  En progreso
-                </p>
+          {/* Socios activos */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 hover:border-green-500/50 transition-all duration-300 hover:scale-105 cursor-pointer group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg p-3 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <Users size={24} className="text-white" />
               </div>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-warning)' }}>
-                <Clock className="h-6 w-6 text-white" />
+              <div className="text-right">
+                <div className="text-3xl font-bold text-white">
+                  {estadisticas.sociosActivos}
+                </div>
+                <div className="text-sm text-gray-400">Socios Activos</div>
               </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              <span className="text-green-400 font-medium">+5</span> nuevos este mes
             </div>
           </div>
 
-          <div className="modern-stats-card" style={{ background: 'linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%)', borderLeftColor: 'var(--color-neutral)' }}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium" style={{ color: '#374151' }}>Usuarios</p>
-                <p className="text-2xl font-bold" style={{ color: '#1f2937' }}>156</p>
-                <p className="text-xs flex items-center mt-1" style={{ color: '#4b5563' }}>
-                  <Users className="h-3 w-3 mr-1" />
-                  Total activos
-                </p>
+          {/* Ingresos mensuales */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700 hover:border-purple-500/50 transition-all duration-300 hover:scale-105 cursor-pointer group">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-gradient-to-r from-purple-500 to-violet-600 rounded-lg p-3 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                <DollarSign size={24} className="text-white" />
               </div>
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-neutral)' }}>
-                <Users className="h-6 w-6 text-white" />
+              <div className="text-right">
+                <div className="text-3xl font-bold text-white">
+                  ${estadisticas.ingresosMensual.toLocaleString()}
+                </div>
+                <div className="text-sm text-gray-400">Ingresos del Mes</div>
               </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              <span className="text-green-400 font-medium">+8%</span> vs mes anterior
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* User Profile Card */}
-          <div className="modern-card p-6">
-            <div className="flex items-center space-x-4 mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-primary-600 to-primary-700 rounded-2xl flex items-center justify-center shadow-medium">
-                <span className="text-white text-xl font-bold">
-                  {getInitials(user.firstName, user.lastName)}
-                </span>
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-neutral-900">Mi Perfil</h3>
-                <p className="text-neutral-500">Información personal</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-neutral-700">NOMBRE COMPLETO</label>
-                <p className="text-neutral-900 font-medium mt-1">
-                  {user.firstName} {user.lastName}
-                </p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-neutral-700">CORREO ELECTRÓNICO</label>
-                <p className="text-neutral-900 font-medium mt-1">{user.email}</p>
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium text-neutral-700">ROL</label>
-                <div className="mt-1">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 border border-primary-200">
-                    {getRoleDisplayName(user.role)}
-                  </span>
-                </div>
-              </div>
-              
-              {user.phone && (
-                <div>
-                  <label className="text-sm font-medium text-neutral-700">TELÉFONO</label>
-                  <p className="text-neutral-900 font-medium mt-1">{user.phone}</p>
-                </div>
-              )}
-              
-              <div>
-                <label className="text-sm font-medium text-neutral-700">ÚLTIMO ACCESO</label>
-                <p className="text-neutral-900 font-medium mt-1">
-                  {formatDateTime(new Date())}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t" style={{ borderColor: '#e5e7eb' }}>
-              <button className="modern-button modern-button-outline w-full flex items-center justify-center gap-2">
-                <Settings className="h-4 w-4" />
-                Editar Perfil
-              </button>
-            </div>
-          </div>
-
-          {/* Quick Actions Card */}
-          <div className="modern-card p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-primary-600 rounded-2xl flex items-center justify-center">
-                <Plus className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-neutral-900">Acciones Rápidas</h3>
-                <p className="text-neutral-500 text-sm">Operaciones frecuentes</p>
-              </div>
-            </div>
+        {/* Grid de dos columnas */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Turnos recientes */}
+          <div className="lg:col-span-2 bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold mb-6 text-white flex items-center gap-2">
+              <Activity size={20} className="text-blue-400" />
+              Turnos Recientes
+            </h3>
             
             <div className="space-y-3">
-              <button className="modern-button modern-button-primary w-full flex items-center justify-start gap-3">
-                <Plus className="h-4 w-4" />
-                <span className="text-sm font-medium">Solicitar Turno</span>
-              </button>
-              
-              <button className="modern-button modern-button-outline w-full flex items-center justify-start gap-3">
-                <Calendar className="h-4 w-4" />
-                <span className="text-sm font-medium">Ver Mis Turnos</span>
-              </button>
-              
-              <button className="modern-button modern-button-outline w-full flex items-center justify-start gap-3">
-                <Users className="h-4 w-4" />
-                <span className="text-sm font-medium">Gestionar Usuarios</span>
-              </button>
-
-              <button className="modern-button modern-button-outline w-full flex items-center justify-start gap-3">
-                <BarChart3 className="h-4 w-4" />
-                <span className="text-sm font-medium">Ver Reportes</span>
-              </button>
+              {turnosRecientes.map((turno) => (
+                <div 
+                  key={turno.id}
+                  className="flex items-center justify-between p-4 bg-gray-700/30 rounded-lg border border-gray-600 hover:border-gray-500 transition-all duration-200 hover:bg-gray-700/50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-sm font-semibold text-white">
+                      {turno.socio.split(' ').map(n => n[0]).join('')}
+                    </div>
+                    <div>
+                      <div className="font-medium text-white mb-1">
+                        {turno.socio}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Cancha #{turno.cancha} - {turno.hora}
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                    turno.estado === 'activo' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
+                    turno.estado === 'completado' ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                    turno.estado === 'cancelado' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                    'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                  }`}>
+                    {turno.estado}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* System Status Card */}
-          <div className="modern-card p-6">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-success-600 rounded-2xl flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-white" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-neutral-900">Estado del Sistema</h3>
-                <p className="text-neutral-500 text-sm">Monitoreo en tiempo real</p>
-              </div>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-success-50 rounded-xl border border-success-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <p className="text-sm font-semibold text-success-900">API Backend</p>
-                    <p className="text-xs text-success-700">Conectado y funcionando</p>
-                  </div>
-                </div>
-                <span className="text-xs font-medium text-success-700 bg-success-200 px-2 py-1 rounded-full">
-                  ACTIVO
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-success-50 rounded-xl border border-success-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <p className="text-sm font-semibold text-success-900">Base de Datos</p>
-                    <p className="text-xs text-success-700">PostgreSQL operativo</p>
-                  </div>
-                </div>
-                <span className="text-xs font-medium text-success-700 bg-success-200 px-2 py-1 rounded-full">
-                  ACTIVO
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-primary-50 rounded-xl border border-primary-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-primary-500 rounded-full animate-pulse"></div>
-                  <div>
-                    <p className="text-sm font-semibold text-primary-900">Sesión Activa</p>
-                    <p className="text-xs text-primary-700">Token JWT válido</p>
-                  </div>
-                </div>
-                <span className="text-xs font-medium text-primary-700 bg-primary-200 px-2 py-1 rounded-full">
-                  VÁLIDO
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Coming Soon Section */}
-        <div className="modern-card">
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Funcionalidades en Desarrollo
+          {/* Estado de las canchas */}
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 border border-gray-700">
+            <h3 className="text-xl font-semibold mb-6 text-white flex items-center gap-2">
+              <BarChart3 size={20} className="text-green-400" />
+              Estado de Canchas
             </h3>
-            <p className="text-gray-500 mb-6">
-              Estamos trabajando en las siguientes características:
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm text-gray-600">
-              <div>📅 Sistema de calendarios</div>
-              <div>🎫 Gestión avanzada de turnos</div>
-              <div>📊 Reportes y estadísticas</div>
-              <div>🔔 Notificaciones en tiempo real</div>
-              <div>👥 Gestión de usuarios</div>
-              <div>⚙️ Configuraciones del sistema</div>
+            
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-400">Ocupación</span>
+                <span className="text-sm font-semibold text-white">
+                  {estadisticas.canchasOcupadas}/{estadisticas.totalCanchas}
+                </span>
+              </div>
+              <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full transition-all duration-300"
+                  style={{ width: `${(estadisticas.canchasOcupadas / estadisticas.totalCanchas) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5, 6].map((cancha) => (
+                <div 
+                  key={cancha}
+                  className="flex items-center justify-between p-3 bg-gray-700/30 rounded-lg border border-gray-600"
+                >
+                  <span className="text-white text-sm font-medium">
+                    Cancha #{cancha}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {cancha <= estadisticas.canchasOcupadas ? (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        <span className="text-red-300 text-xs">Ocupada</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-2 h-2 rounded-full bg-green-500" />
+                        <span className="text-green-300 text-xs">Disponible</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 };
+
+export { DashboardPage };

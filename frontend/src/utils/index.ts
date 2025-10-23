@@ -4,6 +4,10 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+// Exportar las nuevas utilidades de fecha y hora
+export * from './dateTime';
+export * from './turnoStates';
+
 export function formatDate(date: Date | string): string {
   const d = typeof date === 'string' ? new Date(date) : date;
   return d.toLocaleDateString('es-ES', {

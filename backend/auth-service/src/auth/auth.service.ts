@@ -6,6 +6,7 @@ import * as bcrypt from 'bcrypt';
 
 import { User, UserStatus, UserRole } from '../users/entities/user.entity';
 import { Club, ClubStatus } from '../users/entities/club.entity';
+import { Cancha } from '../configuracion/entities/cancha.entity';
 import { RegisterDto, LoginDto, AuthResponseDto, UserInfoDto } from './dto';
 
 @Injectable()
@@ -89,11 +90,29 @@ export class AuthService {
       // Guardar usuario
       const savedUser = await manager.save(user);
 
+      // 🎾 CREAR CANCHAS AUTOMÁTICAMENTE según totalCourts
+      const canchas: Cancha[] = [];
+      for (let i = 1; i <= totalCourts; i++) {
+        const cancha = manager.create(Cancha, {
+          nombre: `Cancha ${i}`,
+          ubicacion: `Sector ${i}`,
+          capacidad: 4,
+          activa: true,
+          tipo: 'tenis',
+          clubId: savedClub.id,
+        });
+        canchas.push(cancha);
+      }
+      
+      // Guardar todas las canchas
+      await manager.save(canchas);
+
       // Generar token JWT
       const payload = { 
         sub: savedUser.id, 
         email: savedUser.email, 
-        role: savedUser.role 
+        role: savedUser.role,
+        clubId: savedUser.clubId
       };
       
       const access_token = this.jwtService.sign(payload);
@@ -140,7 +159,8 @@ export class AuthService {
     const payload = { 
       sub: user.id, 
       email: user.email, 
-      role: user.role 
+      role: user.role,
+      clubId: user.clubId
     };
     
     const access_token = this.jwtService.sign(payload);
@@ -161,6 +181,7 @@ export class AuthService {
   async validateUser(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
+      relations: ['club'],
     });
 
     if (!user) {
@@ -177,6 +198,7 @@ export class AuthService {
   async findUserById(userId: string): Promise<User> {
     const user = await this.userRepository.findOne({
       where: { id: userId },
+      relations: ['club'],
     });
 
     if (!user) {
@@ -244,7 +266,8 @@ export class AuthService {
     const payload = { 
       sub: user.id, 
       email: user.email, 
-      role: user.role 
+      role: user.role,
+      clubId: user.clubId
     };
     
     const access_token = this.jwtService.sign(payload);
@@ -269,6 +292,10 @@ export class AuthService {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const redirectUri = 'http://localhost:3002/auth/google/callback';
+
+    if (!clientId || !clientSecret) {
+      throw new BadRequestException('Google OAuth not configured');
+    }
 
     const tokenUrl = 'https://oauth2.googleapis.com/token';
     

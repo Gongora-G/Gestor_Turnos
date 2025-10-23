@@ -27,6 +27,9 @@ export class UserInfoDto {
   avatar?: string;
 
   @Expose()
+  clubId?: string;
+
+  @Expose()
   lastLoginAt?: Date;
 
   @Expose()

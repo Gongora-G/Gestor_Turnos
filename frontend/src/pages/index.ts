@@ -4,3 +4,7 @@ export { DashboardPage } from './DashboardPage';
 export { AuthCallbackPage } from './AuthCallbackPage';
 export { default as TermsOfServicePage } from './TermsOfServicePage';
 export { default as PrivacyPolicyPage } from './PrivacyPolicyPage';
+export { TurnosPage } from './TurnosPage';
+export { CrearTurnoPage } from './CrearTurnoPage';
+export { SociosPage } from './SociosPage';
+export { default as ConfiguracionPage } from './ConfiguracionPage';

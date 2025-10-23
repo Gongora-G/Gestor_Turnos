@@ -12,10 +12,22 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="text-primary-600 mx-auto mb-4" />
-          <p className="text-gray-600">Cargando...</p>
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0f0f23'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <LoadingSpinner size={32} color="#3b82f6" />
+          <p style={{ 
+            color: '#9ca3af', 
+            marginTop: '16px',
+            fontSize: '16px'
+          }}>
+            Cargando...
+          </p>
         </div>
       </div>
     );

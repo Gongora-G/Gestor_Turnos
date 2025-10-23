@@ -1,28 +1,28 @@
-# 🎾 CaddieFlow - Sistema de Gestión de Turnos para Clubs de Tenis
+# 🎾 TennisFlow - Sistema de Gestión de Turnos para Clubs de Tenis
 
-Sistema especializado para la **gestión automática de caddies y boleadores** en clubs de tenis, eliminando la manipulación manual de turnos y asegurando transparencia total. Desarrollado con arquitectura de microservicios usando **NestJS** y **React**.
+Sistema especializado para la **gestión automática de auxiliares de cancha y boleadores** en clubs de tenis, eliminando la manipulación manual de turnos y asegurando transparencia total. Desarrollado con arquitectura de microservicios usando **NestJS** y **React**.
 
 ## 🎯 **Problemática Real Solucionada**
 
 ### **🏆 Club Puerto Peñaliza - Sede Tenis (Caso Real)**
-- **30 Caddies + 8 Boleadores** distribuidos en **2 jornadas (A y B)**
+- **30 Auxiliares de Cancha + 8 Boleadores** distribuidos en **2 jornadas (A y B)**
 - **12 canchas de tenis** disponibles
 - **Rotación diaria**: Jornada A (mañana→tarde), Jornada B (tarde→mañana)
-- **Problema crítico**: Caddies mienten sobre turnos realizados para mejorar su posición
+- **Problema crítico**: Auxiliares mienten sobre turnos realizados para mejorar su posición
 
 ### **💡 Solución Tecnológica**
 **Registro automático con timestamp** → **Algoritmo transparente** → **Orden justo basado en datos reales**
 
 **Flujo Operacional:**
-1. **Caddie Master** registra llegadas con timestamp automático
+1. **Coordinador de Cancha** registra llegadas con timestamp automático
 2. **Sistema** calcula orden basado en: puntualidad + turnos previos + reglas del club
 3. **Algoritmo** elimina manipulación humana del proceso
 4. **Reportes** automáticos para transparencia total
 
 ### **👥 Usuarios del Sistema**
-- 👨‍💼 **Caddie Master**: Control total, registro llegadas, asignación tareas
-- 👨‍🏫 **Profesor de Tenis**: Backup del Caddie Master, supervisión  
-- 🎾 **Caddies/Boleadores**: Solo consulta orden y estadísticas (sin auto-registro)
+- 👨‍💼 **Coordinador de Cancha**: Control total, registro llegadas, asignación tareas
+- 👨‍🏫 **Profesor de Tenis**: Backup del Coordinador de Cancha, supervisión  
+- 🎾 **Auxiliares/Boleadores**: Solo consulta orden y estadísticas (sin auto-registro)
 
 ### **🎓 Proyecto Académico Integrado**
 - **🎨 IHC**: UX optimizado para uso diario en clubes deportivos
@@ -44,7 +44,7 @@ Sistema especializado para la **gestión automática de caddies y boleadores** e
 ## 🏗️ **Arquitectura del Sistema**
 
 ```
-CaddieFlow/
+TennisFlow/
 ├─ README.md
 ├─ docs/                        # 📚 Documentación académica completa
 │  ├─ overview/                 # Visión general y setup
@@ -54,7 +54,7 @@ CaddieFlow/
 ├─ backend/
 │  └─ auth-service/ ✅          # Autenticación y roles
 ├─ services/ (Por implementar)
-│  ├─ caddie-service/ 🔄        # Gestión caddies/boleadores/jornadas
+│  ├─ auxiliar-service/ 🔄      # Gestión auxiliares/boleadores/jornadas
 │  ├─ shift-service/ 📅         # Algoritmo turnos y prioridades
 │  ├─ reporting-service/ 📅     # Reportes diarios/semanales
 │  ├─ notifications-service/ 📅 # Alertas tiempo real

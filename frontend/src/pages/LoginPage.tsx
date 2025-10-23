@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts';
-import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle, Info } from 'lucide-react';
-import type { LoginCredentials, ApiError } from '../types';
+import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, Info } from 'lucide-react';
+import type { ApiError } from '../types';
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
 
 export const LoginPage: React.FC = () => {
   const [credentials, setCredentials] = useState<LoginCredentials>({

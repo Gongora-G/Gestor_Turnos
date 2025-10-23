@@ -1,3 +1,12 @@
 export * from './ui';
 export { ProtectedRoute } from './ProtectedRoute';
+export { default as GlobalNavigation } from './GlobalNavigation';
+export { Modal } from './Modal';
+export { CrearTurnoModal } from './CrearTurnoModal';
+export { VerTurnoModal } from './VerTurnoModal';
+export { EditarTurnoModal } from './EditarTurnoModal';
+export { EliminarTurnoModal } from './EliminarTurnoModal';
+export { TurnoCard } from './TurnoCard';
+export { CrearSocioModal } from './CrearSocioModal';
 export { PublicRoute } from './PublicRoute';
+export { default as ConfirmDeleteModal } from './ConfirmDeleteModal';

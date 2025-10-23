@@ -54,9 +54,13 @@ class ApiService {
         
         if (error.response?.status === 401) {
           // Token expired or invalid
+          console.log('🔒 Token inválido o expirado, limpiando autenticación...');
           localStorage.removeItem('auth_token');
           localStorage.removeItem('auth_user');
-          window.location.href = '/login';
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('auth_user');
+          // NO redirigir automáticamente, dejar que React Router maneje esto
+          // window.location.href = '/login';
         }
 
         const apiError: ApiError = {
@@ -85,6 +89,12 @@ class ApiService {
   // Generic PUT request
   async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     const response = await this.api.put<T>(url, data, config);
+    return response.data;
+  }
+
+  // Generic PATCH request
+  async patch<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.api.patch<T>(url, data, config);
     return response.data;
   }
 
