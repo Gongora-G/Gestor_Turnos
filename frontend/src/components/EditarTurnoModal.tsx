@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
 import { formatTo24Hour, formatTo12Hour } from '../utils/dateTime';
+import { useToast } from '../contexts/ToastContext';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -58,6 +59,7 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
   turno,
   canchas
 }) => {
+  const { addToast } = useToast();
   const [formData, setFormData] = useState({
     fecha: '',
     hora_inicio: '',
@@ -136,9 +138,27 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
         cancha_id: formData.cancha_id,
         observaciones: formData.observaciones
       });
+      
+      // Mostrar notificación de éxito
+      addToast({
+        type: 'success',
+        title: 'Turno actualizado',
+        message: 'El turno se ha actualizado correctamente',
+        duration: 4000
+      });
+      
       onClose();
     } catch (error) {
       console.error('Error al actualizar turno:', error);
+      
+      // Mostrar notificación de error
+      addToast({
+        type: 'error',
+        title: 'Error al actualizar',
+        message: 'No se pudo actualizar el turno. Inténtelo nuevamente.',
+        duration: 5000
+      });
+      
       setErrors({ general: 'Error al actualizar el turno. Inténtelo nuevamente.' });
     } finally {
       setLoading(false);

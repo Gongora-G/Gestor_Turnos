@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AlertTriangle, X, User, Calendar, Clock, MapPin, FileText, Trash2, Info } from 'lucide-react';
 import { formatTo12Hour } from '../utils/dateTime';
 import { calcularEstadoAutomatico } from '../utils/turnoStates';
+import { useToast } from '../contexts/ToastContext';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -47,6 +48,7 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
   onConfirm,
   turno
 }) => {
+  const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -58,9 +60,27 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
     
     try {
       await onConfirm(turno.id);
+      
+      // Mostrar notificación de éxito
+      addToast({
+        type: 'success',
+        title: 'Turno eliminado',
+        message: 'El turno se ha eliminado correctamente',
+        duration: 4000
+      });
+      
       onClose();
     } catch (error) {
       console.error('Error al eliminar turno:', error);
+      
+      // Mostrar notificación de error
+      addToast({
+        type: 'error',
+        title: 'Error al eliminar',
+        message: 'No se pudo eliminar el turno. Inténtelo nuevamente.',
+        duration: 5000
+      });
+      
       setError('Error al eliminar el turno. Inténtelo nuevamente.');
     } finally {
       setLoading(false);
