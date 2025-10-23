@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts';
+import { useToast } from '../contexts/ToastContext';
 import { UserPlus, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
-import { PasswordRequirements, PhoneInput, LoadingButton, useToast, ToastContainer, ValidatedInput, validators, RegistrationSuccess } from '../components/ui';
+import { PasswordRequirements, PhoneInput, LoadingButton, ValidatedInput, validators, RegistrationSuccess } from '../components/ui';
 import type { RegisterData, ApiError } from '../types';
 
 export const RegisterPage: React.FC = () => {
@@ -31,7 +32,7 @@ export const RegisterPage: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { register, loading } = useAuth();
   const navigate = useNavigate();
-  const { toasts, removeToast, success, error: showError } = useToast();
+  const { addToast } = useToast();
   const [showSuccess, setShowSuccess] = useState(false);
   const [isGoogleRegistration, setIsGoogleRegistration] = useState(false);
   const [searchParams] = useSearchParams();
@@ -1021,9 +1022,6 @@ export const RegisterPage: React.FC = () => {
           </div>
         </div>
       </div>
-      
-      {/* Contenedor de notificaciones */}
-      <ToastContainer toasts={toasts} onClose={removeToast} />
       
       {/* Pantalla de éxito */}
       {showSuccess && (

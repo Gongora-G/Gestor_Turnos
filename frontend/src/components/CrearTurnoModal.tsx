@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { Calendar, Clock, Users, Save } from 'lucide-react';
+import { Calendar, Users, Save } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
 import { formatTo12Hour } from '../utils';
 import { useToast } from '../contexts/ToastContext';
@@ -14,7 +14,7 @@ interface CrearTurnoModalProps {
 interface Cancha {
   id: string;
   nombre: string;
-  ubicacion: string;
+  ubicacion?: string;
 }
 
 interface CreateTurnoForm {
@@ -133,7 +133,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     setLoading(true);
 
     try {
-      const turnoData = {
+      const turnoData: any = {
         fecha: `${form.fecha}T00:00:00.000Z`,
         hora_inicio: form.horaInicio,
         hora_fin: form.horaFin,

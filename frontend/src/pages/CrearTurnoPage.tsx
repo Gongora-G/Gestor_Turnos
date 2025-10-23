@@ -18,7 +18,7 @@ interface CreateTurnoForm {
 interface Cancha {
   id: string;
   nombre: string;
-  ubicacion: string;
+  ubicacion?: string;
 }
 
 export const CrearTurnoPage: React.FC = () => {
@@ -124,7 +124,7 @@ export const CrearTurnoPage: React.FC = () => {
 
     try {
       // Mapear los datos del formulario al formato esperado por el backend
-      const turnoData = {
+      const turnoData: any = {
         fecha: `${form.fecha}T00:00:00.000Z`, // Formato ISO completo
         hora_inicio: form.horaInicio,
         hora_fin: form.horaFin,
