@@ -13,6 +13,11 @@ interface ToastContextType {
   addToast: (toast: Omit<Toast, 'id'>) => void;
   removeToast: (id: string) => void;
   clearToasts: () => void;
+  // Helper methods for easier usage
+  success: (title: string, message?: string, duration?: number) => void;
+  error: (title: string, message?: string, duration?: number) => void;
+  warning: (title: string, message?: string, duration?: number) => void;
+  info: (title: string, message?: string, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -56,11 +61,32 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     setToasts([]);
   }, []);
 
+  // Helper methods for easier usage
+  const success = useCallback((title: string, message?: string, duration?: number) => {
+    addToast({ type: 'success', title, message, duration });
+  }, [addToast]);
+
+  const error = useCallback((title: string, message?: string, duration?: number) => {
+    addToast({ type: 'error', title, message, duration });
+  }, [addToast]);
+
+  const warning = useCallback((title: string, message?: string, duration?: number) => {
+    addToast({ type: 'warning', title, message, duration });
+  }, [addToast]);
+
+  const info = useCallback((title: string, message?: string, duration?: number) => {
+    addToast({ type: 'info', title, message, duration });
+  }, [addToast]);
+
   const value: ToastContextType = {
     toasts,
     addToast,
     removeToast,
     clearToasts,
+    success,
+    error,
+    warning,
+    info,
   };
 
   return (

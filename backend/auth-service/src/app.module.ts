@@ -9,6 +9,7 @@ import { UsersModule } from './users/users.module';
 import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { SociosModule } from './socios/socios.module';
+import { JornadasModule } from './jornadas/jornadas.module';
 
 @Module({
   imports: [
@@ -33,6 +34,8 @@ import { SociosModule } from './socios/socios.module';
     TurnosModule,
     // 👤 Socios module
     SociosModule,
+    // 📋 Jornadas module
+    JornadasModule,
   ],
   controllers: [AppController],
   providers: [AppService],

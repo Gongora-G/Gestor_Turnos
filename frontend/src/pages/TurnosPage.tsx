@@ -8,9 +8,11 @@ import {
   EditarTurnoModal, 
   EliminarTurnoModal 
 } from '../components';
-import { Plus, Filter, Search } from 'lucide-react';
+import { Plus, Filter, Search, Save, Calendar } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
+import { jornadasService } from '../services/jornadasService';
 import { calcularEstadoAutomatico } from '../utils/turnoStates';
+import { useToast } from '../contexts/ToastContext';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -54,12 +56,14 @@ interface CanchaBackend {
 }
 
 export const TurnosPage: React.FC = () => {
+  const { addToast } = useToast();
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [canchas, setCanchas] = useState<CanchaBackend[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
+  const [guardandoJornada, setGuardandoJornada] = useState(false);
   
   // Estados de modales
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
@@ -158,6 +162,48 @@ export const TurnosPage: React.FC = () => {
     } catch (error) {
       console.error('Error al eliminar turno:', error);
       throw error;
+    }
+  };
+
+  // Función para guardar jornada actual
+  const handleGuardarJornada = async () => {
+    if (turnos.length === 0) {
+      addToast('No hay turnos para guardar en la jornada', 'warning');
+      return;
+    }
+
+    setGuardandoJornada(true);
+    try {
+      console.log('💾 Guardando jornada con turnos:', turnos);
+      
+      // Usar el servicio para crear jornada desde turnos actuales
+      const response = await jornadasService.crearDesdeActuales(turnos);
+      
+      if (response.success) {
+        addToast(
+          `Jornada guardada correctamente con ${turnos.length} turnos`,
+          'success'
+        );
+        
+        // Limpiar turnos actuales después de guardar
+        setTurnos([]);
+        
+        // Opcional: Recargar datos desde el servidor
+        await cargarDatos();
+      } else {
+        addToast(
+          response.error || 'Error al guardar la jornada',
+          'error'
+        );
+      }
+    } catch (error: any) {
+      console.error('❌ Error guardando jornada:', error);
+      addToast(
+        'Error al guardar la jornada: ' + (error.message || 'Error desconocido'),
+        'error'
+      );
+    } finally {
+      setGuardandoJornada(false);
     }
   };
 
@@ -657,6 +703,98 @@ export const TurnosPage: React.FC = () => {
         onConfirm={handleConfirmarEliminar}
         turno={eliminarTurnoModal.turno}
       />
+
+      {/* Botón flotante para guardar jornada */}
+      {turnos.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 1000
+        }}>
+          <button
+            onClick={handleGuardarJornada}
+            disabled={guardandoJornada}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '16px 24px',
+              background: guardandoJornada 
+                ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '16px',
+              fontSize: '16px',
+              fontWeight: '600',
+              cursor: guardandoJornada ? 'not-allowed' : 'pointer',
+              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
+              transition: 'all 0.3s ease',
+              opacity: guardandoJornada ? 0.7 : 1,
+              transform: guardandoJornada ? 'scale(0.95)' : 'scale(1)'
+            }}
+            onMouseEnter={(e) => {
+              if (!guardandoJornada) {
+                e.currentTarget.style.transform = 'scale(1.05)';
+                e.currentTarget.style.boxShadow = '0 15px 35px rgba(16, 185, 129, 0.4)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = guardandoJornada ? 'scale(0.95)' : 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 10px 25px rgba(16, 185, 129, 0.3)';
+            }}
+          >
+            {guardandoJornada ? (
+              <>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  border: '2px solid rgba(255, 255, 255, 0.3)',
+                  borderTop: '2px solid white',
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save size={20} />
+                Guardar Jornada ({turnos.length})
+              </>
+            )}
+          </button>
+          
+          {/* Tooltip */}
+          <div style={{
+            position: 'absolute',
+            bottom: '100%',
+            right: '0',
+            marginBottom: '8px',
+            padding: '8px 12px',
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: 'white',
+            borderRadius: '8px',
+            fontSize: '14px',
+            whiteSpace: 'nowrap',
+            opacity: 0,
+            pointerEvents: 'none',
+            transition: 'opacity 0.2s ease'
+          }}>
+            Guarda todos los turnos actuales como una jornada histórica
+          </div>
+        </div>
+      )}
+
+      {/* Estilos para la animación de spin */}
+      <style>
+        {`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}
+      </style>
     </div>
   );
 };

@@ -7,4 +7,5 @@ export { default as PrivacyPolicyPage } from './PrivacyPolicyPage';
 export { TurnosPage } from './TurnosPage';
 export { CrearTurnoPage } from './CrearTurnoPage';
 export { SociosPage } from './SociosPage';
+export { default as JornadasPage } from './JornadasPage';
 export { default as ConfiguracionPage } from './ConfiguracionPage';

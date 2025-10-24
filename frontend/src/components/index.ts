@@ -10,5 +10,6 @@ export { TurnoCard } from './TurnoCard';
 export { CrearSocioModal } from './CrearSocioModal';
 export { EditarSocioModal } from './EditarSocioModal';
 export { default as GestionCategorias } from './GestionCategorias';
+export { default as GestionJornadas } from './GestionJornadas';
 export { PublicRoute } from './PublicRoute';
 export { default as ConfirmDeleteModal } from './ConfirmDeleteModal';

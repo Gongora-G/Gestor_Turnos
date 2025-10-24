@@ -37,6 +37,12 @@ const GlobalNavigation: React.FC = () => {
       description: 'Administrar reservas'
     },
     {
+      path: '/jornadas',
+      label: 'Jornadas',
+      icon: FileText,
+      description: 'Historial de jornadas'
+    },
+    {
       path: '/reportes',
       label: 'Reportes',
       icon: FileText,
