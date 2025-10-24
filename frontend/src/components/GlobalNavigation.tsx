@@ -37,12 +37,6 @@ const GlobalNavigation: React.FC = () => {
       description: 'Administrar reservas'
     },
     {
-      path: '/socios',
-      label: 'Socios',
-      icon: Users,
-      description: 'Gestión de socios del club'
-    },
-    {
       path: '/reportes',
       label: 'Reportes',
       icon: FileText,

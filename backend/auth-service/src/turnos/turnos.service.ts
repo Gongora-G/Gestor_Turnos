@@ -53,23 +53,22 @@ export class TurnosService {
     const query = this.turnosRepository.createQueryBuilder('turno')
       .where('turno.club_id = :clubId', { clubId });
 
-    // Si no se especifican filtros de fecha, mostrar solo turnos del día actual
-    if (!filtros.fecha_inicio && !filtros.fecha_fin) {
-      const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      query.andWhere('turno.fecha = :hoy', { hoy });
-    } else {
-      // Aplicar filtros de fecha si se especifican
-      if (filtros.fecha_inicio && filtros.fecha_fin) {
-        query.andWhere('turno.fecha BETWEEN :fechaInicio AND :fechaFin', {
-          fechaInicio: filtros.fecha_inicio,
-          fechaFin: filtros.fecha_fin,
-        });
-      } else if (filtros.fecha_inicio) {
-        query.andWhere('turno.fecha >= :fechaInicio', { fechaInicio: filtros.fecha_inicio });
-      } else if (filtros.fecha_fin) {
-        query.andWhere('turno.fecha <= :fechaFin', { fechaFin: filtros.fecha_fin });
-      }
+    // Aplicar filtros de fecha si se especifican
+    if (filtros.fecha_inicio && filtros.fecha_fin) {
+      query.andWhere('turno.fecha BETWEEN :fechaInicio AND :fechaFin', {
+        fechaInicio: filtros.fecha_inicio,
+        fechaFin: filtros.fecha_fin,
+      });
+    } else if (filtros.fecha_inicio) {
+      query.andWhere('turno.fecha >= :fechaInicio', { fechaInicio: filtros.fecha_inicio });
+    } else if (filtros.fecha_fin) {
+      query.andWhere('turno.fecha <= :fechaFin', { fechaFin: filtros.fecha_fin });
     }
+    // Comentamos el filtro automático por día actual para mostrar todos los turnos por defecto
+    // if (!filtros.fecha_inicio && !filtros.fecha_fin) {
+    //   const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    //   query.andWhere('turno.fecha = :hoy', { hoy });
+    // }
 
     if (filtros.cancha_id) {
       query.andWhere('turno.cancha_id = :canchaId', { canchaId: filtros.cancha_id });

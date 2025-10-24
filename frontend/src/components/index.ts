@@ -8,5 +8,7 @@ export { EditarTurnoModal } from './EditarTurnoModal';
 export { EliminarTurnoModal } from './EliminarTurnoModal';
 export { TurnoCard } from './TurnoCard';
 export { CrearSocioModal } from './CrearSocioModal';
+export { EditarSocioModal } from './EditarSocioModal';
+export { default as GestionCategorias } from './GestionCategorias';
 export { PublicRoute } from './PublicRoute';
 export { default as ConfirmDeleteModal } from './ConfirmDeleteModal';

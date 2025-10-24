@@ -83,7 +83,13 @@ class SociosService {
       const url = queryString ? `${this.endpoint}?${queryString}` : this.endpoint;
       
       const response = await apiService.get<Socio[]>(url);
-      return response.data;
+      
+      // El apiService ya devuelve response.data, así que response es directamente el array de socios
+      return {
+        data: response as Socio[],
+        message: 'Socios obtenidos exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al obtener socios:', error);
       throw error;
@@ -93,7 +99,11 @@ class SociosService {
   async obtenerSocioPorId(id: string): Promise<ApiResponse<Socio>> {
     try {
       const response = await apiService.get<Socio>(`${this.endpoint}/${id}`);
-      return response.data;
+      return {
+        data: response as Socio,
+        message: 'Socio obtenido exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al obtener socio:', error);
       throw error;
@@ -103,7 +113,11 @@ class SociosService {
   async crearSocio(socio: CrearSocioDto): Promise<ApiResponse<Socio>> {
     try {
       const response = await apiService.post<Socio>(this.endpoint, socio);
-      return response.data;
+      return {
+        data: response as Socio,
+        message: 'Socio creado exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al crear socio:', error);
       throw error;
@@ -113,7 +127,11 @@ class SociosService {
   async actualizarSocio(id: string, socio: ActualizarSocioDto): Promise<ApiResponse<Socio>> {
     try {
       const response = await apiService.patch<Socio>(`${this.endpoint}/${id}`, socio);
-      return response.data;
+      return {
+        data: response as Socio,
+        message: 'Socio actualizado exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al actualizar socio:', error);
       throw error;
@@ -123,7 +141,11 @@ class SociosService {
   async eliminarSocio(id: string): Promise<ApiResponse<void>> {
     try {
       const response = await apiService.delete<void>(`${this.endpoint}/${id}`);
-      return response.data;
+      return {
+        data: response as void,
+        message: 'Socio eliminado exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al eliminar socio:', error);
       throw error;
@@ -133,7 +155,11 @@ class SociosService {
   async cambiarEstadoSocio(id: string, estado: 'activo' | 'inactivo' | 'suspendido'): Promise<ApiResponse<Socio>> {
     try {
       const response = await apiService.patch<Socio>(`${this.endpoint}/${id}/estado`, { estado });
-      return response.data;
+      return {
+        data: response as Socio,
+        message: 'Estado del socio actualizado exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al cambiar estado del socio:', error);
       throw error;
@@ -146,7 +172,11 @@ class SociosService {
         tipo_membresia_id,
         fecha_inicio_membresia: fecha_inicio
       });
-      return response.data;
+      return {
+        data: response as Socio,
+        message: 'Membresía renovada exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al renovar membresía:', error);
       throw error;
@@ -156,7 +186,11 @@ class SociosService {
   async obtenerSociosActivos(): Promise<ApiResponse<Socio[]>> {
     try {
       const response = await apiService.get<Socio[]>(`${this.endpoint}/activos`);
-      return response.data;
+      return {
+        data: response as Socio[],
+        message: 'Socios activos obtenidos exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al obtener socios activos:', error);
       throw error;
@@ -166,7 +200,11 @@ class SociosService {
   async buscarSocio(termino: string): Promise<ApiResponse<Socio[]>> {
     try {
       const response = await apiService.get<Socio[]>(`${this.endpoint}/buscar?q=${encodeURIComponent(termino)}`);
-      return response.data;
+      return {
+        data: response as Socio[],
+        message: 'Búsqueda completada exitosamente',
+        success: true
+      };
     } catch (error) {
       console.error('Error al buscar socio:', error);
       throw error;

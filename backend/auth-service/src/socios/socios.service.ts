@@ -39,7 +39,7 @@ export class SociosService {
 
   async findAll(filtros: FiltrosSociosDto, clubId: string): Promise<Socio[]> {
     const query = this.sociosRepository.createQueryBuilder('socio')
-      .leftJoinAndSelect('socio.tipo_membresia', 'tipo_membresia')
+      // .leftJoinAndSelect('socio.tipo_membresia', 'tipo_membresia') // Comentado temporalmente
       .where('socio.club_id = :clubId', { clubId });
 
     if (filtros.nombre) {
@@ -139,7 +139,7 @@ export class SociosService {
 
   async buscar(termino: string, clubId: string): Promise<Socio[]> {
     return await this.sociosRepository.createQueryBuilder('socio')
-      .leftJoinAndSelect('socio.tipo_membresia', 'tipo_membresia')
+      // .leftJoinAndSelect('socio.tipo_membresia', 'tipo_membresia') // Comentado temporalmente
       .where('socio.club_id = :clubId', { clubId })
       .andWhere(
         '(socio.nombre ILIKE :termino OR socio.apellido ILIKE :termino OR socio.email ILIKE :termino OR socio.documento ILIKE :termino)',

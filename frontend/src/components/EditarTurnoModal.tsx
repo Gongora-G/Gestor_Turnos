@@ -6,6 +6,8 @@ import { useToast } from '../contexts/ToastContext';
 // Tipos locales para evitar problemas de importación
 interface Turno {
   id: string;
+  nombre?: string;
+  numero_turno_dia?: number;
   fecha: string;
   hora_inicio: string;
   hora_fin: string;

@@ -1,23 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, CreditCard, Calendar, MapPin, FileText, Hash, Save } from 'lucide-react';
 import { type TipoMembresia } from '../services/tiposMembresiaService';
-import { type CrearSocioDto } from '../services/sociosService';
+import { type Socio, type ActualizarSocioDto } from '../services/sociosService';
 import { Modal } from './Modal';
 
-interface CrearSocioModalProps {
+interface EditarSocioModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (socio: CrearSocioDto) => void;
+  onSave: (id: string, socio: ActualizarSocioDto) => void;
+  socio: Socio;
   categorias: TipoMembresia[];
 }
 
-export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({ 
+export const EditarSocioModal: React.FC<EditarSocioModalProps> = ({ 
   isOpen, 
   onClose, 
   onSave,
+  socio,
   categorias 
 }) => {
-  const [formData, setFormData] = useState<CrearSocioDto>({
+  const [formData, setFormData] = useState<ActualizarSocioDto>({
     nombre: '',
     apellido: '',
     email: '',
@@ -26,13 +28,35 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
     tipo_documento: 'cedula',
     fecha_nacimiento: '',
     direccion: '',
-    tipo_membresia_id: categorias[0]?.id || '',
-    fecha_inicio_membresia: new Date().toISOString().split('T')[0],
+    tipo_membresia_id: '',
+    fecha_inicio_membresia: '',
+    estado: 'activo',
     observaciones: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Cargar datos del socio cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && socio) {
+      setFormData({
+        nombre: socio.nombre,
+        apellido: socio.apellido,
+        email: socio.email,
+        telefono: socio.telefono || '',
+        documento: socio.documento,
+        tipo_documento: socio.tipo_documento,
+        fecha_nacimiento: socio.fecha_nacimiento || '',
+        direccion: socio.direccion || '',
+        tipo_membresia_id: socio.tipo_membresia_id,
+        fecha_inicio_membresia: socio.fecha_inicio_membresia,
+        estado: socio.estado,
+        observaciones: socio.observaciones || ''
+      });
+      setError('');
+    }
+  }, [isOpen, socio]);
 
   if (!isOpen) return null;
 
@@ -52,26 +76,10 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
         throw new Error('Por favor completa todos los campos obligatorios');
       }
 
-      await onSave(formData);
-      
-      // Resetear formulario
-      setFormData({
-        nombre: '',
-        apellido: '',
-        email: '',
-        telefono: '',
-        documento: '',
-        tipo_documento: 'cedula',
-        fecha_nacimiento: '',
-        direccion: '',
-        tipo_membresia_id: categorias[0]?.id || '',
-        fecha_inicio_membresia: new Date().toISOString().split('T')[0],
-        observaciones: ''
-      });
-      
+      await onSave(socio.id, formData);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear socio');
+      setError(err instanceof Error ? err.message : 'Error al actualizar socio');
     } finally {
       setLoading(false);
     }
@@ -105,7 +113,7 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Crear Nuevo Socio"
+      title="Editar Socio"
       size="lg"
     >
       <form onSubmit={handleSubmit}>
@@ -476,7 +484,7 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
             Información de Membresía
           </h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
             {/* Categoría de Socio */}
             <div>
               <label style={{
@@ -545,6 +553,41 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
                   e.target.style.background = 'rgba(255, 255, 255, 0.05)';
                 }}
               />
+            </div>
+
+            {/* Estado */}
+            <div>
+              <label style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+                fontWeight: '600',
+                marginBottom: '8px',
+                color: '#e2e8f0'
+              }}>
+                <User size={16} />
+                Estado *
+              </label>
+              <select
+                name="estado"
+                value={formData.estado}
+                onChange={handleChange}
+                required
+                style={selectStyles}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.background = 'rgba(59, 130, 246, 0.1)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.background = 'rgba(255, 255, 255, 0.05)';
+                }}
+              >
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+                <option value="suspendido">Suspendido</option>
+              </select>
             </div>
           </div>
         </div>
@@ -634,13 +677,13 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
               border: 'none',
               background: loading 
                 ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
-                : 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               fontSize: '14px',
               fontWeight: '600',
               cursor: loading ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
-              boxShadow: loading ? 'none' : '0 4px 12px rgba(59, 130, 246, 0.3)',
+              boxShadow: loading ? 'none' : '0 4px 12px rgba(16, 185, 129, 0.3)',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
@@ -649,18 +692,18 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
             onMouseEnter={(e) => {
               if (!loading) {
                 e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.4)';
+                e.currentTarget.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)';
               }
             }}
             onMouseLeave={(e) => {
               if (!loading) {
                 e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
               }
             }}
           >
             <Save size={16} />
-            {loading ? 'Creando...' : 'Crear Socio'}
+            {loading ? 'Actualizando...' : 'Actualizar Socio'}
           </button>
         </div>
       </form>
