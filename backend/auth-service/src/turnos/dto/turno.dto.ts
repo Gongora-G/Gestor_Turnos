@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsEnum, IsDateString, IsInt } from 'class-validator';
 import { EstadoTurno } from '../entities/turno.entity';
 
 export class CreateTurnoDto {
@@ -21,6 +21,10 @@ export class CreateTurnoDto {
   @IsOptional()
   @IsUUID()
   socio_id?: string;
+
+  @IsOptional()
+  @IsInt()
+  jornada_config_id?: number;
 
   @IsOptional()
   @IsString()
@@ -81,4 +85,11 @@ export class FiltrosTurnosDto {
   @IsOptional()
   @IsUUID()
   socio_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  jornada_activa_id?: string;
+
+  @IsOptional()
+  incluir_todas_las_jornadas?: boolean;
 }

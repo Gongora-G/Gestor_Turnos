@@ -22,17 +22,17 @@ export class CreateSocioDto {
   tipo_documento: TipoDocumento;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha_nacimiento?: string;
 
   @IsOptional()
   @IsString()
   direccion?: string;
 
-  @IsUUID()
+  @IsString()
   tipo_membresia_id: string;
 
-  @IsDateString()
+  @IsString()
   fecha_inicio_membresia: string;
 
   @IsOptional()
@@ -66,7 +66,7 @@ export class UpdateSocioDto {
   tipo_documento?: TipoDocumento;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha_nacimiento?: string;
 
   @IsOptional()
@@ -74,11 +74,11 @@ export class UpdateSocioDto {
   direccion?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   tipo_membresia_id?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha_inicio_membresia?: string;
 
   @IsOptional()
@@ -104,7 +104,7 @@ export class FiltrosSociosDto {
   documento?: string;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   tipo_membresia_id?: string;
 
   @IsOptional()
@@ -112,10 +112,10 @@ export class FiltrosSociosDto {
   estado?: EstadoSocio;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha_inicio?: string;
 
   @IsOptional()
-  @IsDateString()
+  @IsString()
   fecha_fin?: string;
 }

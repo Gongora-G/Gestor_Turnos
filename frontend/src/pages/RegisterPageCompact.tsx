@@ -47,7 +47,7 @@ export const RegisterPage: React.FC = () => {
     
     // Manejar errores de OAuth
     if (error && message) {
-      showError(decodeURIComponent(message), 6000);
+      addToast(decodeURIComponent(message), 'error');
       
       // Limpiar URL después de mostrar el error
       window.history.replaceState({}, document.title, '/register');
@@ -69,12 +69,12 @@ export const RegisterPage: React.FC = () => {
       setCurrentStep(2);
       
       // Mostrar mensaje de bienvenida
-      success(`¡Hola ${decodeURIComponent(googleFirstName)}! Completa los datos de tu club para finalizar el registro.`, 5000);
+      addToast(`¡Hola ${decodeURIComponent(googleFirstName)}! Completa los datos de tu club para finalizar el registro.`, 'success');
       
       // Limpiar URL para una mejor UX
       window.history.replaceState({}, document.title, '/register');
     }
-  }, [searchParams, success, showError]);
+  }, [searchParams, addToast]);
 
   const handleSuccessComplete = () => {
     navigate('/dashboard');
@@ -187,15 +187,15 @@ export const RegisterPage: React.FC = () => {
       if (errorMessage.toLowerCase().includes('email ya está registrado') || 
           errorMessage.toLowerCase().includes('correo electrónico ya está registrado')) {
         setFieldErrors({ email: errorMessage });
-        showError('Este email ya está registrado. Intenta con otro email o inicia sesión.', 6000);
+        addToast('Este email ya está registrado. Intenta con otro email o inicia sesión.', 'error');
       } else if (errorMessage.toLowerCase().includes('contraseña')) {
         setFieldErrors({ password: errorMessage });
-        showError('Error en la contraseña. Revisa los requisitos.', 6000);
+        addToast('Error en la contraseña. Revisa los requisitos.', 'error');
       } else if (errorMessage.toLowerCase().includes('teléfono')) {
-        showError('Error en el formato del número de teléfono. Verifica que sea válido.', 6000);
+        addToast('Error en el formato del número de teléfono. Verifica que sea válido.', 'error');
       } else {
         setError(errorMessage || 'Error al registrar la cuenta. Por favor, intenta nuevamente.');
-        showError(errorMessage || 'Ocurrió un error inesperado. Por favor, intenta nuevamente.', 6000);
+        addToast(errorMessage || 'Ocurrió un error inesperado. Por favor, intenta nuevamente.', 'error');
       }
     }
   };

@@ -7,6 +7,7 @@ import { Cancha } from '../configuracion/entities/cancha.entity';
 import { ConfiguracionClub } from '../configuracion/entities/configuracion-club.entity';
 import { Turno } from '../turnos/entities/turno.entity';
 import { Socio } from '../socios/entities/socio.entity';
+import { JornadaConfig, ConfiguracionJornadas, RegistroJornada } from '../jornadas/entities/jornada.entity';
 
 export const databaseConfig = (
   configService: ConfigService,
@@ -17,8 +18,19 @@ export const databaseConfig = (
   username: configService.get<string>('DATABASE_USERNAME'),
   password: configService.get<string>('DATABASE_PASSWORD'),
   database: configService.get<string>('DATABASE_NAME'),
-  entities: [User, Club, TipoMembresia, Cancha, ConfiguracionClub, Turno, Socio],
-  synchronize: configService.get<string>('NODE_ENV') === 'development', // Solo en desarrollo
+  entities: [
+    User, 
+    Club, 
+    TipoMembresia, 
+    Cancha, 
+    ConfiguracionClub, 
+    Turno, 
+    Socio,
+    JornadaConfig,
+    ConfiguracionJornadas,
+    RegistroJornada
+  ],
+  synchronize: false, // Deshabilitado temporalmente para evitar conflictos
   logging: configService.get<string>('NODE_ENV') === 'development',
   migrations: ['dist/database/migrations/*.js'],
   migrationsTableName: 'migrations',

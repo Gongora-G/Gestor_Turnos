@@ -1,6 +1,9 @@
 export * from './ui';
 export { ProtectedRoute } from './ProtectedRoute';
 export { default as GlobalNavigation } from './GlobalNavigation';
+export { default as UserProfileMenu } from './UserProfileMenu';
+export { default as GlobalFooter } from './GlobalFooter';
+export { default as AppLayout } from './AppLayout';
 export { Modal } from './Modal';
 export { CrearTurnoModal } from './CrearTurnoModal';
 export { VerTurnoModal } from './VerTurnoModal';
@@ -10,6 +13,6 @@ export { TurnoCard } from './TurnoCard';
 export { CrearSocioModal } from './CrearSocioModal';
 export { EditarSocioModal } from './EditarSocioModal';
 export { default as GestionCategorias } from './GestionCategorias';
-export { default as GestionJornadas } from './GestionJornadas';
+export { default as RegistroJornadas } from './RegistroJornadas';
 export { PublicRoute } from './PublicRoute';
 export { default as ConfirmDeleteModal } from './ConfirmDeleteModal';

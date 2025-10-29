@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast';
 import { ProtectedRoute, PublicRoute } from './components';
-import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, ConfiguracionPage, JornadasPage } from './pages';
+import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
 
 function App() {
   return (
@@ -75,15 +75,7 @@ function App() {
                 }
               />
 
-              {/* Jornadas Routes */}
-              <Route
-                path="/jornadas"
-                element={
-                  <ProtectedRoute>
-                    <JornadasPage />
-                  </ProtectedRoute>
-                }
-              />
+
 
               {/* Configuración Routes */}
               <Route
@@ -91,6 +83,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ConfiguracionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuracion-perfil"
+                element={
+                  <ProtectedRoute>
+                    <ConfiguracionPerfilPage />
                   </ProtectedRoute>
                 }
               />

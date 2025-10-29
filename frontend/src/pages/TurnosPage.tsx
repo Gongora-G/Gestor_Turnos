@@ -1,48 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { 
-  GlobalNavigation, 
+  AppLayout, 
   CrearTurnoModal, 
   TurnoCard, 
   VerTurnoModal, 
   EditarTurnoModal, 
   EliminarTurnoModal 
 } from '../components';
-import { Plus, Filter, Search, Save, Calendar } from 'lucide-react';
-import { turnosService, canchasService } from '../services';
-import { jornadasService } from '../services/jornadasService';
+import RegistroJornadas from '../components/RegistroJornadas';
+import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
+import { turnosService, canchasService, type Turno as TurnoService } from '../services';
+import { JornadasService } from '../services/jornadasService';
 import { calcularEstadoAutomatico } from '../utils/turnoStates';
 import { useToast } from '../contexts/ToastContext';
 
-// Tipos locales para evitar problemas de importación
-interface Turno {
-  id: string;
-  fecha: string;
-  hora_inicio: string;
-  hora_fin: string;
-  cancha_id: string;
-  cancha?: {
-    id: string;
-    nombre: string;
-    ubicacion?: string;
-  };
-  usuario_id: string;
-  usuario?: {
-    id: string;
-    nombre: string;
-    email: string;
-  };
-  socio_id?: string;
-  socio?: {
-    id: string;
-    nombre: string;
-    tipo_membresia: string;
-  };
-  estado: 'en_progreso' | 'completado';
-  observaciones?: string;
-  created_at: string;
-  updated_at: string;
-}
+// Usar el tipo del servicio
+type Turno = TurnoService;
+
+// Alias para compatibilidad con otros componentes
+interface TurnoBackend extends Turno {}
 
 interface CanchaBackend {
   id: string;
@@ -56,7 +32,7 @@ interface CanchaBackend {
 }
 
 export const TurnosPage: React.FC = () => {
-  const { addToast } = useToast();
+  const { success: showSuccess, error: showError, warning: showWarning } = useToast();
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [canchas, setCanchas] = useState<CanchaBackend[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +40,8 @@ export const TurnosPage: React.FC = () => {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [guardandoJornada, setGuardandoJornada] = useState(false);
+  const [tabActivo, setTabActivo] = useState<'turnos' | 'historial'>('turnos');
+  const [jornadaActual, setJornadaActual] = useState<any>(null);
   
   // Estados de modales
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
@@ -87,16 +65,24 @@ export const TurnosPage: React.FC = () => {
       setError(null);
       
       console.log('🔍 Cargando datos...');
-      const [turnosResponse, canchasResponse] = await Promise.all([
+      const [turnosResponse, canchasResponse, jornadaResponse] = await Promise.all([
         turnosService.obtenerTurnos(),
-        canchasService.obtenerCanchas()
+        canchasService.obtenerCanchas(),
+        JornadasService.getJornadaActual()
       ]);
       
       console.log('✅ Turnos cargados:', turnosResponse);
+      console.log('🔍 Información de socios en turnos:', turnosResponse.map(t => ({ 
+        id: t.id, 
+        socio_id: t.socio_id,
+        socio: t.socio 
+      })));
       console.log('✅ Canchas cargadas:', canchasResponse);
+      console.log('✅ Jornada actual:', jornadaResponse);
       
       setTurnos(turnosResponse);
       setCanchas(canchasResponse);
+      setJornadaActual(jornadaResponse);
       
     } catch (error: any) {
       console.error('❌ Error al cargar datos:', error);
@@ -131,7 +117,8 @@ export const TurnosPage: React.FC = () => {
     setEliminarTurnoModal({ abierto: true, turno });
   };
 
-  // Función para crear turno
+  // Función para crear turno (comentada por no usarse actualmente)
+  /*
   const handleCrearTurno = async (turnoData: Partial<TurnoBackend>) => {
     try {
       await turnosService.crearTurno(turnoData);
@@ -141,6 +128,7 @@ export const TurnosPage: React.FC = () => {
       throw error;
     }
   };
+  */
 
   // Función para actualizar turno
   const handleActualizarTurno = async (turnoData: Partial<TurnoBackend>) => {
@@ -168,39 +156,68 @@ export const TurnosPage: React.FC = () => {
   // Función para guardar jornada actual
   const handleGuardarJornada = async () => {
     if (turnos.length === 0) {
-      addToast('No hay turnos para guardar en la jornada', 'warning');
+      showWarning('Sin turnos activos', 'No hay turnos para guardar en la jornada actual');
       return;
     }
 
     setGuardandoJornada(true);
     try {
-      console.log('💾 Guardando jornada con turnos:', turnos);
+      // Obtener jornada actual usando el nuevo endpoint
+      const jornadaActual = await JornadasService.getJornadaActual();
       
-      // Usar el servicio para crear jornada desde turnos actuales
-      const response = await jornadasService.crearDesdeActuales(turnos);
-      
-      if (response.success) {
-        addToast(
-          `Jornada guardada correctamente con ${turnos.length} turnos`,
-          'success'
-        );
-        
-        // Limpiar turnos actuales después de guardar
-        setTurnos([]);
-        
-        // Opcional: Recargar datos desde el servidor
-        await cargarDatos();
-      } else {
-        addToast(
-          response.error || 'Error al guardar la jornada',
-          'error'
-        );
+      if (!jornadaActual) {
+        showError('Sin jornada activa', 'No se pudo determinar la jornada actual basada en el horario');
+        return;
       }
+
+      console.log('📋 Guardando jornada:', jornadaActual.nombre, 'con', turnos.length, 'turnos');
+
+      // Convertir turnos actuales al formato requerido por el nuevo endpoint
+      const turnosData = turnos.map(turno => ({
+        id: turno.id || '',
+        numeroCancha: parseInt(turno.cancha?.id || '1'),
+        horaInicio: turno.hora_inicio,
+        horaFin: turno.hora_fin,
+        estado: calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin, 'activo'),
+        clienteId: turno.socio?.id || undefined,
+        clienteNombre: turno.socio?.nombre || undefined,
+        monto: 0, // Por defecto, actualizar según tu lógica
+        metodoPago: 'efectivo' // Por defecto, actualizar según tu lógica
+      }));
+
+      // Llamar al nuevo servicio para guardar la jornada con todos los turnos
+      const resultado = await JornadasService.guardarRegistroJornada({
+        jornadaConfigId: parseInt(jornadaActual.id),
+        fecha: new Date().toISOString().split('T')[0], // YYYY-MM-DD
+        turnos: turnosData
+      });
+
+      // Mostrar resultado con estadísticas
+      const stats = resultado.registroDiario.estadisticas;
+      showSuccess(
+        '✅ Jornada guardada exitosamente',
+        `Se registraron ${stats.totalTurnos} turnos (${stats.turnosCompletados} completados). ${
+          resultado.siguienteJornada ? 
+          `Siguiente jornada: "${resultado.siguienteJornada.nombre}"` : 
+          'No hay siguiente jornada configurada'
+        }`
+      );
+
+      // Limpiar turnos después de guardar la jornada
+      console.log('🧹 Limpiando turnos del frontend...');
+      setTurnos([]);
+      
+      // Recargar datos para sincronizar con el backend
+      setTimeout(async () => {
+        console.log('🔄 Recargando datos...');
+        await cargarDatos();
+      }, 1500);
+
     } catch (error: any) {
-      console.error('❌ Error guardando jornada:', error);
-      addToast(
-        'Error al guardar la jornada: ' + (error.message || 'Error desconocido'),
-        'error'
+      console.error('❌ Error al guardar jornada:', error);
+      showError(
+        'Error al guardar jornada',
+        error.message || 'No se pudo completar la operación. Verifica tu conexión.'
       );
     } finally {
       setGuardandoJornada(false);
@@ -222,13 +239,7 @@ export const TurnosPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f0f23',
-        color: '#ffffff',
-        fontFamily: 'Inter, system-ui, sans-serif'
-      }}>
-        <GlobalNavigation />
+      <AppLayout>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -257,19 +268,13 @@ export const TurnosPage: React.FC = () => {
         <style>
           {`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}
         </style>
-      </div>
+      </AppLayout>
     );
   }
 
   if (error) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        backgroundColor: '#0f0f23',
-        color: '#ffffff',
-        fontFamily: 'Inter, system-ui, sans-serif'
-      }}>
-        <GlobalNavigation />
+      <AppLayout>
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -338,19 +343,12 @@ export const TurnosPage: React.FC = () => {
             </button>
           </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      backgroundColor: '#0f0f23',
-      color: '#ffffff',
-      fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <GlobalNavigation />
-      
+    <AppLayout>
       {/* Header con controles */}
       <div style={{
         background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
@@ -368,11 +366,11 @@ export const TurnosPage: React.FC = () => {
             gap: '16px'
           }}>
             
-            {/* Título */}
+            {/* Título y Tabs */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               flexWrap: 'wrap',
               gap: '16px'
             }}>
@@ -380,7 +378,7 @@ export const TurnosPage: React.FC = () => {
                 <h1 style={{
                   fontSize: '32px',
                   fontWeight: '700',
-                  marginBottom: '8px',
+                  marginBottom: '16px',
                   background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
@@ -389,292 +387,439 @@ export const TurnosPage: React.FC = () => {
                 }}>
                   Gestión de Turnos
                 </h1>
+
+                {/* Indicador de Jornada Actual */}
+                {jornadaActual && (
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '6px 12px',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    borderRadius: '8px',
+                    marginBottom: '12px'
+                  }}>
+                    <Clock size={14} style={{ color: '#3b82f6' }} />
+                    <span style={{
+                      fontSize: '13px',
+                      fontWeight: '500',
+                      color: '#60a5fa'
+                    }}>
+                      {jornadaActual.nombre} • {jornadaActual.horaInicio} - {jornadaActual.horaFin}
+                    </span>
+                  </div>
+                )}
+                
+                {/* Tabs */}
+                <div style={{
+                  display: 'flex',
+                  gap: '8px',
+                  marginBottom: '16px'
+                }}>
+                  <button
+                    onClick={() => setTabActivo('turnos')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: tabActivo === 'turnos' 
+                        ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+                        : 'rgba(55, 65, 81, 0.5)',
+                      color: tabActivo === 'turnos' ? 'white' : '#9ca3af',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Clock size={16} />
+                    Turnos Actuales
+                  </button>
+                  <button
+                    onClick={() => setTabActivo('historial')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: tabActivo === 'historial' 
+                        ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+                        : 'rgba(55, 65, 81, 0.5)',
+                      color: tabActivo === 'historial' ? 'white' : '#9ca3af',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <History size={16} />
+                    Registro de Jornadas
+                  </button>
+                </div>
+
                 <p style={{
                   fontSize: '16px',
                   color: '#9ca3af',
                   margin: 0
                 }}>
-                  {turnos.length} {turnos.length === 1 ? 'turno registrado' : 'turnos registrados'}
-                  {turnosFiltrados.length !== turnos.length && 
-                    ` (${turnosFiltrados.length} ${turnosFiltrados.length === 1 ? 'mostrado' : 'mostrados'})`
-                  }
+                  {tabActivo === 'turnos' ? (
+                    <>
+                      {turnos.length} {turnos.length === 1 ? 'turno registrado' : 'turnos registrados'}
+                      {turnosFiltrados.length !== turnos.length && 
+                        ` (${turnosFiltrados.length} ${turnosFiltrados.length === 1 ? 'mostrado' : 'mostrados'})`
+                      }
+                    </>
+                  ) : (
+                    'Registro completo de jornadas diarias con estadísticas detalladas'
+                  )}
                 </p>
               </div>
 
-              {/* Botón Crear Turno */}
-              <button
-                onClick={() => setModalCrearAbierto(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
-                }}
-              >
-                <Plus size={20} />
-                Crear Turno
-              </button>
-            </div>
-
-            {/* Controles de filtro y búsqueda */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              <div style={{
-                display: 'flex',
-                gap: '16px',
-                flexWrap: 'wrap'
-              }}>
-                {/* Búsqueda */}
-                <div style={{
-                  position: 'relative',
-                  flex: '1',
-                  minWidth: '300px'
-                }}>
-                  <Search 
-                    size={20}
-                    style={{
-                      position: 'absolute',
-                      left: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#9ca3af'
-                    }}
-                  />
-                  <input
-                    type="text"
-                    placeholder="Buscar por ID, observaciones o cancha..."
-                    value={busqueda}
-                    onChange={(e) => setBusqueda(e.target.value)}
-                    style={{
-                      width: '100%',
-                      paddingLeft: '44px',
-                      paddingRight: '16px',
-                      paddingTop: '12px',
-                      paddingBottom: '12px',
-                      background: 'rgba(55, 65, 81, 0.5)',
-                      border: '1px solid #374151',
-                      borderRadius: '12px',
-                      color: '#f9fafb',
-                      fontSize: '14px',
-                      outline: 'none',
-                      transition: 'all 0.2s ease'
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#3b82f6';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = '#374151';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
-                  />
-                </div>
-
-                {/* Filtro de estado */}
-                <div style={{
-                  position: 'relative',
-                  minWidth: '200px'
-                }}>
-                  <Filter 
-                    size={20}
-                    style={{
-                      position: 'absolute',
-                      left: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      color: '#9ca3af',
-                      pointerEvents: 'none'
-                    }}
-                  />
-                  <select
-                    value={filtroEstado}
-                    onChange={(e) => setFiltroEstado(e.target.value)}
-                    style={{
-                      paddingLeft: '44px',
-                      paddingRight: '32px',
-                      paddingTop: '12px',
-                      paddingBottom: '12px',
-                      background: 'rgba(55, 65, 81, 0.5)',
-                      border: '1px solid #374151',
-                      borderRadius: '12px',
-                      color: '#f9fafb',
-                      fontSize: '14px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      minWidth: '200px'
-                    }}
-                  >
-                    <option value="todos">Todos los estados</option>
-                    <option value="en_progreso">En Progreso</option>
-                    <option value="completado">Completados</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Indicador de filtros activos */}
-              {(busqueda || filtroEstado !== 'todos') && (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  fontSize: '14px',
-                  color: '#9ca3af'
-                }}>
-                  <span>Filtros activos:</span>
-                  {busqueda && (
-                    <span style={{
-                      background: 'rgba(59, 130, 246, 0.2)',
-                      color: '#60a5fa',
-                      padding: '4px 12px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}>
-                      Búsqueda: "{busqueda}"
-                    </span>
-                  )}
-                  {filtroEstado !== 'todos' && (
-                    <span style={{
-                      background: 'rgba(16, 185, 129, 0.2)',
-                      color: '#34d399',
-                      padding: '4px 12px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '500'
-                    }}>
-                      Estado: {filtroEstado}
-                    </span>
-                  )}
+              {/* Botones de acción - solo mostrar en tab de turnos */}
+              {tabActivo === 'turnos' && (
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <button
-                    onClick={() => {
-                      setBusqueda('');
-                      setFiltroEstado('todos');
-                    }}
+                    onClick={() => setModalCrearAbierto(true)}
                     style={{
-                      color: '#60a5fa',
-                      background: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '12px 24px',
+                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      color: 'white',
                       border: 'none',
-                      cursor: 'pointer',
+                      borderRadius: '12px',
                       fontSize: '14px',
-                      textDecoration: 'underline',
-                      marginLeft: '8px'
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
                     }}
                   >
-                    Limpiar filtros
+                    <Plus size={20} />
+                    Crear Turno
                   </button>
+
+                  {/* Botón Guardar Jornada - solo mostrar cuando hay turnos */}
+                  {turnos.length > 0 && (
+                    <button
+                      onClick={handleGuardarJornada}
+                      disabled={guardandoJornada}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '12px 24px',
+                        background: guardandoJornada 
+                          ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
+                          : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: guardandoJornada ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: guardandoJornada 
+                          ? '0 4px 12px rgba(107, 114, 128, 0.3)'
+                          : '0 4px 12px rgba(16, 185, 129, 0.3)',
+                        opacity: guardandoJornada ? 0.7 : 1
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!guardandoJornada) {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 8px 20px rgba(16, 185, 129, 0.4)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!guardandoJornada) {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.3)';
+                        }
+                      }}
+                    >
+                      <Save size={20} />
+                      {guardandoJornada ? 'Guardando...' : `Guardar Jornada (${turnos.length})`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Controles de filtro y búsqueda - Solo para turnos */}
+            {tabActivo === 'turnos' && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '16px',
+                  flexWrap: 'wrap'
+                }}>
+                  {/* Búsqueda */}
+                  <div style={{
+                    position: 'relative',
+                    flex: '1',
+                    minWidth: '300px'
+                  }}>
+                    <Search 
+                      size={20}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#9ca3af'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Buscar por ID, observaciones o cancha..."
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      style={{
+                        width: '100%',
+                        paddingLeft: '44px',
+                        paddingRight: '16px',
+                        paddingTop: '12px',
+                        paddingBottom: '12px',
+                        background: 'rgba(55, 65, 81, 0.5)',
+                        border: '1px solid #374151',
+                        borderRadius: '12px',
+                        color: '#f9fafb',
+                        fontSize: '14px',
+                        outline: 'none',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#3b82f6';
+                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = '#374151';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                    />
+                  </div>
+
+                  {/* Filtro de estado */}
+                  <div style={{
+                    position: 'relative',
+                    minWidth: '200px'
+                  }}>
+                    <Filter 
+                      size={20}
+                      style={{
+                        position: 'absolute',
+                        left: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: '#9ca3af',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                    <select
+                      value={filtroEstado}
+                      onChange={(e) => setFiltroEstado(e.target.value)}
+                      style={{
+                        paddingLeft: '44px',
+                        paddingRight: '32px',
+                        paddingTop: '12px',
+                        paddingBottom: '12px',
+                        background: 'rgba(55, 65, 81, 0.5)',
+                        border: '1px solid #374151',
+                        borderRadius: '12px',
+                        color: '#f9fafb',
+                        fontSize: '14px',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        minWidth: '200px'
+                      }}
+                    >
+                      <option value="todos">Todos los estados</option>
+                      <option value="en_progreso">En Progreso</option>
+                      <option value="completado">Completados</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Indicador de filtros activos */}
+                {(busqueda || filtroEstado !== 'todos') && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    fontSize: '14px',
+                    color: '#9ca3af'
+                  }}>
+                    <span>Filtros activos:</span>
+                    {busqueda && (
+                      <span style={{
+                        background: 'rgba(59, 130, 246, 0.2)',
+                        color: '#60a5fa',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        Búsqueda: "{busqueda}"
+                      </span>
+                    )}
+                    {filtroEstado !== 'todos' && (
+                      <span style={{
+                        background: 'rgba(16, 185, 129, 0.2)',
+                        color: '#34d399',
+                        padding: '4px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '500'
+                      }}>
+                        Estado: {filtroEstado}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        setBusqueda('');
+                        setFiltroEstado('todos');
+                      }}
+                      style={{
+                        color: '#60a5fa',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        textDecoration: 'underline',
+                        marginLeft: '8px'
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Lista de turnos */}
-      <div style={{
-        maxWidth: '1400px',
-        margin: '0 auto',
-        padding: '32px 24px'
-      }}>
-        {turnosFiltrados.length === 0 ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '48px 24px'
-          }}>
+      {/* Contenido condicional según el tab */}
+      {tabActivo === 'turnos' ? (
+        /* Lista de turnos */
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '32px 24px'
+        }}>
+          {turnosFiltrados.length === 0 ? (
             <div style={{
-              width: '64px',
-              height: '64px',
-              background: 'rgba(55, 65, 81, 0.5)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px'
+              textAlign: 'center',
+              padding: '48px 24px'
             }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8a1 1 0 011-1h3z" />
-              </svg>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                background: 'rgba(55, 65, 81, 0.5)',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px'
+              }}>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h3a1 1 0 011 1v9a2 2 0 01-2 2H5a2 2 0 01-2-2V8a1 1 0 011-1h3z" />
+                </svg>
+              </div>
+              <h3 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#f9fafb',
+                marginBottom: '8px',
+                margin: 0
+              }}>
+                {turnos.length === 0 ? 'No hay turnos registrados' : 'No se encontraron turnos'}
+              </h3>
+              <p style={{
+                fontSize: '16px',
+                color: '#9ca3af',
+                marginBottom: '24px',
+                margin: '8px 0 24px 0'
+              }}>
+                {turnos.length === 0 
+                  ? 'Comienza creando tu primer turno' 
+                  : 'Prueba ajustando los filtros de búsqueda'
+                }
+              </p>
+              {turnos.length === 0 && (
+                <button
+                  onClick={() => setModalCrearAbierto(true)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px 24px',
+                    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <Plus size={20} />
+                  Crear Primer Turno
+                </button>
+              )}
             </div>
-            <h3 style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#f9fafb',
-              marginBottom: '8px',
-              margin: 0
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '24px',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              width: '100%',
+              padding: '0 20px'
             }}>
-              {turnos.length === 0 ? 'No hay turnos registrados' : 'No se encontraron turnos'}
-            </h3>
-            <p style={{
-              fontSize: '16px',
-              color: '#9ca3af',
-              marginBottom: '24px',
-              margin: '8px 0 24px 0'
-            }}>
-              {turnos.length === 0 
-                ? 'Comienza creando tu primer turno' 
-                : 'Prueba ajustando los filtros de búsqueda'
-              }
-            </p>
-            {turnos.length === 0 && (
-              <button
-                onClick={() => setModalCrearAbierto(true)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 24px',
-                  background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                <Plus size={20} />
-                Crear Primer Turno
-              </button>
-            )}
-          </div>
-        ) : (
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-            gap: '24px'
-          }}>
-            {turnosFiltrados.map((turno) => (
-              <TurnoCard
-                key={turno.id}
-                turno={turno}
-                onVer={() => handleVerTurno(turno)}
-                onEditar={() => handleEditarTurno(turno)}
-                onEliminar={() => handleEliminarTurno(turno)}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+              {turnosFiltrados.map((turno) => (
+                <TurnoCard
+                  key={turno.id}
+                  turno={turno}
+                  onVer={() => handleVerTurno(turno)}
+                  onEditar={() => handleEditarTurno(turno)}
+                  onEliminar={() => handleEliminarTurno(turno)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Registro de Jornadas */
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '32px 24px'
+        }}>
+          <RegistroJornadas />
+        </div>
+      )}
 
       {/* Modales */}
       <CrearTurnoModal
@@ -704,87 +849,7 @@ export const TurnosPage: React.FC = () => {
         turno={eliminarTurnoModal.turno}
       />
 
-      {/* Botón flotante para guardar jornada */}
-      {turnos.length > 0 && (
-        <div style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 1000
-        }}>
-          <button
-            onClick={handleGuardarJornada}
-            disabled={guardandoJornada}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '16px 24px',
-              background: guardandoJornada 
-                ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
-                : 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '16px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: guardandoJornada ? 'not-allowed' : 'pointer',
-              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
-              transition: 'all 0.3s ease',
-              opacity: guardandoJornada ? 0.7 : 1,
-              transform: guardandoJornada ? 'scale(0.95)' : 'scale(1)'
-            }}
-            onMouseEnter={(e) => {
-              if (!guardandoJornada) {
-                e.currentTarget.style.transform = 'scale(1.05)';
-                e.currentTarget.style.boxShadow = '0 15px 35px rgba(16, 185, 129, 0.4)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = guardandoJornada ? 'scale(0.95)' : 'scale(1)';
-              e.currentTarget.style.boxShadow = '0 10px 25px rgba(16, 185, 129, 0.3)';
-            }}
-          >
-            {guardandoJornada ? (
-              <>
-                <div style={{
-                  width: '20px',
-                  height: '20px',
-                  border: '2px solid rgba(255, 255, 255, 0.3)',
-                  borderTop: '2px solid white',
-                  borderRadius: '50%',
-                  animation: 'spin 1s linear infinite'
-                }}></div>
-                Guardando...
-              </>
-            ) : (
-              <>
-                <Save size={20} />
-                Guardar Jornada ({turnos.length})
-              </>
-            )}
-          </button>
-          
-          {/* Tooltip */}
-          <div style={{
-            position: 'absolute',
-            bottom: '100%',
-            right: '0',
-            marginBottom: '8px',
-            padding: '8px 12px',
-            background: 'rgba(0, 0, 0, 0.8)',
-            color: 'white',
-            borderRadius: '8px',
-            fontSize: '14px',
-            whiteSpace: 'nowrap',
-            opacity: 0,
-            pointerEvents: 'none',
-            transition: 'opacity 0.2s ease'
-          }}>
-            Guarda todos los turnos actuales como una jornada histórica
-          </div>
-        </div>
-      )}
+
 
       {/* Estilos para la animación de spin */}
       <style>
@@ -795,6 +860,6 @@ export const TurnosPage: React.FC = () => {
           }
         `}
       </style>
-    </div>
+    </AppLayout>
   );
 };

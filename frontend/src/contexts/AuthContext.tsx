@@ -75,6 +75,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const response = await authService.login(credentials);
       console.log('✅ Login exitoso con backend:', response);
       
+      // Guardar tanto en localStorage como en sessionStorage para asegurar persistencia
+      localStorage.setItem('auth_token', response.access_token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
+      sessionStorage.setItem('auth_token', response.access_token);
+      sessionStorage.setItem('auth_user', JSON.stringify(response.user));
+      
+      console.log('💾 Token guardado en localStorage:', response.access_token);
+      console.log('💾 Verificando localStorage después de guardar:', localStorage.getItem('auth_token'));
+      
       setToken(response.access_token);
       setUser(response.user);
       

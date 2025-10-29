@@ -1,13 +1,11 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts';
+import UserProfileMenu from './UserProfileMenu';
 import { 
   LayoutDashboard, 
   Calendar, 
-  Users, 
   FileText, 
-  Settings, 
-  LogOut,
+  Settings,
   ChevronRight 
 } from 'lucide-react';
 
@@ -21,7 +19,6 @@ interface NavItem {
 const GlobalNavigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout } = useAuth();
 
   const navItems: NavItem[] = [
     {
@@ -36,12 +33,7 @@ const GlobalNavigation: React.FC = () => {
       icon: Calendar,
       description: 'Administrar reservas'
     },
-    {
-      path: '/jornadas',
-      label: 'Jornadas',
-      icon: FileText,
-      description: 'Historial de jornadas'
-    },
+
     {
       path: '/reportes',
       label: 'Reportes',
@@ -157,38 +149,8 @@ const GlobalNavigation: React.FC = () => {
         })}
       </div>
 
-      {/* Botón de Cerrar Sesión */}
-      <button
-        onClick={() => {
-          logout();
-          navigate('/login');
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '10px 16px',
-          borderRadius: '8px',
-          border: '1px solid #ef4444',
-          background: 'transparent',
-          color: '#ef4444',
-          cursor: 'pointer',
-          transition: 'all 0.2s ease',
-          fontSize: '14px',
-          fontWeight: '500'
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = '#ef4444';
-          e.currentTarget.style.color = '#ffffff';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = 'transparent';
-          e.currentTarget.style.color = '#ef4444';
-        }}
-      >
-        <LogOut size={18} />
-        <span>Cerrar Sesión</span>
-      </button>
+      {/* Menú de Perfil de Usuario */}
+      <UserProfileMenu />
     </div>
   );
 };

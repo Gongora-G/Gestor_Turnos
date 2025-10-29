@@ -3,7 +3,7 @@ import { useAuth } from '../contexts';
 import { useSearchParams } from 'react-router-dom';
 import { formatDateTime, getInitials } from '../utils';
 import type { UserRole } from '../types';
-import { GlobalNavigation } from '../components';
+import { AppLayout } from '../components';
 import { 
   Calendar, 
   Clock, 
@@ -66,9 +66,7 @@ const DashboardPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      <GlobalNavigation />
-      
+    <AppLayout>
       {/* Success Message */}
       {successMessage && (
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 text-center text-sm font-medium">
@@ -254,7 +252,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 };
 

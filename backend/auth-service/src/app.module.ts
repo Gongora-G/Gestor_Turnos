@@ -34,7 +34,7 @@ import { JornadasModule } from './jornadas/jornadas.module';
     TurnosModule,
     // 👤 Socios module
     SociosModule,
-    // 📋 Jornadas module
+    // 🕐 Jornadas module
     JornadasModule,
   ],
   controllers: [AppController],

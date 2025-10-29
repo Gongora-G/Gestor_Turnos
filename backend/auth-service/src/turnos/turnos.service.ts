@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Turno } from './entities/turno.entity';
 import { Cancha } from '../configuracion/entities/cancha.entity';
+import { Socio } from '../socios/entities/socio.entity';
+import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
 import { CreateTurnoDto, UpdateTurnoDto, FiltrosTurnosDto } from './dto/turno.dto';
+import { JornadasService } from '../jornadas/jornadas.service';
 
 @Injectable()
 export class TurnosService {
@@ -12,32 +15,85 @@ export class TurnosService {
     private turnosRepository: Repository<Turno>,
     @InjectRepository(Cancha)
     private canchasRepository: Repository<Cancha>,
+    @InjectRepository(Socio)
+    private sociosRepository: Repository<Socio>,
+    @InjectRepository(TipoMembresia)
+    private tipoMembresiaRepository: Repository<TipoMembresia>,
+    private jornadasService: JornadasService,
   ) {}
 
-  async create(createTurnoDto: CreateTurnoDto, clubId: string): Promise<Turno> {
-    // Generar nombre automático secuencial para el día
-    const { nombreAutomatico, numeroTurnoDia } = await this.generarNombreSecuencial(createTurnoDto.fecha, clubId);
+  async create(createTurnoDto: CreateTurnoDto, clubId: string, usuarioId?: string): Promise<Turno> {
+    console.log('🆕 Creando turno para club:', clubId);
+    console.log('👤 UsuarioId recibido:', usuarioId);
+    console.log('📅 Fecha recibida:', createTurnoDto.fecha, '(tipo:', typeof createTurnoDto.fecha, ')');
+    console.log('⏰ Hora inicio del turno:', createTurnoDto.hora_inicio);
     
-    const turno = this.turnosRepository.create({
-      ...createTurnoDto,
-      nombre: nombreAutomatico,
-      numero_turno_dia: numeroTurnoDia,
-      club_id: clubId,
-    });
+    try {      
+      const { nombreAutomatico, numeroTurnoDia } = await this.generarNombreSecuencial(
+        createTurnoDto.fecha, 
+        clubId
+      );
 
-    return await this.turnosRepository.save(turno);
+      // 🎯 Determinar jornada basándose en la HORA DE INICIO DEL TURNO (no la hora actual)
+      let jornadaConfigId = createTurnoDto.jornada_config_id;
+      if (!jornadaConfigId) {
+        try {
+          const jornadaParaTurno = await this.jornadasService.determinarJornadaPorHora(clubId, createTurnoDto.hora_inicio);
+          if (jornadaParaTurno) {
+            jornadaConfigId = jornadaParaTurno.id;
+            console.log('🎯 Jornada asignada automáticamente basada en hora de inicio del turno:', jornadaParaTurno.nombre, `(ID: ${jornadaConfigId})`, `- Horario: ${jornadaParaTurno.horaInicio} a ${jornadaParaTurno.horaFin}`);
+          } else {
+            console.log('⚠️ No se encontró jornada para la hora de inicio:', createTurnoDto.hora_inicio);
+          }
+        } catch (error) {
+          console.error('❌ Error al determinar jornada para el turno:', error);
+          // Continuar sin jornada si hay error
+        }
+      }
+      
+      const turnoData = {
+        ...createTurnoDto,
+        nombre: nombreAutomatico,
+        numero_turno_dia: numeroTurnoDia,
+        club_id: clubId,
+        jornada_config_id: jornadaConfigId, // Asignar jornada determinada
+      };
+
+      console.log('📅 Datos del turno antes de guardar:', {
+        fecha: turnoData.fecha,
+        hora_inicio: turnoData.hora_inicio,
+        hora_fin: turnoData.hora_fin,
+        jornada_config_id: turnoData.jornada_config_id
+      });
+      
+      const turno = this.turnosRepository.create(turnoData);
+      console.log('📅 Entidad turno creada:', {
+        fecha: turno.fecha,
+        hora_inicio: turno.hora_inicio,
+        hora_fin: turno.hora_fin,
+        jornada_config_id: turno.jornada_config_id
+      });
+      
+      const turnoGuardado = await this.turnosRepository.save(turno);
+      console.log('✅ Turno creado:', turnoGuardado.id, 'con jornada:', turnoGuardado.jornada_config_id);
+      return turnoGuardado;
+    } catch (error) {
+      console.error('❌ ERROR creando turno:', error);
+      throw error;
+    }
   }
 
   private async generarNombreSecuencial(fecha: string, clubId: string): Promise<{nombreAutomatico: string, numeroTurnoDia: number}> {
     // Extraer solo la fecha (YYYY-MM-DD)
     const fechaSolo = fecha.split('T')[0];
     
-    // Usar MAX para obtener el número más alto del día y evitar problemas de concurrencia
-    const resultado = await this.turnosRepository
+    // Usar MAX para obtener el número más alto del día
+    const query = this.turnosRepository
       .createQueryBuilder('turno')
       .select('MAX(turno.numero_turno_dia)', 'maxNumero')
-      .where('turno.fecha = :fecha AND turno.club_id = :clubId', { fecha: fechaSolo, clubId })
-      .getRawOne();
+      .where('turno.fecha = :fecha AND turno.club_id = :clubId', { fecha: fechaSolo, clubId });
+    
+    const resultado = await query.getRawOne();
 
     // Generar número secuencial (empezando desde 1)
     const numeroTurnoDia = (resultado?.maxNumero || 0) + 1;
@@ -49,7 +105,9 @@ export class TurnosService {
     };
   }
 
-  async findAll(filtros: FiltrosTurnosDto, clubId: string): Promise<any[]> {
+  async findAll(filtros: FiltrosTurnosDto, clubId: string, usuarioId?: string): Promise<any[]> {
+    console.log('🔍 Obteniendo turnos con filtros:', filtros);
+    
     const query = this.turnosRepository.createQueryBuilder('turno')
       .where('turno.club_id = :clubId', { clubId });
 
@@ -64,11 +122,6 @@ export class TurnosService {
     } else if (filtros.fecha_fin) {
       query.andWhere('turno.fecha <= :fechaFin', { fechaFin: filtros.fecha_fin });
     }
-    // Comentamos el filtro automático por día actual para mostrar todos los turnos por defecto
-    // if (!filtros.fecha_inicio && !filtros.fecha_fin) {
-    //   const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-    //   query.andWhere('turno.fecha = :hoy', { hoy });
-    // }
 
     if (filtros.cancha_id) {
       query.andWhere('turno.cancha_id = :canchaId', { canchaId: filtros.cancha_id });
@@ -91,18 +144,83 @@ export class TurnosService {
       .addOrderBy('turno.numero_turno_dia', 'ASC')
       .getMany();
 
-    // Obtener IDs únicos de canchas
-    const canchaIds = [...new Set(turnos.map(t => t.cancha_id).filter(Boolean))];
-    
-    // Cargar canchas en una sola consulta
-    const canchas = await this.canchasRepository.findByIds(canchaIds);
-    const canchasMap = new Map(canchas.map(c => [c.id, c]));
+    console.log(`✅ Se encontraron ${turnos.length} turnos`);
 
-    // Combinar turnos con información de canchas
-    return turnos.map(turno => ({
-      ...turno,
-      cancha: canchasMap.get(turno.cancha_id) || null
-    }));
+    // Obtener IDs únicos de canchas, socios y jornadas
+    const canchaIds = [...new Set(turnos.map(t => t.cancha_id).filter(Boolean))];
+    const socioIds = [...new Set(turnos.map(t => t.socio_id).filter(Boolean))];
+    const jornadaConfigIds = [...new Set(turnos.map(t => t.jornada_config_id).filter(Boolean))];
+    
+    console.log('🔍 Turnos encontrados:', turnos.map(t => ({ id: t.id, socio_id: t.socio_id, jornada_config_id: t.jornada_config_id })));
+    console.log('🔍 IDs de socios únicos:', socioIds);
+    console.log('🔍 IDs de jornadas únicas:', jornadaConfigIds);
+    
+    // Cargar canchas, socios y jornadas
+    const [canchas, socios, jornadasConfig] = await Promise.all([
+      this.canchasRepository.findByIds(canchaIds),
+      socioIds.length > 0 ? this.sociosRepository
+        .createQueryBuilder('socio')
+        .where('socio.id IN (:...socioIds)', { socioIds })
+        .getMany() : [],
+      jornadaConfigIds.length > 0 ? this.jornadasService.findJornadaConfigByIds(jornadaConfigIds) : []
+    ]);
+
+    // Obtener IDs únicos de tipos de membresía y cargarlos
+    const tipoMembresiaIds = [...new Set(socios.map(s => s.tipo_membresia_id).filter(Boolean))];
+    const tiposMembresia = tipoMembresiaIds.length > 0 ? 
+      await this.tipoMembresiaRepository.findByIds(tipoMembresiaIds) : [];
+    
+    console.log('✅ Socios cargados:', socios.map(s => ({ id: s.id, nombre: s.nombre, apellido: s.apellido })));
+    console.log('✅ Tipos de membresía cargados:', tiposMembresia.map(tm => ({ id: tm.id, nombre: tm.nombre })));
+    console.log('✅ Jornadas cargadas:', jornadasConfig.map(j => ({ id: j.id, nombre: j.nombre })));
+    
+    const canchasMap = new Map(canchas.map(c => [c.id, c]));
+    const tipoMembresiaMap = new Map(tiposMembresia.map(tm => [tm.id, tm]));
+    const jornadasMap = new Map<number, any>();
+    jornadasConfig.forEach((jornada: any) => jornadasMap.set(jornada.id, jornada));
+    const sociosMap = new Map<string, any>();
+    socios.forEach((socio: any) => sociosMap.set(socio.id, socio));
+
+    // Combinar turnos con información de canchas, socios y jornadas
+    return turnos.map(turno => {
+      const socio: any = sociosMap.get(turno.socio_id);
+      const jornadaConfig: any = jornadasMap.get(turno.jornada_config_id);
+      console.log(`🔍 Turno ${turno.id}: socio_id=${turno.socio_id}, socio encontrado:`, socio ? 'SÍ' : 'NO', ', jornada_config_id=', turno.jornada_config_id, ', jornada encontrada:', jornadaConfig ? 'SÍ' : 'NO');
+      
+      // Obtener tipo de membresía del socio si existe
+      const tipoMembresia = socio ? tipoMembresiaMap.get(socio.tipo_membresia_id) : null;
+      
+      const resultado = {
+        ...turno,
+        cancha: canchasMap.get(turno.cancha_id) || null,
+        jornada_config: jornadaConfig ? {
+          id: jornadaConfig.id,
+          codigo: jornadaConfig.codigo,
+          nombre: jornadaConfig.nombre,
+          hora_inicio: jornadaConfig.horaInicio,
+          hora_fin: jornadaConfig.horaFin,
+          color: jornadaConfig.color
+        } : null,
+        socio: socio ? {
+          id: socio.id,
+          nombre: `${socio.nombre} ${socio.apellido}`,
+          email: socio.email,
+          documento: socio.documento,
+          tipo_membresia: tipoMembresia?.nombre || null,
+          tipo_membresia_color: tipoMembresia?.color || null,
+          estado: socio.estado,
+        } : null
+      };
+      
+      console.log(`✅ Resultado para turno ${turno.id}:`, {
+        socio_id: resultado.socio_id,
+        socio: resultado.socio,
+        jornada_config: resultado.jornada_config,
+        tipo_membresia: tipoMembresia?.nombre || 'Sin tipo'
+      });
+      
+      return resultado;
+    });
   }
 
   async findOne(id: string, clubId: string): Promise<Turno> {

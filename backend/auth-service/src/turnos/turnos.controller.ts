@@ -25,7 +25,7 @@ export class TurnosController {
     if (!user.clubId) {
       throw new Error('Usuario no tiene club asignado');
     }
-    return this.turnosService.create(createTurnoDto, user.clubId);
+    return this.turnosService.create(createTurnoDto, user.clubId, user.id);
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class TurnosController {
     if (!user.clubId) {
       throw new Error('Usuario no tiene club asignado');
     }
-    return this.turnosService.findAll(filtros, user.clubId);
+    return this.turnosService.findAll(filtros, user.clubId, user.id);
   }
 
   @Get('disponibles')

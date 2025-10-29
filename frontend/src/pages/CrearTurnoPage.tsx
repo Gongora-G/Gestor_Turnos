@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { GlobalNavigation } from '../components';
-import { Calendar, Clock, Users, Save, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Calendar, Users, Save, ArrowLeft, AlertCircle } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
+import TimeInput12h from '../components/TimeInput12h';
 
 interface CreateTurnoForm {
   usuarioId: string;
@@ -30,7 +31,7 @@ export const CrearTurnoPage: React.FC = () => {
   const [form, setForm] = useState<CreateTurnoForm>({
     usuarioId: '',
     caddieId: '',
-    fecha: '',
+    fecha: new Date().toISOString().split('T')[0], // Inicializar con fecha actual
     horaInicio: '',
     cantidadHoras: 1,
     horaFin: '',
@@ -441,30 +442,12 @@ export const CrearTurnoPage: React.FC = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px' }}>
                   <div style={{ marginBottom: '16px' }}>
-                    <label style={{ 
-                      display: 'block', 
-                      fontSize: '14px', 
-                      fontWeight: '500', 
-                      marginBottom: '8px',
-                      color: '#d1d5db'
-                    }}>
-                      Hora de Inicio *
-                    </label>
-                    <input
-                      type="time"
-                      name="horaInicio"
+                    <TimeInput12h
+                      label="Hora de Inicio *"
                       value={form.horaInicio}
-                      onChange={handleChange}
+                      onChange={(value) => handleChange({ target: { name: 'horaInicio', value } } as any)}
                       required
-                      style={inputStyles}
-                      onFocus={(e) => {
-                        e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #8b5cf6, #3b82f6) border-box';
-                        e.target.style.transform = 'scale(1.02)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6) border-box';
-                        e.target.style.transform = 'scale(1)';
-                      }}
+                      className="w-full"
                     />
                   </div>
 
@@ -521,6 +504,15 @@ export const CrearTurnoPage: React.FC = () => {
                         color: '#9ca3af'
                       }}
                     />
+                    {form.horaFin && (
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#9ca3af',
+                        marginTop: '4px'
+                      }}>
+                        {/* Mostrar formato 12h cuando esté disponible la función */}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

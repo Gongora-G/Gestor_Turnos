@@ -24,7 +24,21 @@ export interface Turno {
   socio?: {
     id: string;
     nombre: string;
+    email: string;
+    documento: string;
     tipo_membresia: string;
+    tipo_membresia_color: string;
+    estado: string;
+  };
+  // 🆕 Información de Jornada Asignada
+  jornada_config_id?: number;
+  jornada_config?: {
+    id: number;
+    codigo: string;
+    nombre: string;
+    hora_inicio: string;
+    hora_fin: string;
+    color: string;
   };
   estado: 'en_progreso' | 'completado';
   observaciones?: string;

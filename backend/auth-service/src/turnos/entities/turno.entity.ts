@@ -65,6 +65,12 @@ export class Turno {
   // @JoinColumn({ name: 'club_id' })
   // club: Club;
 
+  @Column('uuid', { nullable: true })
+  jornada_activa_id: string;
+
+  @Column({ type: 'integer', nullable: true, comment: 'ID de la jornada configurada a la que pertenece este turno' })
+  jornada_config_id: number;
+
   @CreateDateColumn()
   created_at: Date;
 

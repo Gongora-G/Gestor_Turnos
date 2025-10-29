@@ -1,7 +1,8 @@
 import React from 'react';
-import { Eye, Edit2, Trash2, MapPin, Clock, Calendar, User, Circle } from 'lucide-react';
+import { Eye, Edit2, Trash2, MapPin, Clock, Calendar, User, UserCheck, UserX } from 'lucide-react';
 import { formatTo12Hour } from '../utils/dateTime';
-import { calcularEstadoAutomatico, getEstadoColor, getEstadoTexto } from '../utils/turnoStates';
+import { formatTime12h } from '../utils/timeFormat';
+import { calcularEstadoAutomatico, getEstadoTexto } from '../utils/turnoStates';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -28,6 +29,18 @@ interface Turno {
     id: string;
     nombre: string;
     tipo_membresia: string;
+    tipo_membresia_color?: string;
+    documento?: string;
+  };
+  // 🆕 Información de Jornada Asignada
+  jornada_config_id?: number;
+  jornada_config?: {
+    id: number;
+    codigo: string;
+    nombre: string;
+    hora_inicio: string;
+    hora_fin: string;
+    color: string;
   };
   estado: 'en_progreso' | 'completado';
   observaciones?: string;
@@ -49,7 +62,7 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
   onEliminar
 }) => {
   const estadoCalculado = calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin);
-  const estadoColor = getEstadoColor(estadoCalculado);
+  // const estadoColor = getEstadoColor(estadoCalculado); // No usado actualmente
 
   // Generar nombre de turno desde el backend o fallback
   const getTurnoDisplayName = (turno: Turno) => {
@@ -80,7 +93,10 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
       boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
       transition: 'all 0.3s ease',
       cursor: 'pointer',
-      fontFamily: 'Inter, system-ui, sans-serif'
+      fontFamily: 'Inter, system-ui, sans-serif',
+      width: '400px',
+      minWidth: '400px',
+      maxWidth: '400px'
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-4px)';
@@ -228,18 +244,23 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
           </div>
           <div style={{ flex: 1 }}>
             <p style={{
-              fontSize: '14px',
+              fontSize: '18px',
               fontWeight: '600',
               color: '#f9fafb',
               marginBottom: '4px',
               margin: 0
             }}>
-              {new Date(turno.fecha).toLocaleDateString('es-ES', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+              {(() => {
+                // Crear fecha en zona horaria local para evitar problemas de UTC
+                const [year, month, day] = turno.fecha.split('-');
+                const fechaLocal = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                return fechaLocal.toLocaleDateString('es-ES', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                });
+              })()}
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Clock size={16} color="#60a5fa" />
@@ -308,37 +329,197 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
           border: '1px solid #374151'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+            background: turno.socio 
+              ? 'linear-gradient(135deg, #059669 0%, #047857 100%)' // Verde para socios
+              : turno.usuario 
+                ? 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)' // Azul para usuarios
+                : 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)', // Gris para sin asignar
             borderRadius: '12px',
             padding: '12px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
           }}>
-            <User size={20} color="white" />
+            {turno.socio ? (
+              <UserCheck size={20} color="white" />
+            ) : turno.usuario ? (
+              <User size={20} color="white" />
+            ) : (
+              <UserX size={20} color="white" />
+            )}
           </div>
           <div>
-            <p style={{
-              fontSize: '14px',
-              fontWeight: '600',
-              color: '#f9fafb',
-              marginBottom: '4px',
-              margin: 0
+            {turno.socio ? (
+              <>
+                <p style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#f9fafb',
+                  marginBottom: '2px',
+                  margin: 0
+                }}>
+                  {turno.socio.nombre}
+                </p>
+                {turno.socio.tipo_membresia && (
+                  <p style={{
+                    fontSize: '11px',
+                    color: turno.socio.tipo_membresia_color || '#a78bfa',
+                    fontWeight: '500',
+                    margin: 0,
+                    marginBottom: '2px',
+                    backgroundColor: turno.socio.tipo_membresia_color ? `${turno.socio.tipo_membresia_color}20` : 'transparent',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    display: 'inline-block'
+                  }}>
+                    {turno.socio.tipo_membresia}
+                  </p>
+                )}
+                <p style={{
+                  fontSize: '10px',
+                  color: '#9ca3af',
+                  fontWeight: '400',
+                  margin: 0
+                }}>
+                  {turno.socio.documento ? `Doc: ${turno.socio.documento}` : 'Socio del club'}
+                </p>
+              </>
+            ) : turno.usuario ? (
+              <>
+                <p style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#f9fafb',
+                  marginBottom: '2px',
+                  margin: 0
+                }}>
+                  {turno.usuario.nombre}
+                </p>
+                <p style={{
+                  fontSize: '10px',
+                  color: '#9ca3af',
+                  fontWeight: '400',
+                  margin: 0
+                }}>
+                  Usuario registrado
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#9ca3af',
+                  marginBottom: '2px',
+                  margin: 0
+                }}>
+                  Sin asignar
+                </p>
+                <p style={{
+                  fontSize: '10px',
+                  color: '#6b7280',
+                  fontWeight: '400',
+                  margin: 0
+                }}>
+                  Turno disponible
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 🆕 Información de Jornada Asignada */}
+        {turno.jornada_config && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            padding: '16px',
+            background: 'rgba(55, 65, 81, 0.3)',
+            borderRadius: '12px',
+            border: '1px solid #374151'
+          }}>
+            <div style={{
+              background: turno.jornada_config.color || 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+              borderRadius: '12px',
+              padding: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              {turno.socio?.nombre || turno.usuario?.nombre || 'Usuario no especificado'}
-            </p>
-            {turno.socio?.tipo_membresia && (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v6m0 6v6"/>
+                <path d="m21 12-6 0m-6 0-6 0"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#f9fafb',
+                marginBottom: '4px',
+                margin: 0
+              }}>
+                {turno.jornada_config.nombre}
+              </p>
               <p style={{
                 fontSize: '12px',
                 color: '#a78bfa',
                 fontWeight: '500',
                 margin: 0
               }}>
-                Membresía: {turno.socio.tipo_membresia}
+                {formatTime12h(turno.jornada_config.hora_inicio)} - {formatTime12h(turno.jornada_config.hora_fin)}
               </p>
-            )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Indicador cuando no hay jornada asignada */}
+        {!turno.jornada_config && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+            padding: '16px',
+            background: 'rgba(55, 65, 81, 0.3)',
+            borderRadius: '12px',
+            border: '1px solid #374151'
+          }}>
+            <div style={{
+              background: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
+              borderRadius: '12px',
+              padding: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M8 12h8"/>
+              </svg>
+            </div>
+            <div>
+              <p style={{
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#9ca3af',
+                marginBottom: '4px',
+                margin: 0
+              }}>
+                Sin jornada asignada
+              </p>
+              <p style={{
+                fontSize: '12px',
+                color: '#6b7280',
+                fontWeight: '500',
+                margin: 0
+              }}>
+                Fuera del horario configurado
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Footer con observaciones */}

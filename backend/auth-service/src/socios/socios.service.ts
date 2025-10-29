@@ -11,6 +11,16 @@ export class SociosService {
     private sociosRepository: Repository<Socio>,
   ) {}
 
+  private convertirFecha(fecha: string): string {
+    // Si la fecha está en formato DD/MM/YYYY, convertir a YYYY-MM-DD
+    if (fecha && fecha.includes('/')) {
+      const [dia, mes, año] = fecha.split('/');
+      return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+    }
+    // Si ya está en formato correcto o es ISO, devolverla como está
+    return fecha ? fecha.split('T')[0] : fecha;
+  }
+
   async create(createSocioDto: CreateSocioDto, clubId: string): Promise<Socio> {
     // Verificar que el email y documento no estén en uso
     const existeEmail = await this.sociosRepository.findOne({
@@ -29,10 +39,15 @@ export class SociosService {
       throw new ConflictException('Ya existe un socio con este documento');
     }
 
-    const socio = this.sociosRepository.create({
+    // Convertir fechas al formato correcto
+    const datosConFechasConvertidas = {
       ...createSocioDto,
+      fecha_nacimiento: createSocioDto.fecha_nacimiento ? this.convertirFecha(createSocioDto.fecha_nacimiento) : undefined,
+      fecha_inicio_membresia: this.convertirFecha(createSocioDto.fecha_inicio_membresia),
       club_id: clubId,
-    });
+    };
+
+    const socio = this.sociosRepository.create(datosConFechasConvertidas);
 
     return await this.sociosRepository.save(socio);
   }
@@ -90,32 +105,56 @@ export class SociosService {
   }
 
   async update(id: string, updateSocioDto: UpdateSocioDto, clubId: string): Promise<Socio> {
+    console.log('🔍 SociosService.update - ID:', id);
+    console.log('🔍 SociosService.update - ClubId:', clubId);
+    console.log('🔍 SociosService.update - Datos a actualizar:', JSON.stringify(updateSocioDto, null, 2));
+    
     const socio = await this.findOne(id, clubId);
+    console.log('✅ Socio encontrado:', socio.id, socio.nombre, socio.apellido);
 
     // Verificar email único si se está actualizando
     if (updateSocioDto.email && updateSocioDto.email !== socio.email) {
+      console.log('🔍 Verificando email único:', updateSocioDto.email);
       const existeEmail = await this.sociosRepository.findOne({
         where: { email: updateSocioDto.email, club_id: clubId },
       });
 
       if (existeEmail) {
+        console.error('❌ Email ya existe:', updateSocioDto.email);
         throw new ConflictException('Ya existe un socio con este email');
       }
     }
 
     // Verificar documento único si se está actualizando
     if (updateSocioDto.documento && updateSocioDto.documento !== socio.documento) {
+      console.log('🔍 Verificando documento único:', updateSocioDto.documento);
       const existeDocumento = await this.sociosRepository.findOne({
         where: { documento: updateSocioDto.documento, club_id: clubId },
       });
 
       if (existeDocumento) {
+        console.error('❌ Documento ya existe:', updateSocioDto.documento);
         throw new ConflictException('Ya existe un socio con este documento');
       }
     }
 
-    Object.assign(socio, updateSocioDto);
-    return await this.sociosRepository.save(socio);
+    console.log('🔄 Aplicando cambios...');
+    
+    // Convertir fechas al formato correcto antes de aplicar cambios
+    const datosConFechasConvertidas = {
+      ...updateSocioDto,
+      fecha_nacimiento: updateSocioDto.fecha_nacimiento ? this.convertirFecha(updateSocioDto.fecha_nacimiento) : updateSocioDto.fecha_nacimiento,
+      fecha_inicio_membresia: updateSocioDto.fecha_inicio_membresia ? this.convertirFecha(updateSocioDto.fecha_inicio_membresia) : updateSocioDto.fecha_inicio_membresia,
+    };
+    
+    console.log('🔄 Datos con fechas convertidas:', JSON.stringify(datosConFechasConvertidas, null, 2));
+    Object.assign(socio, datosConFechasConvertidas);
+    
+    console.log('💾 Guardando socio actualizado...');
+    const socioActualizado = await this.sociosRepository.save(socio);
+    console.log('✅ Socio guardado exitosamente:', socioActualizado.id);
+    
+    return socioActualizado;
   }
 
   async remove(id: string, clubId: string): Promise<void> {

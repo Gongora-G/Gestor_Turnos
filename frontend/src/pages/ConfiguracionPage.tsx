@@ -4,12 +4,16 @@ import {
   Building, 
   Shield, 
   CreditCard,
-  UserCheck
+  UserCheck,
+  FileText,
+  Clock
 } from 'lucide-react';
 import { GlobalNavigation } from '../components';
+import RegistroJornadas from '../components/RegistroJornadas';
+import ConfiguracionJornadasSimple from '../components/ConfiguracionJornadasSimple';
 import { SociosPage } from './SociosPage';
 
-type CategoriaConfig = 'general' | 'membresias' | 'canchas' | 'socios' | 'sistema';
+type CategoriaConfig = 'general' | 'membresias' | 'canchas' | 'configuracion-jornadas' | 'registro-jornadas' | 'socios' | 'sistema';
 
 const ConfiguracionPage: React.FC = () => {
   const [categoriaActiva, setCategoriaActiva] = useState<CategoriaConfig>('general');
@@ -35,6 +39,20 @@ const ConfiguracionPage: React.FC = () => {
       icono: Building, 
       color: '#10b981',
       descripcion: 'Gestión de canchas disponibles'
+    },
+    { 
+      id: 'configuracion-jornadas' as CategoriaConfig, 
+      nombre: 'Configurar Jornadas', 
+      icono: Clock, 
+      color: '#8b5cf6',
+      descripcion: 'Configurar horarios y esquemas de jornadas'
+    },
+    { 
+      id: 'registro-jornadas' as CategoriaConfig, 
+      nombre: 'Registro de Jornadas', 
+      icono: FileText, 
+      color: '#ef4444',
+      descripcion: 'Consultar registros de jornadas'
     },
     { 
       id: 'socios' as CategoriaConfig, 
@@ -117,6 +135,18 @@ const ConfiguracionPage: React.FC = () => {
     </div>
   );
 
+  const renderRegistroJornadas = () => (
+    <div style={{ backgroundColor: 'transparent', padding: 0, margin: 0 }}>
+      <RegistroJornadas />
+    </div>
+  );
+
+  const renderConfiguracionJornadas = () => (
+    <div style={{ backgroundColor: 'transparent', padding: 0, margin: 0 }}>
+      <ConfiguracionJornadasSimple />
+    </div>
+  );
+
   const renderSistema = () => (
     <div style={cardStyles}>
       <h3 style={{ color: '#f9fafb', fontSize: '20px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -145,6 +175,10 @@ const ConfiguracionPage: React.FC = () => {
         return renderMembresias();
       case 'canchas':
         return renderCanchas();
+      case 'configuracion-jornadas':
+        return renderConfiguracionJornadas();
+      case 'registro-jornadas':
+        return renderRegistroJornadas();
       case 'socios':
         return renderSocios();
       case 'sistema':

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { Calendar, Users, Save } from 'lucide-react';
+import { Calendar, Users, Save, Search } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
+import { sociosService, type Socio } from '../services/sociosService';
 import { formatTo12Hour } from '../utils';
 import { useToast } from '../contexts/ToastContext';
+import { convertTo24h, parseTimeString } from '../utils/timeFormat';
+import TimeInput12h from './TimeInput12h';
 
 interface CrearTurnoModalProps {
   isOpen: boolean;
@@ -18,8 +21,7 @@ interface Cancha {
 }
 
 interface CreateTurnoForm {
-  usuarioId: string;
-  caddieId: string;
+  socioId: string;
   fecha: string;
   horaInicio: string;
   cantidadHoras: number;
@@ -27,6 +29,15 @@ interface CreateTurnoForm {
   cancha: string;
   observaciones: string;
 }
+
+// Función para obtener la fecha actual en formato local (YYYY-MM-DD)
+const getFechaActualLocal = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   isOpen,
@@ -36,12 +47,14 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
-  const { addToast } = useToast();
+  const [socios, setSocios] = useState<Socio[]>([]);
+  const [loadingSocios, setLoadingSocios] = useState(true);
+  const [busquedaSocio, setBusquedaSocio] = useState('');
+  const { success: showSuccess, error: showError } = useToast();
   
   const [form, setForm] = useState<CreateTurnoForm>({
-    usuarioId: '',
-    caddieId: '',
-    fecha: '',
+    socioId: '',
+    fecha: getFechaActualLocal(), // Inicializar con fecha actual local
     horaInicio: '',
     cantidadHoras: 1,
     horaFin: '',
@@ -49,21 +62,22 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     observaciones: ''
   });
 
-  // Cargar canchas al abrir el modal
+  // Cargar datos al abrir el modal
   useEffect(() => {
     if (isOpen) {
       cargarCanchas();
+      cargarSocios();
       // Resetear formulario
       setForm({
-        usuarioId: '',
-        caddieId: '',
-        fecha: '',
+        socioId: '',
+        fecha: getFechaActualLocal(), // Fecha actual por defecto en formato local
         horaInicio: '',
         cantidadHoras: 1,
         horaFin: '',
         cancha: '',
         observaciones: ''
       });
+      setBusquedaSocio('');
     }
   }, [isOpen]);
 
@@ -78,15 +92,55 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
       }
     } catch (error) {
       console.error('Error al cargar canchas:', error);
-      addToast({
-        type: 'error',
-        title: 'Error al cargar canchas',
-        message: 'No se pudieron cargar las canchas disponibles'
-      });
+      showError('Error al cargar canchas', 'No se pudieron cargar las canchas disponibles');
     } finally {
       setLoadingCanchas(false);
     }
   };
+
+  const cargarSocios = async () => {
+    try {
+      setLoadingSocios(true);
+      const response = await sociosService.obtenerSociosActivos();
+      setSocios(response.data || []);
+    } catch (error) {
+      console.error('Error al cargar socios:', error);
+      showError('Error al cargar socios', 'No se pudieron cargar los socios disponibles');
+    } finally {
+      setLoadingSocios(false);
+    }
+  };
+
+  const buscarSocios = async (termino: string) => {
+    if (!termino.trim()) {
+      cargarSocios();
+      return;
+    }
+
+    try {
+      setLoadingSocios(true);
+      const response = await sociosService.buscarSocio(termino);
+      setSocios(response.data || []);
+    } catch (error) {
+      console.error('Error al buscar socios:', error);
+      setSocios([]);
+    } finally {
+      setLoadingSocios(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (busquedaSocio) {
+        buscarSocios(busquedaSocio);
+      } else {
+        cargarSocios();
+      }
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [busquedaSocio]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -122,43 +176,65 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     e.preventDefault();
     
     if (!form.fecha || !form.horaInicio || !form.cancha) {
-      addToast({
-        type: 'error',
-        title: 'Campos requeridos',
-        message: 'Por favor completa todos los campos obligatorios (fecha, hora inicio y cancha)'
-      });
+      showError('Campos requeridos', 'Por favor completa todos los campos obligatorios (fecha, hora inicio y cancha)');
+      return;
+    }
+
+    // Validar que la fecha no sea anterior al día actual
+    const fechaActual = getFechaActualLocal();
+    if (form.fecha < fechaActual) {
+      showError('Fecha inválida', 'No puedes crear un turno con una fecha anterior al día actual. Los turnos solo se pueden crear para hoy o fechas futuras.');
       return;
     }
 
     setLoading(true);
 
     try {
+      // Función auxiliar para convertir hora a formato 24h
+      const convertirHoraA24h = (hora: string): string => {
+        try {
+          // Si ya está en formato 24h (HH:MM), devolverla tal como está
+          if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(hora)) {
+            return hora;
+          }
+
+          // Si está en formato 12h, parsear y convertir
+          const time12h = parseTimeString(hora);
+          if (time12h) {
+            return convertTo24h(time12h);
+          }
+
+          // Fallback: retornar la hora original
+          return hora;
+        } catch (error) {
+          console.error('Error convirtiendo hora a 24h:', error);
+          return hora;
+        }
+      };
+
       const turnoData: any = {
-        fecha: `${form.fecha}T00:00:00.000Z`,
-        hora_inicio: form.horaInicio,
-        hora_fin: form.horaFin,
+        fecha: form.fecha, // Enviar fecha directamente como string YYYY-MM-DD
+        hora_inicio: convertirHoraA24h(form.horaInicio),
+        hora_fin: convertirHoraA24h(form.horaFin),
         cancha_id: form.cancha,
         observaciones: form.observaciones || undefined
       };
 
-      // Validar UUIDs si están presentes
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      
-      if (form.usuarioId && form.usuarioId.trim() && uuidRegex.test(form.usuarioId.trim())) {
-        turnoData.usuario_id = form.usuarioId.trim();
-      }
-      
-      if (form.caddieId && form.caddieId.trim() && uuidRegex.test(form.caddieId.trim())) {
-        turnoData.socio_id = form.caddieId.trim();
+      console.log('📅 Datos a enviar al backend:', turnoData);
+      console.log('📅 Fecha original del formulario:', form.fecha);
+      console.log('📅 Fecha actual del sistema:', getFechaActualLocal());
+
+      // Agregar socio si está seleccionado
+      if (form.socioId) {
+        turnoData.socio_id = form.socioId;
       }
       
       await turnosService.crearTurno(turnoData);
       
-      addToast({
-        type: 'success',
-        title: '¡Turno creado!',
-        message: 'El turno se ha creado exitosamente'
-      });
+      const socioSeleccionado = socios.find(s => s.id === form.socioId);
+      const nombreSocio = socioSeleccionado ? `${socioSeleccionado.nombre} ${socioSeleccionado.apellido}` : 'Sin socio asignado';
+      
+      showSuccess('¡Turno creado!', `Turno creado exitosamente para ${nombreSocio}`);
       
       // Cerrar modal después de 1 segundo y refrescar lista
       setTimeout(() => {
@@ -168,11 +244,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
       
     } catch (error: any) {
       console.error('Error al crear turno:', error);
-      addToast({
-        type: 'error',
-        title: 'Error al crear turno',
-        message: error.message || 'Ocurrió un error inesperado. Intenta nuevamente.'
-      });
+      showError('Error al crear turno', error.message || 'Ocurrió un error inesperado. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -184,41 +256,95 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Crear Nuevo Turno" size="lg">
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
-          {/* Información del socio */}
+          {/* Selección del socio */}
           <div className="bg-gradient-to-r from-blue-900/10 to-blue-800/10 border border-blue-500/20 rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
               <Users className="w-5 h-5 text-blue-400" />
-              Información del Usuario (Opcional)
+              Seleccionar Socio (Opcional)
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Usuario ID (opcional)
-                </label>
+            <div className="space-y-4">
+              {/* Buscador de socios */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
                   type="text"
-                  name="usuarioId"
-                  value={form.usuarioId}
-                  onChange={handleChange}
-                  placeholder="UUID del usuario"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Buscar socio por nombre, apellido o documento..."
+                  value={busquedaSocio}
+                  onChange={(e) => setBusquedaSocio(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
-              
+
+              {/* Selector de socio */}
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Socio/Caddie ID (opcional)
+                  Socio
                 </label>
-                <input
-                  type="text"
-                  name="caddieId"
-                  value={form.caddieId}
+                <select
+                  name="socioId"
+                  value={form.socioId}
                   onChange={handleChange}
-                  placeholder="UUID del socio/caddie"
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                  disabled={loadingSocios}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                >
+                  <option value="">
+                    {loadingSocios ? 'Cargando socios...' : 'Sin socio asignado'}
+                  </option>
+                  {socios.map(socio => (
+                    <option key={socio.id} value={socio.id}>
+                      {socio.nombre} {socio.apellido} - {socio.documento}
+                      {socio.tipo_membresia?.nombre && ` (${socio.tipo_membresia.nombre})`}
+                    </option>
+                  ))}
+                </select>
               </div>
+
+              {/* Información del socio seleccionado */}
+              {form.socioId && (
+                <div className="bg-gray-800/50 border border-gray-600 rounded-lg p-4">
+                  {(() => {
+                    const socioSeleccionado = socios.find(s => s.id === form.socioId);
+                    if (!socioSeleccionado) return null;
+                    
+                    return (
+                      <div className="text-sm text-gray-300 space-y-1">
+                        <p><span className="font-medium">Nombre:</span> {socioSeleccionado.nombre} {socioSeleccionado.apellido}</p>
+                        <p><span className="font-medium">Email:</span> {socioSeleccionado.email}</p>
+                        <p><span className="font-medium">Documento:</span> {socioSeleccionado.documento}</p>
+                        {socioSeleccionado.telefono && (
+                          <p><span className="font-medium">Teléfono:</span> {socioSeleccionado.telefono}</p>
+                        )}
+                        {socioSeleccionado.tipo_membresia && (
+                          <p>
+                            <span className="font-medium">Membresía:</span> 
+                            <span 
+                              className="inline-block ml-2 px-2 py-1 rounded text-xs text-white"
+                              style={{ backgroundColor: socioSeleccionado.tipo_membresia.color }}
+                            >
+                              {socioSeleccionado.tipo_membresia.nombre}
+                            </span>
+                          </p>
+                        )}
+                        <p>
+                          <span className="font-medium">Estado:</span> 
+                          <span className={`ml-2 px-2 py-1 rounded text-xs ${
+                            socioSeleccionado.estado === 'activo' 
+                              ? 'bg-green-600 text-white' 
+                              : socioSeleccionado.estado === 'suspendido'
+                              ? 'bg-yellow-600 text-white'
+                              : 'bg-red-600 text-white'
+                          }`}>
+                            {socioSeleccionado.estado}
+                          </span>
+                        </p>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -238,6 +364,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
                   type="date"
                   name="fecha"
                   value={form.fecha}
+                  min={getFechaActualLocal()}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -270,16 +397,12 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Hora de Inicio *
-                </label>
-                <input
-                  type="time"
-                  name="horaInicio"
+                <TimeInput12h
+                  label="Hora de Inicio *"
                   value={form.horaInicio}
-                  onChange={handleChange}
+                  onChange={(value) => handleChange({ target: { name: 'horaInicio', value } } as any)}
                   required
-                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  className="w-full"
                 />
               </div>
 
@@ -346,11 +469,11 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
             
             <button
               type="submit"
-              disabled={loading || loadingCanchas}
+              disabled={loading || loadingCanchas || loadingSocios}
               className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
-              {loading ? 'Creando...' : 'Crear Turno'}
+              {loading ? 'Creando...' : loadingCanchas || loadingSocios ? 'Cargando...' : 'Crear Turno'}
             </button>
           </div>
         </div>

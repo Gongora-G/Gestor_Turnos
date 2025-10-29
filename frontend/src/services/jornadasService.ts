@@ -1,264 +1,214 @@
 import { apiService } from './api';
-import type { 
-  Jornada, 
-  JornadaBackend, 
-  CreateJornadaDto, 
-  UpdateJornadaDto,
-  JornadasResponse,
-  JornadaFilters,
-  JornadaEstadisticas,
-  TurnoJornada,
-  ApiResponse
-} from '../types';
+import type {
+  JornadaConfig,
+  ConfiguracionJornadas,
+  RegistroJornadaDiaria,
+  GuardarJornadaRequest,
+  GuardarJornadaResponse,
+  SiguienteJornada,
+  FormularioJornada,
+} from '../types/jornadas-config';
 
-class JornadasService {
-  private readonly endpoint = '/jornadas';
-
-  // Crear nueva jornada
-  async crear(data: CreateJornadaDto): Promise<ApiResponse<Jornada>> {
-    try {
-      console.log('🆕 Creando jornada:', data);
-      const response = await apiService.post<JornadaBackend>(this.endpoint, data);
-      return {
-        success: true,
-        data: this.transformFromBackend(response),
-      };
-    } catch (error: any) {
-      console.error('❌ Error creando jornada:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al crear la jornada',
-      };
-    }
+export class JornadasService {
+  // 📅 CRUD Jornadas Config
+  static async createJornada(jornadaData: FormularioJornada): Promise<JornadaConfig> {
+    const response = await apiService.post<JornadaConfig>('/jornadas/config', jornadaData);
+    return response;
   }
 
-  // Obtener lista de jornadas con filtros y paginación
-  async obtenerLista(filtros: JornadaFilters = {}): Promise<ApiResponse<JornadasResponse>> {
-    try {
-      console.log('📋 Obteniendo lista de jornadas con filtros:', filtros);
-      
-      const params = this.buildQueryParams(filtros);
-      const response = await apiService.get<{
-        jornadas: JornadaBackend[];
-        total: number;
-        totalPages: number;
-      }>(`${this.endpoint}?${params}`);
-
-      const transformedData: JornadasResponse = {
-        jornadas: response.jornadas.map(jornada => this.transformFromBackend(jornada)),
-        total: response.total,
-        totalPages: response.totalPages
-      };
-
-      return {
-        success: true,
-        data: transformedData,
-      };
-    } catch (error: any) {
-      console.error('❌ Error obteniendo jornadas:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al obtener las jornadas',
-      };
-    }
+  static async getJornadas(): Promise<JornadaConfig[]> {
+    const response = await apiService.get<JornadaConfig[]>('/jornadas/config');
+    return response;
   }
 
-  // Obtener jornada por ID
-  async obtenerPorId(id: string): Promise<ApiResponse<Jornada>> {
-    try {
-      console.log('🔍 Obteniendo jornada por ID:', id);
-      const response = await apiService.get<JornadaBackend>(`${this.endpoint}/${id}`);
-      return {
-        success: true,
-        data: this.transformFromBackend(response),
-      };
-    } catch (error: any) {
-      console.error('❌ Error obteniendo jornada:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al obtener la jornada',
-      };
-    }
+  static async getJornada(id: string): Promise<JornadaConfig> {
+    const response = await apiService.get<JornadaConfig>(`/jornadas/config/${id}`);
+    return response;
   }
 
-  // Actualizar jornada
-  async actualizar(id: string, data: UpdateJornadaDto): Promise<ApiResponse<Jornada>> {
-    try {
-      console.log('✏️ Actualizando jornada:', { id, data });
-      const response = await apiService.patch<JornadaBackend>(`${this.endpoint}/${id}`, data);
-      return {
-        success: true,
-        data: this.transformFromBackend(response),
-      };
-    } catch (error: any) {
-      console.error('❌ Error actualizando jornada:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al actualizar la jornada',
-      };
-    }
+  static async updateJornada(id: string, jornadaData: Partial<FormularioJornada>): Promise<JornadaConfig> {
+    const response = await apiService.put<JornadaConfig>(`/jornadas/config/${id}`, jornadaData);
+    return response;
   }
 
-  // Eliminar jornada
-  async eliminar(id: string): Promise<ApiResponse<void>> {
-    try {
-      console.log('🗑️ Eliminando jornada:', id);
-      await apiService.delete(`${this.endpoint}/${id}`);
-      return {
-        success: true,
-        data: undefined,
-      };
-    } catch (error: any) {
-      console.error('❌ Error eliminando jornada:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al eliminar la jornada',
-      };
-    }
+  static async deleteJornada(id: string): Promise<{ message: string }> {
+    const response = await apiService.delete<{ message: string }>(`/jornadas/config/${id}`);
+    return response;
   }
 
-  // Alternar estado activa
-  async toggleActiva(id: string): Promise<ApiResponse<Jornada>> {
-    try {
-      console.log('🔄 Cambiando estado de jornada:', id);
-      const response = await apiService.patch<JornadaBackend>(`${this.endpoint}/${id}/toggle-activa`);
-      return {
-        success: true,
-        data: this.transformFromBackend(response),
-      };
-    } catch (error: any) {
-      console.error('❌ Error cambiando estado de jornada:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al cambiar el estado de la jornada',
-      };
-    }
+  // ⚙️ Configuración General
+  static async getConfiguracion(): Promise<ConfiguracionJornadas> {
+    const response = await apiService.get<ConfiguracionJornadas>('/jornadas/configuracion');
+    return response;
   }
 
-  // Obtener jornadas por fecha específica
-  async obtenerPorFecha(fecha: string): Promise<ApiResponse<Jornada[]>> {
-    try {
-      console.log('📅 Obteniendo jornadas por fecha:', fecha);
-      const response = await apiService.get<JornadaBackend[]>(`${this.endpoint}/fecha/${fecha}`);
-      return {
-        success: true,
-        data: response.map(jornada => this.transformFromBackend(jornada)),
-      };
-    } catch (error: any) {
-      console.error('❌ Error obteniendo jornadas por fecha:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al obtener las jornadas por fecha',
-      };
-    }
+  static async updateConfiguracion(config: Partial<ConfiguracionJornadas>): Promise<ConfiguracionJornadas> {
+    const response = await apiService.put<ConfiguracionJornadas>('/jornadas/configuracion', config);
+    return response;
   }
 
-  // Obtener estadísticas
-  async obtenerEstadisticas(): Promise<ApiResponse<JornadaEstadisticas>> {
-    try {
-      console.log('📊 Obteniendo estadísticas de jornadas');
-      const response = await apiService.get<JornadaEstadisticas>(`${this.endpoint}/estadisticas`);
-      return {
-        success: true,
-        data: response,
-      };
-    } catch (error: any) {
-      console.error('❌ Error obteniendo estadísticas:', error);
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Error al obtener las estadísticas',
-      };
-    }
+  // 🔄 Gestión de Jornada Actual
+  static async getSiguienteJornada(): Promise<SiguienteJornada> {
+    const response = await apiService.get<SiguienteJornada>('/jornadas/siguiente');
+    return response;
   }
 
-  // Crear jornada desde turnos actuales
-  async crearDesdeActuales(turnos: any[], fecha?: string): Promise<ApiResponse<Jornada>> {
-    try {
-      const fechaJornada = fecha || new Date().toISOString().split('T')[0];
-      const nombreJornada = this.generarNombreJornada(new Date(fechaJornada));
-      
-      // Transformar turnos al formato simplificado
-      const datosTurnos: TurnoJornada[] = turnos.map(turno => ({
-        id: turno.id,
-        cancha: turno.cancha?.nombre || 'Sin cancha',
-        numeroCancha: turno.cancha?.numero?.toString(),
-        fecha: turno.fecha,
-        horaInicio: turno.horaInicio,
-        horaFin: turno.horaFin,
-        socio: turno.socio?.nombre || 'Sin socio',
-        caddie: turno.caddie?.nombre,
-        precio: turno.precio || 0,
-        estado: turno.estado,
-        observaciones: turno.observaciones,
-        fechaCreacion: turno.fechaCreacion
-      }));
-
-      const createData: CreateJornadaDto = {
-        fechaJornada,
-        nombreJornada,
-        datosTurnos,
-        totalTurnos: datosTurnos.length,
-        observaciones: `Jornada guardada automáticamente con ${datosTurnos.length} turnos`,
-        activa: true
-      };
-
-      return await this.crear(createData);
-    } catch (error: any) {
-      console.error('❌ Error creando jornada desde turnos actuales:', error);
-      return {
-        success: false,
-        error: 'Error al crear la jornada desde los turnos actuales',
-      };
-    }
+  static async activarSiguienteJornada(): Promise<{ jornadaAnterior: JornadaConfig; siguienteJornada: JornadaConfig }> {
+    const response = await apiService.post<{ jornadaAnterior: JornadaConfig; siguienteJornada: JornadaConfig }>('/jornadas/activar-siguiente');
+    return response;
   }
 
-  // Transformar datos del backend al frontend
-  private transformFromBackend(data: JornadaBackend): Jornada {
-    return {
-      id: data.id,
-      fechaJornada: typeof data.fechaJornada === 'string' 
-        ? data.fechaJornada 
-        : data.fechaJornada.toISOString().split('T')[0],
-      nombreJornada: data.nombreJornada,
-      datosTurnos: Array.isArray(data.datosTurnos) ? data.datosTurnos : [],
-      totalTurnos: data.totalTurnos,
-      observaciones: data.observaciones,
-      activa: data.activa,
-      fechaCreacion: typeof data.fechaCreacion === 'string' 
-        ? data.fechaCreacion 
-        : data.fechaCreacion.toISOString(),
-      fechaActualizacion: typeof data.fechaActualizacion === 'string' 
-        ? data.fechaActualizacion 
-        : data.fechaActualizacion.toISOString(),
-      usuarioCreacion: data.usuarioCreacion,
-      usuarioActualizacion: data.usuarioActualizacion
-    };
+  static async getJornadaActualPorHorario(): Promise<JornadaConfig | null> {
+    const response = await apiService.get<JornadaConfig | null>('/jornadas/actual-por-horario');
+    return response;
   }
 
-  // Construir parámetros de consulta
-  private buildQueryParams(filtros: JornadaFilters): string {
+  // 🎯 NUEVO: Sistema de Registro de Jornadas
+  static async getJornadaActual(): Promise<JornadaConfig | null> {
+    const response = await apiService.get<JornadaConfig | null>('/jornadas/jornada-actual');
+    return response;
+  }
+
+  // 💾 Guardar Jornada (Función principal del flujo)
+  static async guardarJornada(data: GuardarJornadaRequest): Promise<GuardarJornadaResponse> {
+    const response = await apiService.post<GuardarJornadaResponse>('/jornadas/guardar', data);
+    return response;
+  }
+
+  // 🎯 NUEVO: Guardar jornada completa con todos los turnos
+  static async guardarRegistroJornada(data: {
+    jornadaConfigId: number;
+    fecha: string;
+    turnos: Array<{
+      id: string;
+      numeroCancha: number;
+      horaInicio: string;
+      horaFin: string;
+      estado: string;
+      clienteId?: string;
+      clienteNombre?: string;
+      monto?: number;
+      metodoPago?: string;
+    }>;
+  }): Promise<{
+    registroDiario: RegistroJornadaDiaria;
+    siguienteJornada: JornadaConfig | null;
+  }> {
+    const response = await apiService.post<{
+      registroDiario: RegistroJornadaDiaria;
+      siguienteJornada: JornadaConfig | null;
+    }>('/jornadas/guardar-jornada', data);
+    return response;
+  }
+
+  // 📊 Historial y Reportes
+  static async getHistorialJornadas(fechaInicio?: string, fechaFin?: string): Promise<RegistroJornadaDiaria[]> {
     const params = new URLSearchParams();
-    
-    if (filtros.page) params.append('page', filtros.page.toString());
-    if (filtros.limit) params.append('limit', filtros.limit.toString());
-    if (filtros.fechaInicio) params.append('fechaInicio', filtros.fechaInicio);
-    if (filtros.fechaFin) params.append('fechaFin', filtros.fechaFin);
-    if (filtros.busqueda) params.append('busqueda', filtros.busqueda);
-    if (filtros.activa !== undefined) params.append('activa', filtros.activa.toString());
-    
-    return params.toString();
+    if (fechaInicio) params.append('fechaInicio', fechaInicio);
+    if (fechaFin) params.append('fechaFin', fechaFin);
+
+    const response = await apiService.get<RegistroJornadaDiaria[]>(`/jornadas/historial?${params.toString()}`);
+    return response;
   }
 
-  // Generar nombre automático de jornada
-  private generarNombreJornada(fecha: Date): string {
-    const options: Intl.DateTimeFormatOptions = {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    };
-    const fechaFormateada = fecha.toLocaleDateString('es-ES', options);
-    return `Jornada ${fechaFormateada}`;
+  static async getRegistroJornada(id: string): Promise<RegistroJornadaDiaria> {
+    const response = await apiService.get<RegistroJornadaDiaria>(`/jornadas/registro/${id}`);
+    return response;
+  }
+
+  // 🛠️ Templates y utilidades
+  static async getTemplatesJornadas(): Promise<{ templates: Partial<JornadaConfig>[] }> {
+    const response = await apiService.get<{ templates: Partial<JornadaConfig>[] }>('/jornadas/templates');
+    return response;
+  }
+
+  static async getColoresDisponibles(): Promise<{ colores: { nombre: string; valor: string }[] }> {
+    const response = await apiService.get<{ colores: { nombre: string; valor: string }[] }>('/jornadas/colores');
+    return response;
+  }
+
+  // 🎯 Funciones auxiliares para el frontend
+  static validarHorario(horaInicio: string, horaFin: string): { valida: boolean; error?: string } {
+    if (!horaInicio || !horaFin) {
+      return { valida: false, error: 'Ambas horas son requeridas' };
+    }
+
+    if (horaInicio >= horaFin) {
+      return { valida: false, error: 'La hora de inicio debe ser menor que la hora de fin' };
+    }
+
+    return { valida: true };
+  }
+
+  static calcularDuracionJornada(horaInicio: string, horaFin: string): number {
+    const [inicioHora, inicioMinuto] = horaInicio.split(':').map(Number);
+    const [finHora, finMinuto] = horaFin.split(':').map(Number);
+
+    const inicio = inicioHora * 60 + inicioMinuto;
+    const fin = finHora * 60 + finMinuto;
+
+    return fin - inicio; // retorna minutos
+  }
+
+  static formatearDuracion(minutos: number): string {
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+
+    if (horas === 0) return `${mins}min`;
+    if (mins === 0) return `${horas}h`;
+    return `${horas}h ${mins}min`;
+  }
+
+  static esHorarioActual(jornadaConfig: JornadaConfig): boolean {
+    const ahora = new Date();
+    const horaActual = ahora.toTimeString().slice(0, 5); // "HH:MM"
+    const diaActual = JornadasService.getDiaSemanaActual();
+
+    return (
+      jornadaConfig.diasSemana.includes(diaActual) &&
+      horaActual >= jornadaConfig.horario.horaInicio &&
+      horaActual <= jornadaConfig.horario.horaFin
+    );
+  }
+
+  static getDiaSemanaActual(): any {
+    const dias = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    return dias[new Date().getDay()];
+  }
+
+  static getTiempoRestanteJornada(jornadaConfig: JornadaConfig): number | null {
+    if (!JornadasService.esHorarioActual(jornadaConfig)) {
+      return null;
+    }
+
+    const ahora = new Date();
+    const [finHora, finMinuto] = jornadaConfig.horario.horaFin.split(':').map(Number);
+    
+    const finJornada = new Date();
+    finJornada.setHours(finHora, finMinuto, 0, 0);
+
+    const diferencia = finJornada.getTime() - ahora.getTime();
+    return Math.max(0, Math.floor(diferencia / 60000)); // retorna minutos
+  }
+
+  static formatearTiempoRestante(minutos: number): string {
+    if (minutos <= 0) return 'Finalizada';
+    
+    const horas = Math.floor(minutos / 60);
+    const mins = minutos % 60;
+
+    if (horas === 0) return `${mins} min restantes`;
+    if (mins === 0) return `${horas}h restantes`;
+    return `${horas}h ${mins}min restantes`;
+  }
+
+  // 🚀 Para migración desde turnos existentes
+  static async migrarTurnosAJornada(jornadaConfigId: string, turnos: any[]): Promise<void> {
+    // Esta función ayudará a migrar turnos existentes a una jornada específica
+    // Se implementará cuando tengamos turnos activos
+    console.log('Migrando turnos a jornada:', jornadaConfigId, turnos);
+    // TODO: Implementar migración
   }
 }
 
-export const jornadasService = new JornadasService();
+export default JornadasService;

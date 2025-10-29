@@ -61,15 +61,28 @@ export class SociosController {
   }
 
   @Patch(':id')
-  update(
+  async update(
     @Param('id') id: string,
     @Body() updateSocioDto: UpdateSocioDto,
     @GetUser() user: User,
   ) {
+    console.log('🔍 Actualizando socio:', id);
+    console.log('📊 Datos recibidos:', JSON.stringify(updateSocioDto, null, 2));
+    console.log('👤 Usuario:', user.email, 'ClubId:', user.clubId);
+    
     if (!user.clubId) {
+      console.error('❌ Usuario no tiene club asignado');
       throw new Error('Usuario no tiene club asignado');
     }
-    return this.sociosService.update(id, updateSocioDto, user.clubId);
+    
+    try {
+      const resultado = await this.sociosService.update(id, updateSocioDto, user.clubId);
+      console.log('✅ Socio actualizado exitosamente:', resultado.id);
+      return resultado;
+    } catch (error) {
+      console.error('❌ Error al actualizar socio:', error);
+      throw error;
+    }
   }
 
   @Delete(':id')
