@@ -528,11 +528,11 @@ export class JornadasService {
       
       let enRango = false;
       if (cruzaMedianoche) {
-        // Si cruza medianoche: está en rango si >= inicio O <= fin
-        enRango = horaActual >= inicio || horaActual <= fin;
+        // Si cruza medianoche: está en rango si >= inicio O < fin (estricto en el límite superior)
+        enRango = horaActual >= inicio || horaActual < fin;
       } else {
-        // Si NO cruza medianoche: está en rango si >= inicio Y <= fin
-        enRango = horaActual >= inicio && horaActual <= fin;
+        // Si NO cruza medianoche: está en rango si >= inicio Y < fin (estricto en el límite superior)
+        enRango = horaActual >= inicio && horaActual < fin;
       }
       
       if (enRango) {
@@ -583,12 +583,13 @@ export class JornadasService {
       
       let enRango = false;
       if (cruzaMedianoche) {
-        // Si cruza medianoche: está en rango si >= inicio O <= fin
-        enRango = horaNormalizada >= inicio || horaNormalizada <= fin;
+        // Si cruza medianoche: está en rango si >= inicio O < fin (estricto en el límite superior)
+        // Esto excluye la hora exacta de fin para evitar conflictos con la siguiente jornada
+        enRango = horaNormalizada >= inicio || horaNormalizada < fin;
         this.logger.log(`  Jornada ${jornada.nombre} cruza medianoche: ${inicio} - ${fin}, hora: ${horaNormalizada}, en rango: ${enRango}`);
       } else {
-        // Si NO cruza medianoche: está en rango si >= inicio Y <= fin
-        enRango = horaNormalizada >= inicio && horaNormalizada <= fin;
+        // Si NO cruza medianoche: está en rango si >= inicio Y < fin (estricto en el límite superior)
+        enRango = horaNormalizada >= inicio && horaNormalizada < fin;
         this.logger.log(`  Jornada ${jornada.nombre}: ${inicio} - ${fin}, hora: ${horaNormalizada}, en rango: ${enRango}`);
       }
       
