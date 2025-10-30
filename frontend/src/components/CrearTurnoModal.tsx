@@ -50,6 +50,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   const [socios, setSocios] = useState<Socio[]>([]);
   const [loadingSocios, setLoadingSocios] = useState(true);
   const [busquedaSocio, setBusquedaSocio] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
   const { success: showSuccess, error: showError } = useToast();
   
   const [form, setForm] = useState<CreateTurnoForm>({
@@ -67,7 +68,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     if (isOpen) {
       cargarCanchas();
       cargarSocios();
-      // Resetear formulario
+      // Resetear formulario y error
       setForm({
         socioId: '',
         fecha: getFechaActualLocal(), // Fecha actual por defecto en formato local
@@ -78,6 +79,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
         observaciones: ''
       });
       setBusquedaSocio('');
+      setErrorMessage(''); // Limpiar mensaje de error
     }
   }, [isOpen]);
 
@@ -144,6 +146,11 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // Limpiar mensaje de error al modificar cualquier campo
+    if (errorMessage) {
+      setErrorMessage('');
+    }
     
     setForm(prev => {
       const newForm = { 
@@ -244,7 +251,15 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
       
     } catch (error: any) {
       console.error('Error al crear turno:', error);
-      showError('Error al crear turno', error.message || 'Ocurrió un error inesperado. Intenta nuevamente.');
+      
+      // Extraer mensaje de error específico del backend
+      const errorMsg = error?.response?.data?.message || error?.message || 'Ocurrió un error inesperado. Intenta nuevamente.';
+      
+      // Mostrar error dentro del modal
+      setErrorMessage(errorMsg);
+      
+      // También mostrar toast (ahora con z-index correcto)
+      showError('Error al crear turno', errorMsg);
     } finally {
       setLoading(false);
     }
@@ -440,6 +455,32 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Mensaje de Error */}
+          {errorMessage && (
+            <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-semibold text-red-300 mb-1">Error al crear turno</h3>
+                  <p className="text-sm text-red-200">{errorMessage}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage('')}
+                  className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Observaciones */}
           <div className="bg-gradient-to-r from-purple-900/10 to-purple-800/10 border border-purple-500/20 rounded-lg p-6">

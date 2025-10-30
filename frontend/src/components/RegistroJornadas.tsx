@@ -19,6 +19,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useToast } from '../contexts/ToastContext';
+import JornadasService from '../services/jornadasService';
 
 // Interfaces simplificadas para el registro de jornadas
 interface RegistroJornadaDiaria {
@@ -71,7 +72,34 @@ export default function RegistroJornadas() {
     estado: 'todos'
   });
 
-  // Datos de ejemplo para mostrar la vista
+  // Cargar datos reales desde el backend
+  const cargarRegistros = async () => {
+    try {
+      setLoading(true);
+      const data = await JornadasService.getRegistrosCompletos(filtros.fecha);
+      console.log('📊 Registros cargados:', data);
+      setRegistros(data);
+    } catch (err: any) {
+      console.error('❌ Error cargando registros:', err);
+      error('Error al cargar registros', err.message || 'No se pudieron cargar los registros de jornadas');
+      setRegistros([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Cargar datos al montar y cuando cambie la fecha
+  useEffect(() => {
+    cargarRegistros();
+  }, [filtros.fecha]);
+
+  // Actualizar registros manualmente
+  const handleActualizar = () => {
+    cargarRegistros();
+    success('Actualizado', 'Registros actualizados correctamente');
+  };
+
+  // Datos de ejemplo SOLO si no hay registros reales (para referencia)
   const jornadasEjemplo: JornadaRegistroDetalle[] = [
     {
       codigo: 'A',
@@ -113,15 +141,6 @@ export default function RegistroJornadas() {
     return `${hora12}:${minutos} ${periodo}`;
   };
 
-  // Cargar datos (simulado)
-  useEffect(() => {
-    setLoading(true);
-    // Simular carga de datos
-    setTimeout(() => {
-      setLoading(false);
-    }, 500);
-  }, []);
-
   // Colores para las jornadas (igual que en ConfiguracionJornadas)
   const coloresJornada = [
     { bg: 'bg-blue-500', text: 'text-blue-300', ring: 'ring-blue-500' },
@@ -156,10 +175,11 @@ export default function RegistroJornadas() {
           </p>
         </div>
         <button
-          onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          onClick={handleActualizar}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Actualizar
         </button>
       </div>

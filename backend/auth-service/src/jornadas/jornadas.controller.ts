@@ -123,6 +123,16 @@ export class JornadasController {
     return await this.jornadasService.getRegistrosDiarios(inicio, fin);
   }
 
+  @Get('registros-completos')
+  async getRegistrosCompletos(
+    @Request() req: any,
+    @Query('fecha') fecha?: string
+  ) {
+    const clubId = req.user?.clubId;
+    this.logger.log(`📊 GET /jornadas/registros-completos - Club: ${clubId}, Fecha: ${fecha || 'todas'}`);
+    return await this.jornadasService.getRegistrosDiariosConDetalles(clubId, fecha);
+  }
+
   @Get('jornada-actual')
   async getJornadaActual(@Request() req: any) {
     const clubId = req.user?.clubId;

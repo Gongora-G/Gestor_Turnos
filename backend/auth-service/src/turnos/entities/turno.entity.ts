@@ -1,7 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-// import { Club } from '../database/entities/club.entity';
-// import { User } from '../users/entities/user.entity';
-// import { Cancha } from '../configuracion/entities/cancha.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Cancha } from '../../configuracion/entities/cancha.entity';
+import { Socio } from '../../socios/entities/socio.entity';
 
 export enum EstadoTurno {
   EN_PROGRESO = 'en_progreso',
@@ -31,21 +30,19 @@ export class Turno {
   @Column('uuid')
   cancha_id: string;
 
-  // Relación comentada temporalmente
-  // @ManyToOne(() => Cancha)
-  // @JoinColumn({ name: 'cancha_id' })
-  // cancha: Cancha;
+  @ManyToOne(() => Cancha, { eager: false })
+  @JoinColumn({ name: 'cancha_id' })
+  cancha: Cancha;
 
   @Column('uuid', { nullable: true })
   usuario_id: string;
 
-  // Relación comentada temporalmente
-  // @ManyToOne(() => User, { nullable: true })
-  // @JoinColumn({ name: 'usuario_id' })
-  // usuario: User;
-
   @Column('uuid', { nullable: true })
   socio_id: string;
+
+  @ManyToOne(() => Socio, { eager: false })
+  @JoinColumn({ name: 'socio_id' })
+  socio: Socio;
 
   @Column({
     type: 'enum',
@@ -59,11 +56,6 @@ export class Turno {
 
   @Column('uuid')
   club_id: string;
-
-  // Relación comentada temporalmente
-  // @ManyToOne(() => Club)
-  // @JoinColumn({ name: 'club_id' })
-  // club: Club;
 
   @Column('uuid', { nullable: true })
   jornada_activa_id: string;

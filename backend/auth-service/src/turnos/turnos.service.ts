@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Turno } from './entities/turno.entity';
@@ -43,11 +43,23 @@ export class TurnosService {
             jornadaConfigId = jornadaParaTurno.id;
             console.log('🎯 Jornada asignada automáticamente basada en hora de inicio del turno:', jornadaParaTurno.nombre, `(ID: ${jornadaConfigId})`, `- Horario: ${jornadaParaTurno.horaInicio} a ${jornadaParaTurno.horaFin}`);
           } else {
-            console.log('⚠️ No se encontró jornada para la hora de inicio:', createTurnoDto.hora_inicio);
+            // 🚫 VALIDACIÓN: No permitir crear turno si no hay jornada que cubra ese horario
+            // Convertir hora a formato 12h para el mensaje
+            const formatoHora12h = (hora24: string): string => {
+              const [hours, minutes] = hora24.split(':').map(Number);
+              const periodo = hours >= 12 ? 'PM' : 'AM';
+              const hours12 = hours % 12 || 12;
+              return `${hours12}:${minutes.toString().padStart(2, '0')} ${periodo}`;
+            };
+            
+            throw new BadRequestException(
+              `No hay ninguna jornada configurada para la hora ${formatoHora12h(createTurnoDto.hora_inicio)}. ` +
+              `Por favor, crea o ajusta las jornadas para cubrir este horario antes de crear el turno.`
+            );
           }
         } catch (error) {
           console.error('❌ Error al determinar jornada para el turno:', error);
-          // Continuar sin jornada si hay error
+          throw error; // Re-lanzar el error para que el frontend lo capture
         }
       }
       
@@ -197,8 +209,8 @@ export class TurnosService {
           id: jornadaConfig.id,
           codigo: jornadaConfig.codigo,
           nombre: jornadaConfig.nombre,
-          hora_inicio: jornadaConfig.horaInicio,
-          hora_fin: jornadaConfig.horaFin,
+          hora_inicio: (jornadaConfig as any).hora_inicio || (jornadaConfig as any).horaInicio || null,
+          hora_fin: (jornadaConfig as any).hora_fin || (jornadaConfig as any).horaFin || null,
           color: jornadaConfig.color
         } : null,
         socio: socio ? {

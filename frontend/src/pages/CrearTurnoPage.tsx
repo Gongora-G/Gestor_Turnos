@@ -154,9 +154,12 @@ export const CrearTurnoPage: React.FC = () => {
       
       // Redirigir a la lista de turnos con mensaje de éxito
       navigate('/turnos?success=created');
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error al crear turno:', err);
-      setError('Error al crear el turno. Inténtalo nuevamente.');
+      
+      // Extraer mensaje de error específico del backend
+      const errorMessage = err?.response?.data?.message || err?.message || 'Error al crear el turno. Inténtalo nuevamente.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -164,6 +167,11 @@ export const CrearTurnoPage: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // Limpiar mensaje de error al modificar cualquier campo
+    if (error) {
+      setError('');
+    }
     
     setForm(prev => {
       const newForm = { 

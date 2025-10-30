@@ -10,6 +10,10 @@ import {
   RegistroJornadaDetalle,
   JornadaActiva
 } from './entities/jornada.entity';
+import { Turno } from '../turnos/entities/turno.entity';
+import { Cancha } from '../configuracion/entities/cancha.entity';
+import { Socio } from '../socios/entities/socio.entity';
+import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
 
 @Module({
   imports: [
@@ -20,6 +24,10 @@ import {
       RegistroJornadaDiaria,
       RegistroJornadaDetalle,
       JornadaActiva,
+      Turno,
+      Cancha,
+      Socio,
+      TipoMembresia,
     ]),
   ],
   controllers: [JornadasController],

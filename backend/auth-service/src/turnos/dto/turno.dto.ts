@@ -53,6 +53,10 @@ export class UpdateTurnoDto {
   cancha_id?: string;
 
   @IsOptional()
+  @IsUUID('4', { message: 'El ID del socio debe ser un UUID válido' })
+  socio_id?: string | null;
+
+  @IsOptional()
   @IsEnum(EstadoTurno)
   estado?: EstadoTurno;
 

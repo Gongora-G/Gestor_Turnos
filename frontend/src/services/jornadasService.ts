@@ -116,6 +116,18 @@ export class JornadasService {
     return response;
   }
 
+  /**
+   * 🎯 NUEVO: Obtiene registros completos con jornadas y turnos
+   * Este es el método principal para la vista "Registro de Jornadas"
+   */
+  static async getRegistrosCompletos(fecha?: string): Promise<any[]> {
+    const params = new URLSearchParams();
+    if (fecha) params.append('fecha', fecha);
+
+    const response = await apiService.get<any[]>(`/jornadas/registros-completos?${params.toString()}`);
+    return response;
+  }
+
   // 🛠️ Templates y utilidades
   static async getTemplatesJornadas(): Promise<{ templates: Partial<JornadaConfig>[] }> {
     const response = await apiService.get<{ templates: Partial<JornadaConfig>[] }>('/jornadas/templates');

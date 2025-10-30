@@ -1,6 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-// import { Club } from '../database/entities/club.entity';
-// import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { TipoMembresia } from '../../configuracion/entities/tipo-membresia.entity';
 
 export enum TipoDocumento {
   CEDULA = 'cedula',
@@ -50,10 +49,9 @@ export class Socio {
   @Column('uuid')
   tipo_membresia_id: string;
 
-  // Relación comentada temporalmente
-  // @ManyToOne(() => TipoMembresia)
-  // @JoinColumn({ name: 'tipo_membresia_id' })
-  // tipo_membresia: TipoMembresia;
+  @ManyToOne(() => TipoMembresia, { eager: false })
+  @JoinColumn({ name: 'tipo_membresia_id' })
+  tipo_membresia: TipoMembresia;
 
   @Column({ type: 'date' })
   fecha_inicio_membresia: string;

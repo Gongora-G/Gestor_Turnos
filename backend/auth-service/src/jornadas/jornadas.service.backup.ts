@@ -75,68 +75,46 @@ export class JornadasService {
         where: { configuracionId: configuracion.id }
       });
       
-      const jornadasCreadas: JornadaConfig[] = [];
-      const idsExistentes = new Set<number>();
-      
-      // Procesar cada jornada del DTO
-      for (let i = 0; i < dto.jornadas.length; i++) {
-        const jornadaData = dto.jornadas[i];
-        const codigo = jornadaData.codigo || `J${i + 1}`;
-        
-        // Normalizar formato de hora
-        const horaInicio = this.normalizarHora(jornadaData.horaInicio);
-        const horaFin = this.normalizarHora(jornadaData.horaFin);
-
-        // Buscar si existe una jornada con el mismo código
-        const jornadaExistente = jornadasExistentes.find(j => j.codigo === codigo);
-
-        if (jornadaExistente) {
-          // ACTUALIZAR jornada existente
-          this.logger.log(`Actualizando jornada ${codigo}: ${jornadaData.nombre}`);
-          jornadaExistente.nombre = jornadaData.nombre;
-          jornadaExistente.descripcion = jornadaData.descripcion || '';
-          jornadaExistente.horaInicio = horaInicio;
-          jornadaExistente.horaFin = horaFin;
-          jornadaExistente.color = jornadaData.color || '#3b82f6';
-          jornadaExistente.orden = jornadaData.orden || (i + 1);
-          jornadaExistente.activa = true;
-          
-          const jornadaGuardada = await this.jornadasConfigRepository.save(jornadaExistente);
-          jornadasCreadas.push(jornadaGuardada);
-          idsExistentes.add(jornadaExistente.id);
-          this.logger.log(`Jornada ${codigo} actualizada`);
-        } else {
-          // CREAR nueva jornada
-          this.logger.log(`Creando nueva jornada ${codigo}: ${jornadaData.nombre}`);
-          const jornada = this.jornadasConfigRepository.create({
-            configuracionId: configuracion.id,
-            codigo,
-            nombre: jornadaData.nombre,
-            descripcion: jornadaData.descripcion,
-            horaInicio,
-            horaFin,
-            color: jornadaData.color || '#3b82f6',
-            orden: jornadaData.orden || (i + 1),
-            activa: true,
-            clubId,
-            configuradoPor: userId,
-          });
-
-          const jornadaGuardada = await this.jornadasConfigRepository.save(jornada);
-          jornadasCreadas.push(jornadaGuardada);
-          idsExistentes.add(jornadaGuardada.id);
-          this.logger.log(`Jornada ${codigo} creada con ID: ${jornadaGuardada.id}`);
+      if (jornadasExistentes.length > 0) {
+        this.logger.log(`� Desactivando ${jornadasExistentes.length} jornadas existentes`);
+        // En lugar de eliminar, marcamos como inactivas para mantener el historial
+        for (const jornada of jornadasExistentes) {
+          jornada.activa = false;
+          await this.jornadasConfigRepository.save(jornada);
         }
       }
 
-      // 3. ELIMINAR jornadas que ya no están en la configuración
-      const jornadasAEliminar = jornadasExistentes.filter(j => !idsExistentes.has(j.id));
-      if (jornadasAEliminar.length > 0) {
-        this.logger.log(`Eliminando ${jornadasAEliminar.length} jornadas obsoletas`);
-        for (const jornada of jornadasAEliminar) {
-          await this.jornadasConfigRepository.remove(jornada);
-          this.logger.log(`Jornada ${jornada.codigo} eliminada`);
-        }
+      // 3. Crear las nuevas jornadas
+      const jornadasCreadas: JornadaConfig[] = [];
+      
+      for (let i = 0; i < dto.jornadas.length; i++) {
+        const jornadaData = dto.jornadas[i];
+        this.logger.log(`📝 Creando jornada ${i + 1}:`, jornadaData.nombre);
+
+        // Generar código si no viene
+        const codigo = jornadaData.codigo || `J${i + 1}`;
+
+        // Normalizar formato de hora (agregar segundos si no los tiene)
+        const horaInicio = this.normalizarHora(jornadaData.horaInicio);
+        const horaFin = this.normalizarHora(jornadaData.horaFin);
+
+        const jornada = this.jornadasConfigRepository.create({
+          configuracionId: configuracion.id,
+          codigo,
+          nombre: jornadaData.nombre,
+          descripcion: jornadaData.descripcion,
+          horaInicio,
+          horaFin,
+          color: jornadaData.color || '#3b82f6',
+          orden: jornadaData.orden || (i + 1),
+          activa: jornadaData.activa !== false,
+          clubId,
+          configuradoPor: userId,
+        });
+
+        const jornadaGuardada = await this.jornadasConfigRepository.save(jornada);
+        jornadasCreadas.push(jornadaGuardada);
+        this.logger.log(`✅ Jornada ${i + 1} creada con ID:`, jornadaGuardada.id);
       }
 
       this.logger.log('🎉 Configuración completa creada exitosamente');
@@ -505,7 +483,7 @@ export class JornadasService {
     }
 
     const jornadas = await this.jornadasConfigRepository.find({
-      where: { configuracionId: configuracion.id },
+      where: { configuracionId: configuracion.id, activa: true },
       order: { orden: 'ASC' }
     });
 
@@ -557,7 +535,7 @@ export class JornadasService {
     }
 
     const jornadas = await this.jornadasConfigRepository.find({
-      where: { configuracionId: configuracion.id },
+      where: { configuracionId: configuracion.id, activa: true },
       order: { orden: 'ASC' }
     });
 
