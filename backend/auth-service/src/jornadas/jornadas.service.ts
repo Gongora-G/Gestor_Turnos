@@ -132,10 +132,24 @@ export class JornadasService {
       // 3. ELIMINAR jornadas que ya no están en la configuración
       const jornadasAEliminar = jornadasExistentes.filter(j => !idsExistentes.has(j.id));
       if (jornadasAEliminar.length > 0) {
-        this.logger.log(`Eliminando ${jornadasAEliminar.length} jornadas obsoletas`);
+        this.logger.log(`Verificando ${jornadasAEliminar.length} jornadas para eliminar`);
         for (const jornada of jornadasAEliminar) {
+          // Verificar si la jornada tiene turnos asociados antes de eliminar
+          const turnosAsociados = await this.turnosRepository.count({
+            where: { jornada_config_id: jornada.id }
+          });
+
+          if (turnosAsociados > 0) {
+            this.logger.warn(
+              `No se puede eliminar la jornada ${jornada.codigo} (${jornada.nombre}) ` +
+              `porque tiene ${turnosAsociados} turno(s) asociado(s). Se mantiene en la configuración.`
+            );
+            // No eliminar, simplemente continuar con la siguiente
+            continue;
+          }
+
           await this.jornadasConfigRepository.remove(jornada);
-          this.logger.log(`Jornada ${jornada.codigo} eliminada`);
+          this.logger.log(`Jornada ${jornada.codigo} eliminada (sin turnos asociados)`);
         }
       }
 
@@ -326,7 +340,21 @@ export class JornadasService {
 
   async deleteJornadaConfig(id: number) {
     const jornada = await this.getJornadaById(id);
+    
+    // Verificar si hay turnos asociados a esta jornada
+    const turnosAsociados = await this.turnosRepository.count({
+      where: { jornada_config_id: id }
+    });
+
+    if (turnosAsociados > 0) {
+      throw new ConflictException(
+        `No se puede eliminar la ${jornada.nombre} porque tiene ${turnosAsociados} turno(s) asociado(s). ` +
+        `Si deseas reorganizar las jornadas, modifica los horarios de las jornadas existentes en lugar de eliminarlas.`
+      );
+    }
+
     await this.jornadasConfigRepository.remove(jornada);
+    this.logger.log(`Jornada ${jornada.nombre} eliminada correctamente (sin turnos asociados)`);
     return { message: 'Jornada eliminada correctamente' };
   }
 
