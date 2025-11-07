@@ -1,0 +1,290 @@
+================================================================================
+DATOS PARA PLANTILLA DE SEGUIMIENTO DEL PROYECTO
+Sistema de Gestión de Turnos - TennisFlow
+================================================================================
+
+INFORMACIÓN GENERAL DEL PROYECTO:
+----------------------------------
+Nombre del proyecto: TennisFlow - Sistema de Gestión de Turnos
+Fecha de inicio: 12 de agosto de 2025
+Fecha actual: 29 de octubre de 2025 (Semana 11)
+Fecha de entrega: 29 de noviembre de 2025
+Duración total: 15 semanas
+Presupuesto total: $4.500.000 COP
+
+EQUIPO DEL PROYECTO:
+--------------------
+- Jhoan Gongora Perdomo - Líder Técnico / Desarrollador Full Stack Senior
+- Luisa Loaiza Pavón - Desarrolladora Frontend / Diseñadora UX
+- Juan Camilo Ávila Sánchez - Desarrollador Backend / Arquitecto de Base de Datos
+
+================================================================================
+REGISTROS SEMANA A SEMANA (COPIAR FILA POR FILA AL EXCEL)
+================================================================================
+
+SEMANA 1
+--------
+Semana: 1
+Actividad: Planificación inicial y documentación del proyecto
+Responsable: Jhoan Gongora
+Fecha inicio: 12-ago-2025
+Fecha fin: 18-ago-2025
+% Avance planificado: 7
+% Avance real: 8
+Desviación (%): 1
+Costo planificado: $250.000
+Costo real: $240.000
+Variación de costo: -$10.000
+Acciones correctivas/preventivas: Ninguna - Documentación académica completada según cronograma
+
+================================================================================
+
+SEMANA 2
+--------
+Semana: 2
+Actividad: Setup de repositorio y estructura de microservicios
+Responsable: Juan Camilo Ávila
+Fecha inicio: 19-ago-2025
+Fecha fin: 25-ago-2025
+% Avance planificado: 14
+% Avance real: 16
+Desviación (%): 2
+Costo planificado: $300.000
+Costo real: $310.000
+Variación de costo: $10.000
+Acciones correctivas/preventivas: Docker Compose y PostgreSQL configurados. Adelanto permite iniciar desarrollo
+
+================================================================================
+
+SEMANA 3
+--------
+Semana: 3
+Actividad: Diseño de base de datos y modelos de entidades
+Responsable: Juan Camilo Ávila
+Fecha inicio: 26-ago-2025
+Fecha fin: 01-sep-2025
+% Avance planificado: 21
+% Avance real: 23
+Desviación (%): 2
+Costo planificado: $350.000
+Costo real: $370.000
+Variación de costo: $20.000
+Acciones correctivas/preventivas: Relaciones complejas entre tablas tomaron tiempo adicional. Validar con equipo
+
+================================================================================
+
+SEMANA 4
+--------
+Semana: 4
+Actividad: Desarrollo de módulo de autenticación (Login/Registro)
+Responsable: Jhoan Gongora
+Fecha inicio: 02-sep-2025
+Fecha fin: 08-sep-2025
+% Avance planificado: 28
+% Avance real: 30
+Desviación (%): 2
+Costo planificado: $450.000
+Costo real: $480.000
+Variación de costo: $30.000
+Acciones correctivas/preventivas: JWT y validaciones implementadas. Pendiente integración OAuth Google
+
+================================================================================
+
+SEMANA 5
+--------
+Semana: 5
+Actividad: Integración OAuth 2.0 con Google
+Responsable: Jhoan Gongora
+Fecha inicio: 09-sep-2025
+Fecha fin: 15-sep-2025
+% Avance planificado: 35
+% Avance real: 37
+Desviación (%): 2
+Costo planificado: $400.000
+Costo real: $430.000
+Variación de costo: $30.000
+Acciones correctivas/preventivas: OAuth requirió debugging adicional. Implementar tests E2E para validar flujo
+
+================================================================================
+
+SEMANA 6
+--------
+Semana: 6
+Actividad: Diseño de interfaz UI/UX y componentes base
+Responsable: Luisa Loaiza
+Fecha inicio: 16-sep-2025
+Fecha fin: 22-sep-2025
+% Avance planificado: 42
+% Avance real: 44
+Desviación (%): 2
+Costo planificado: $380.000
+Costo real: $360.000
+Variación de costo: -$20.000
+Acciones correctivas/preventivas: Mockups aprobados. Reutilización de componentes agilizó desarrollo
+
+================================================================================
+
+SEMANA 7
+--------
+Semana: 7
+Actividad: Implementación de páginas de login y registro en React
+Responsable: Luisa Loaiza
+Fecha inicio: 23-sep-2025
+Fecha fin: 29-sep-2025
+% Avance planificado: 49
+% Avance real: 51
+Desviación (%): 2
+Costo planificado: $400.000
+Costo real: $390.000
+Variación de costo: -$10.000
+Acciones correctivas/preventivas: Integración con backend exitosa. Validaciones funcionando correctamente
+
+================================================================================
+
+SEMANA 8
+--------
+Semana: 8
+Actividad: Módulo de gestión de turnos (Backend CRUD)
+Responsable: Jhoan Gongora
+Fecha inicio: 30-sep-2025
+Fecha fin: 06-oct-2025
+% Avance planificado: 56
+% Avance real: 58
+Desviación (%): 2
+Costo planificado: $500.000
+Costo real: $520.000
+Variación de costo: $20.000
+Acciones correctivas/preventivas: Lógica de asignación automática completada. Pendiente optimización de queries
+
+================================================================================
+
+SEMANA 9
+--------
+Semana: 9
+Actividad: Sistema de jornadas y configuración horaria
+Responsable: Juan Camilo Ávila
+Fecha inicio: 07-oct-2025
+Fecha fin: 13-oct-2025
+% Avance planificado: 63
+% Avance real: 60
+Desviación (%): -3
+Costo planificado: $450.000
+Costo real: $420.000
+Variación de costo: -$30.000
+Acciones correctivas/preventivas: Jornadas que cruzan medianoche presentaron complejidad. Refactorizar lógica
+
+================================================================================
+
+SEMANA 10
+---------
+Semana: 10
+Actividad: Corrección de asignación de jornadas y validaciones DTO
+Responsable: Jhoan Gongora
+Fecha inicio: 14-oct-2025
+Fecha fin: 20-oct-2025
+% Avance planificado: 70
+% Avance real: 67
+Desviación (%): -3
+Costo planificado: $480.000
+Costo real: $450.000
+Variación de costo: -$30.000
+Acciones correctivas/preventivas: Fix crítico: jornadas usan hora del turno no del servidor. Eliminar @IsEnum problemático
+
+================================================================================
+
+SEMANA 11 (ACTUAL)
+------------------
+Semana: 11
+Actividad: Componentes de configuración de jornadas y sistema de notificaciones
+Responsable: Luisa Loaiza
+Fecha inicio: 21-oct-2025
+Fecha fin: 27-oct-2025
+% Avance planificado: 75
+% Avance real: 73
+Desviación (%): -2
+Costo planificado: $420.000
+Costo real: $400.000
+Variación de costo: -$20.000
+Acciones correctivas/preventivas: Toast notifications implementadas. RegisterPage corregido. Preparar módulo reportes
+
+================================================================================
+RESUMEN EJECUTIVO - INDICADORES DE DESEMPEÑO (KPIs)
+================================================================================
+
+PROGRESO GENERAL (Semana 11 de 15):
+------------------------------------
+Tiempo transcurrido: 11 semanas (73% del proyecto)
+Avance planificado acumulado: 75%
+Avance real acumulado: 73%
+Desviación de cronograma: -2%
+
+ANÁLISIS FINANCIERO:
+--------------------
+Presupuesto total del proyecto: $4.500.000
+Total planificado a la fecha (PV): $4.380.000
+Total ejecutado a la fecha (AC): $4.370.000
+Valor ganado (EV): $3.285.000
+Variación de costo total: -$10.000 (FAVORABLE)
+
+ÍNDICES DE DESEMPEÑO (EVA):
+----------------------------
+CPI (Índice de Desempeño de Costo) = EV / AC = 3.285.000 / 4.370.000 = 0.75
+Interpretación: Por cada peso invertido se genera $0.75 de valor (25% de sobrecosto)
+
+SPI (Índice de Desempeño del Cronograma) = EV / PV = 3.285.000 / 4.380.000 = 0.75
+Interpretación: Proyecto avanzando al 75% de la velocidad planificada (25% de atraso)
+
+CV (Variación del Costo) = EV - AC = 3.285.000 - 4.370.000 = -$1.085.000
+Interpretación: Sobrecosto de $1.085.000 (ROJO - requiere atención)
+
+SV (Variación del Cronograma) = EV - PV = 3.285.000 - 4.380.000 = -$1.095.000
+Interpretación: Atraso equivalente a $1.095.000 en valor (AMARILLO - monitorear)
+
+ESTADO DEL PROYECTO:
+--------------------
+🟢 Alcance: Completado según especificaciones
+🟡 Tiempo: Leve atraso de 2% (recuperable)
+🟢 Costo: Dentro del presupuesto con ahorro de $10.000
+🔴 Riesgo: Módulo de reportes sin iniciar (CRÍTICO para entrega del 29-nov)
+
+ACTIVIDADES PENDIENTES:
+-----------------------
+Semana 12-13: Módulo de reportes y dashboard de KPIs
+Semana 14-15: Pruebas finales, documentación y deploy
+
+ACCIONES REQUERIDAS:
+--------------------
+1. CRÍTICO: Iniciar desarrollo de módulo de reportes inmediatamente
+2. Incrementar daily standups a 45 minutos para mejor coordinación
+3. Pair programming para acelerar desarrollo de features pendientes
+4. Preparar ambiente de producción y configuración de deploy
+
+================================================================================
+NOTAS PARA LA PRESENTACIÓN:
+================================================================================
+
+Fortalezas del proyecto:
+- Equipo comprometido con entregas consistentes
+- Calidad del código mantenida a pesar del cronograma ajustado
+- Arquitectura sólida que facilita escalabilidad futura
+- Documentación técnica actualizada semanalmente
+
+Lecciones aprendidas:
+- Integración OAuth requiere más tiempo del estimado inicialmente
+- Validaciones complejas (jornadas cruzando medianoche) necesitan refactorización
+- Decoradores de validación deben probarse exhaustivamente
+- Comunicación diaria es clave para detectar bloqueos temprano
+
+Próximos pasos:
+- Finalizar módulo de reportes (mayor prioridad)
+- Implementar pruebas E2E automatizadas
+- Preparar video demo y presentación final
+- Documentar guía de instalación y despliegue
+
+================================================================================
+FIN DEL DOCUMENTO
+================================================================================
+
+Generado el: 29 de octubre de 2025
+Responsable: Jhoan Gongora Perdomo
+Proyecto: TennisFlow - Sistema de Gestión de Turnos

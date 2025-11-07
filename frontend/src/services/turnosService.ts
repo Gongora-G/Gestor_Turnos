@@ -32,6 +32,7 @@ export interface Turno {
   };
   // 🆕 Información de Jornada Asignada
   jornada_config_id?: number;
+  jornada_id?: number; // ✅ Agregar jornada_id también en la interfaz Turno
   jornada_config?: {
     id: number;
     codigo: string;
@@ -41,6 +42,7 @@ export interface Turno {
     color: string;
   };
   estado: 'en_progreso' | 'completado';
+  estado_registro?: 'ACTIVO' | 'GUARDADO';
   observaciones?: string;
   created_at: string;
   updated_at: string;
@@ -53,6 +55,7 @@ export interface CrearTurnoDto {
   cancha_id: string;
   usuario_id?: string;
   socio_id?: string;
+  jornada_id?: number; // ✅ jornada_id es un número, no string
   observaciones?: string;
 }
 
@@ -109,10 +112,12 @@ class TurnosService {
 
   async crearTurno(turno: CrearTurnoDto): Promise<Turno> {
     try {
+      console.log('📤 SERVICIO - Enviando turno al backend:', JSON.stringify(turno, null, 2));
       const response = await apiService.post<Turno>(this.endpoint, turno);
+      console.log('📥 SERVICIO - Respuesta del backend:', response);
       return response;
     } catch (error) {
-      console.error('Error al crear turno:', error);
+      console.error('❌ SERVICIO - Error al crear turno:', error);
       throw error;
     }
   }

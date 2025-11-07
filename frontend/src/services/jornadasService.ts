@@ -107,24 +107,24 @@ export class JornadasService {
     if (fechaInicio) params.append('fechaInicio', fechaInicio);
     if (fechaFin) params.append('fechaFin', fechaFin);
 
-    const response = await apiService.get<RegistroJornadaDiaria[]>(`/jornadas/historial?${params.toString()}`);
+    // ✅ CORREGIDO: Usar el endpoint que existe en el backend
+    const response = await apiService.get<RegistroJornadaDiaria[]>(`/jornadas/registros-diarios?${params.toString()}`);
+    return response;
+  }
+
+  static async getRegistroJornadaDiaria(fechaInicio?: string, fechaFin?: string): Promise<RegistroJornadaDiaria[]> {
+    const params = new URLSearchParams();
+    if (fechaInicio) params.append('fechaInicio', fechaInicio);
+    if (fechaFin) params.append('fechaFin', fechaFin);
+
+    // ✅ NUEVO: Endpoint correcto para obtener registros diarios
+    const response = await apiService.get<RegistroJornadaDiaria[]>(`/jornadas/registros-diarios?${params.toString()}`);
     return response;
   }
 
   static async getRegistroJornada(id: string): Promise<RegistroJornadaDiaria> {
-    const response = await apiService.get<RegistroJornadaDiaria>(`/jornadas/registro/${id}`);
-    return response;
-  }
-
-  /**
-   * 🎯 NUEVO: Obtiene registros completos con jornadas y turnos
-   * Este es el método principal para la vista "Registro de Jornadas"
-   */
-  static async getRegistrosCompletos(fecha?: string): Promise<any[]> {
-    const params = new URLSearchParams();
-    if (fecha) params.append('fecha', fecha);
-
-    const response = await apiService.get<any[]>(`/jornadas/registros-completos?${params.toString()}`);
+    // ✅ CORREGIDO: Mantener este endpoint si existe, sino usar registros-diarios
+    const response = await apiService.get<RegistroJornadaDiaria>(`/jornadas/registros-diarios/${id}`);
     return response;
   }
 
@@ -181,6 +181,55 @@ export class JornadasService {
       horaActual >= jornadaConfig.horario.horaInicio &&
       horaActual <= jornadaConfig.horario.horaFin
     );
+  }
+
+  static async getSiguienteJornadaDisponible(): Promise<{ jornada: JornadaConfig | null; tiempoRestante: string } | null> {
+    try {
+      const jornadas = await JornadasService.getJornadas();
+      
+      const ahora = new Date();
+      const horaActual = `${ahora.getHours().toString().padStart(2, '0')}:${ahora.getMinutes().toString().padStart(2, '0')}`;
+      
+      // Buscar la siguiente jornada del día
+      for (const jornada of jornadas) {
+        if (jornada.activa && horaActual < jornada.horaInicio) {
+          const [horaInicio, minutoInicio] = jornada.horaInicio.split(':').map(Number);
+          const inicioJornada = new Date();
+          inicioJornada.setHours(horaInicio, minutoInicio, 0, 0);
+          
+          const diferencia = inicioJornada.getTime() - ahora.getTime();
+          const minutosRestantes = Math.floor(diferencia / 60000);
+          const horasRestantes = Math.floor(minutosRestantes / 60);
+          const mins = minutosRestantes % 60;
+          
+          let tiempoRestante = '';
+          if (horasRestantes > 0) {
+            tiempoRestante = `${horasRestantes}h ${mins}min`;
+          } else {
+            tiempoRestante = `${mins}min`;
+          }
+          
+          return {
+            jornada,
+            tiempoRestante
+          };
+        }
+      }
+      
+      // Si no hay más jornadas hoy, buscar la primera del siguiente día
+      const primeraJornada = jornadas.find(j => j.activa);
+      if (primeraJornada) {
+        return {
+          jornada: primeraJornada,
+          tiempoRestante: 'mañana'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error al obtener siguiente jornada:', error);
+      return null;
+    }
   }
 
   static getDiaSemanaActual(): any {

@@ -8,7 +8,7 @@ import {
   EliminarTurnoModal 
 } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
-import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
+import { Plus, Filter, Search, Save, History, Clock, Trash2 } from 'lucide-react';
 import { turnosService, canchasService, type Turno as TurnoService } from '../services';
 import { JornadasService } from '../services/jornadasService';
 import { calcularEstadoAutomatico } from '../utils/turnoStates';
@@ -20,6 +20,10 @@ type Turno = TurnoService;
 // Alias para compatibilidad con otros componentes
 interface TurnoBackend extends Turno {}
 
+// Esta función ya no se necesita - el plano empieza vacío
+
+
+  console.log('� Recargando turnos del día desde backend...');
 interface CanchaBackend {
   id: string;
   nombre: string;
@@ -42,6 +46,7 @@ export const TurnosPage: React.FC = () => {
   const [guardandoJornada, setGuardandoJornada] = useState(false);
   const [tabActivo, setTabActivo] = useState<'turnos' | 'historial'>('turnos');
   const [jornadaActual, setJornadaActual] = useState<any>(null);
+  const [siguienteJornada, setSiguienteJornada] = useState<{ jornada: any; tiempoRestante: string } | null>(null);
   
   // Estados de modales
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
@@ -58,29 +63,63 @@ export const TurnosPage: React.FC = () => {
     turno: null
   });
 
-  // Cargar turnos y canchas del backend
+
+
+  // Cargar datos básicos Y turnos del día actual desde backend
   const cargarDatos = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log('🔍 Cargando datos...');
-      const [turnosResponse, canchasResponse, jornadaResponse] = await Promise.all([
-        turnosService.obtenerTurnos(),
+      console.log('🔍 Cargando datos básicos y turnos del día...');
+      const [canchasResponse, jornadaResponse] = await Promise.all([
         canchasService.obtenerCanchas(),
         JornadasService.getJornadaActual()
       ]);
       
-      console.log('✅ Turnos cargados:', turnosResponse);
-      console.log('🔍 Información de socios en turnos:', turnosResponse.map(t => ({ 
-        id: t.id, 
-        socio_id: t.socio_id,
-        socio: t.socio 
-      })));
-      console.log('✅ Canchas cargadas:', canchasResponse);
-      console.log('✅ Jornada actual:', jornadaResponse);
+      // Cargar turnos de la jornada activa
+      if (jornadaResponse?.id) {
+        console.log('📋 Cargando turnos de la jornada activa:', jornadaResponse.id);
+        try {
+          const turnosJornada = await turnosService.obtenerTurnos();
+          console.log('🔍 TODOS los turnos del backend:', turnosJornada.length);
+          console.log('🔍 ID de jornada activa:', jornadaResponse.id);
+          
+          // Mostrar los jornada_id de todos los turnos para debug
+          turnosJornada.forEach((turno, index) => {
+            console.log(`  Turno ${index + 1}: ID=${turno.id}, jornada_id=${turno.jornada_id}, estado_registro=${turno.estado_registro}, nombre=${turno.nombre}`);
+          });
+          
+          // Filtrar solo turnos de la jornada activa y que estén activos (no guardados)
+          const turnosDeJornada = turnosJornada.filter(turno => 
+            turno.jornada_id === jornadaResponse.id && 
+            (turno.estado_registro === 'ACTIVO' || !turno.estado_registro) // Incluir turnos sin estado o ACTIVO
+          );
+          setTurnos(turnosDeJornada);
+          console.log('✅ Turnos de jornada activa cargados:', turnosDeJornada.length);
+        } catch (error) {
+          console.error('Error al cargar turnos de jornada:', error);
+          setTurnos([]);
+        }
+      } else {
+        console.log('⚠️ No hay jornada activa disponible en este horario');
+        setTurnos([]);
+        
+        // Buscar la siguiente jornada disponible
+        try {
+          const siguienteInfo = await JornadasService.getSiguienteJornadaDisponible();
+          setSiguienteJornada(siguienteInfo);
+          console.log('🕐 Siguiente jornada:', siguienteInfo);
+        } catch (error) {
+          console.error('Error al obtener siguiente jornada:', error);
+        }
+      }
       
-      setTurnos(turnosResponse);
+      console.log('✅ Datos cargados:', {
+        canchas: canchasResponse.length,
+        jornada: jornadaResponse?.id
+      });
+      
       setCanchas(canchasResponse);
       setJornadaActual(jornadaResponse);
       
@@ -103,6 +142,71 @@ export const TurnosPage: React.FC = () => {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // ✅ Los turnos se manejan directamente desde backend - no necesitamos localStorage
+
+  // ➕ Recargar turnos de la jornada activa después de crear uno
+  const recargarTurnosJornadaActiva = async () => {
+    try {
+      if (!jornadaActual?.id) {
+        console.log('⚠️ No hay jornada activa');
+        return;
+      }
+      
+      console.log('🔄 Recargando turnos de jornada activa:', jornadaActual.id);
+      const todosTurnos = await turnosService.obtenerTurnos();
+      
+      console.log('🔍 DEBUG RECARGA - Total turnos:', todosTurnos.length);
+      console.log('🔍 DEBUG RECARGA - Jornada activa ID:', jornadaActual.id);
+      
+      // Mostrar jornada_config_id de cada turno
+      todosTurnos.forEach((turno, index) => {
+        const jornadaIdDelTurno = turno.jornada_config_id || turno.jornada_id;
+        console.log(`  Turno ${index + 1}: ID=${turno.id}, jornada_config_id=${turno.jornada_config_id}, coincide=${jornadaIdDelTurno === jornadaActual.id}`);
+      });
+      
+      // Filtrar SOLO turnos de la jornada activa usando jornada_config_id
+      const turnosDeJornada = todosTurnos.filter(turno => {
+        // Usar jornada_config_id como jornada_id temporal
+        const jornadaIdDelTurno = turno.jornada_config_id || turno.jornada_id;
+        
+        // EXCLUIR turnos sin jornada_config_id ni jornada_id
+        if (jornadaIdDelTurno === undefined || jornadaIdDelTurno === null) {
+          console.log(`  Turno ${turno.id} sin jornada - EXCLUIDO (turno antiguo)`);
+          return false;
+        }
+        
+        // Solo incluir turnos que pertenecen a la jornada activa
+        const turnoJornadaId = Number(jornadaIdDelTurno);
+        const jornadaActualId = Number(jornadaActual.id);
+        
+        const coincide = turnoJornadaId === jornadaActualId;
+        console.log(`  Turno ${turno.id}: jornada_config_id=${turno.jornada_config_id} vs jornadaActual=${jornadaActual.id} → ${coincide ? 'INCLUIDO' : 'EXCLUIDO'}`);
+        
+        return coincide;
+      });
+      
+      setTurnos(turnosDeJornada);
+      console.log('✅ Turnos actualizados:', turnosDeJornada.length);
+    } catch (error) {
+      console.error('❌ Error al recargar turnos:', error);
+    }
+  };
+
+
+
+  // 🧹 Limpiar plano de trabajo
+  const handleLimpiarPlano = () => {
+    if (turnos.length === 0) {
+      showWarning('Plano vacío', 'No hay turnos en el plano de trabajo');
+      return;
+    }
+    
+    if (window.confirm(`¿Limpiar el plano de trabajo?\n\nEsto eliminará los ${turnos.length} turnos del plano actual. Esta acción no se puede deshacer.`)) {
+      setTurnos([]);
+      showSuccess('✅ Plano limpiado', 'El plano de trabajo ha sido limpiado correctamente');
+    }
+  };
 
   // Handlers para modales
   const handleVerTurno = (turno: Turno) => {
@@ -135,7 +239,8 @@ export const TurnosPage: React.FC = () => {
     try {
       if (!editarTurnoModal.turno?.id) throw new Error('ID de turno no encontrado');
       await turnosService.actualizarTurno(editarTurnoModal.turno.id, turnoData);
-      await cargarDatos(); // Recargar datos
+      // Recargar turnos de la jornada activa
+      await recargarTurnosJornadaActiva();
     } catch (error) {
       console.error('Error al actualizar turno:', error);
       throw error;
@@ -146,7 +251,8 @@ export const TurnosPage: React.FC = () => {
   const handleConfirmarEliminar = async (turnoId: string) => {
     try {
       await turnosService.eliminarTurno(turnoId);
-      await cargarDatos(); // Recargar datos
+      // Recargar turnos de la jornada activa
+      await recargarTurnosJornadaActiva();
     } catch (error) {
       console.error('Error al eliminar turno:', error);
       throw error;
@@ -191,6 +297,8 @@ export const TurnosPage: React.FC = () => {
         fecha: new Date().toISOString().split('T')[0], // YYYY-MM-DD
         turnos: turnosData
       });
+      
+      console.log('🔍 DEBUG - Resultado completo de guardar jornada:', JSON.stringify(resultado, null, 2));
 
       // Mostrar resultado con estadísticas
       const stats = resultado.registroDiario.estadisticas;
@@ -204,14 +312,37 @@ export const TurnosPage: React.FC = () => {
       );
 
       // Limpiar turnos después de guardar la jornada
-      console.log('🧹 Limpiando turnos del frontend...');
-      setTurnos([]);
+      console.log('🧹 Limpiando vista de turnos...');
+      setTurnos([]); // Limpiar vista - los turnos están guardados en el backend
       
-      // Recargar datos para sincronizar con el backend
+      // Verificar si hay siguiente jornada y activarla automáticamente
       setTimeout(async () => {
-        console.log('🔄 Recargando datos...');
-        await cargarDatos();
-      }, 1500);
+        console.log('🔄 Verificando siguiente jornada...');
+        try {
+          if (resultado.siguienteJornada) {
+            console.log('🎯 Activando siguiente jornada:', resultado.siguienteJornada.nombre);
+            // Usar directamente la siguiente jornada devuelta por el backend
+            setJornadaActual(resultado.siguienteJornada);
+            console.log('✅ Nueva jornada activa:', resultado.siguienteJornada.nombre, '(ID:', resultado.siguienteJornada.id, ')');
+          } else {
+            // Si no hay siguiente jornada, obtener la jornada actual
+            const jornadaResponse = await JornadasService.getJornadaActual();
+            setJornadaActual(jornadaResponse);
+          }
+          
+          const canchasResponse = await canchasService.obtenerCanchas();
+          setCanchas(canchasResponse);
+          
+          if (jornadaResponse) {
+            console.log('✅ Nueva jornada activa:', jornadaResponse.nombre, '(ID:', jornadaResponse.id, ')');
+            console.log('✅ Plano limpio listo para crear nuevos turnos');
+          } else {
+            console.log('⚠️ No hay jornada activa basada en la hora actual');
+          }
+        } catch (error) {
+          console.error('Error al recargar datos básicos:', error);
+        }
+      }, 1000);
 
     } catch (error: any) {
       console.error('❌ Error al guardar jornada:', error);
@@ -224,18 +355,8 @@ export const TurnosPage: React.FC = () => {
     }
   };
 
-  // Filtrar turnos
-  const turnosFiltrados = turnos.filter(turno => {
-    const coincideBusqueda = turno.id?.toLowerCase().includes(busqueda.toLowerCase()) ||
-                           turno.observaciones?.toLowerCase().includes(busqueda.toLowerCase()) ||
-                           turno.cancha?.nombre?.toLowerCase().includes(busqueda.toLowerCase());
-    
-    // Calcular el estado actual del turno para el filtrado
-    const estadoActual = calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin, 'activo');
-    const coincideEstado = filtroEstado === 'todos' || estadoActual === filtroEstado;
-    
-    return coincideBusqueda && coincideEstado;
-  });
+  // Mostrar todos los turnos de la jornada activa - SIN FILTROS COMPLEJOS
+  const turnosFiltrados = turnos;
 
   if (loading) {
     return (
@@ -486,33 +607,48 @@ export const TurnosPage: React.FC = () => {
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <button
                     onClick={() => setModalCrearAbierto(true)}
+                    disabled={!jornadaActual}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '8px',
                       padding: '12px 24px',
-                      background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+                      background: !jornadaActual 
+                        ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)'
+                        : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '12px',
                       fontSize: '14px',
                       fontWeight: '600',
-                      cursor: 'pointer',
+                      cursor: !jornadaActual ? 'not-allowed' : 'pointer',
                       transition: 'all 0.2s ease',
-                      boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                      boxShadow: !jornadaActual 
+                        ? '0 4px 12px rgba(107, 114, 128, 0.3)'
+                        : '0 4px 12px rgba(59, 130, 246, 0.3)',
+                      opacity: !jornadaActual ? 0.7 : 1
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-2px)';
-                      e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
+                      if (jornadaActual) {
+                        e.currentTarget.style.transform = 'translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 20px rgba(59, 130, 246, 0.4)';
+                      }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                      if (jornadaActual) {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+                      }
                     }}
                   >
                     <Plus size={20} />
-                    Crear Turno
+                    {!jornadaActual ? 'Sin Jornada Activa' : 'Crear Turno'}
                   </button>
+
+
+
+
+
 
                   {/* Botón Guardar Jornada - solo mostrar cuando hay turnos */}
                   {turnos.length > 0 && (
@@ -556,6 +692,10 @@ export const TurnosPage: React.FC = () => {
                       {guardandoJornada ? 'Guardando...' : `Guardar Jornada (${turnos.length})`}
                     </button>
                   )}
+
+
+
+
                 </div>
               )}
             </div>
@@ -752,7 +892,10 @@ export const TurnosPage: React.FC = () => {
                 marginBottom: '8px',
                 margin: 0
               }}>
-                {turnos.length === 0 ? 'No hay turnos registrados' : 'No se encontraron turnos'}
+                {!jornadaActual 
+                  ? 'No hay jornada activa disponible'
+                  : (turnos.length === 0 ? 'No hay turnos registrados' : 'No se encontraron turnos')
+                }
               </h3>
               <p style={{
                 fontSize: '16px',
@@ -760,12 +903,18 @@ export const TurnosPage: React.FC = () => {
                 marginBottom: '24px',
                 margin: '8px 0 24px 0'
               }}>
-                {turnos.length === 0 
-                  ? 'Comienza creando tu primer turno' 
-                  : 'Prueba ajustando los filtros de búsqueda'
+                {!jornadaActual 
+                  ? (siguienteJornada 
+                      ? `La siguiente jornada "${siguienteJornada.jornada?.nombre}" inicia ${siguienteJornada.tiempoRestante === 'mañana' ? 'mañana' : `en ${siguienteJornada.tiempoRestante}`} a las ${siguienteJornada.jornada?.horaInicio}`
+                      : 'No hay jornadas configuradas para este horario'
+                    )
+                  : (turnos.length === 0 
+                      ? 'Comienza creando tu primer turno' 
+                      : 'Prueba ajustando los filtros de búsqueda'
+                    )
                 }
               </p>
-              {turnos.length === 0 && (
+              {turnos.length === 0 && jornadaActual && (
                 <button
                   onClick={() => setModalCrearAbierto(true)}
                   style={{
@@ -798,10 +947,15 @@ export const TurnosPage: React.FC = () => {
               width: '100%',
               padding: '0 20px'
             }}>
-              {turnosFiltrados.map((turno) => (
+              {turnosFiltrados.map((turno, index) => (
                 <TurnoCard
                   key={turno.id}
-                  turno={turno}
+                  turno={{
+                    ...turno,
+                    // Forzar numeración del plano - sobrescribir completamente
+                    numero_turno_dia: index + 1,
+                    nombre: `Turno - ${String(index + 1).padStart(3, '0')}` // Forzar nombre también
+                  }}
                   onVer={() => handleVerTurno(turno)}
                   onEditar={() => handleEditarTurno(turno)}
                   onEliminar={() => handleEliminarTurno(turno)}
@@ -825,7 +979,10 @@ export const TurnosPage: React.FC = () => {
       <CrearTurnoModal
         isOpen={modalCrearAbierto}
         onClose={() => setModalCrearAbierto(false)}
-        onTurnoCreated={cargarDatos}
+        onTurnoCreated={async () => {
+          console.log('🎉 Turno creado exitosamente, recargando jornada...');
+          await recargarTurnosJornadaActiva();
+        }}
       />
 
       <VerTurnoModal

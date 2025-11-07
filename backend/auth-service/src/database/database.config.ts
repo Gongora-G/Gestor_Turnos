@@ -7,13 +7,7 @@ import { Cancha } from '../configuracion/entities/cancha.entity';
 import { ConfiguracionClub } from '../configuracion/entities/configuracion-club.entity';
 import { Turno } from '../turnos/entities/turno.entity';
 import { Socio } from '../socios/entities/socio.entity';
-import { 
-  JornadaConfig, 
-  ConfiguracionJornadas, 
-  RegistroJornada,
-  RegistroJornadaDiaria,
-  RegistroJornadaDetalle 
-} from '../jornadas/entities/jornada.entity';
+import { JornadaConfig, ConfiguracionJornadas, RegistroJornada } from '../jornadas/entities/jornada.entity';
 
 export const databaseConfig = (
   configService: ConfigService,
@@ -34,9 +28,7 @@ export const databaseConfig = (
     Socio,
     JornadaConfig,
     ConfiguracionJornadas,
-    RegistroJornada,
-    RegistroJornadaDiaria,
-    RegistroJornadaDetalle
+    RegistroJornada
   ],
   synchronize: false, // Deshabilitado temporalmente para evitar conflictos
   logging: configService.get<string>('NODE_ENV') === 'development',

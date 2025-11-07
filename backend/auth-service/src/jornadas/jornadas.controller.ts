@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { JornadasService } from './jornadas.service';
+import { TurnosService } from '../turnos/turnos.service';
 import {
   CreateJornadaConfigDto,
   UpdateJornadaConfigDto,
@@ -26,7 +27,10 @@ import {
 export class JornadasController {
   private readonly logger = new Logger(JornadasController.name);
 
-  constructor(private readonly jornadasService: JornadasService) {}
+  constructor(
+    private readonly jornadasService: JornadasService,
+    private readonly turnosService: TurnosService
+  ) {}
 
   // ==========================================
   // CONFIGURACION COMPLETA
@@ -123,16 +127,6 @@ export class JornadasController {
     return await this.jornadasService.getRegistrosDiarios(inicio, fin);
   }
 
-  @Get('registros-completos')
-  async getRegistrosCompletos(
-    @Request() req: any,
-    @Query('fecha') fecha?: string
-  ) {
-    const clubId = req.user?.clubId;
-    this.logger.log(`📊 GET /jornadas/registros-completos - Club: ${clubId}, Fecha: ${fecha || 'todas'}`);
-    return await this.jornadasService.getRegistrosDiariosConDetalles(clubId, fecha);
-  }
-
   @Get('jornada-actual')
   async getJornadaActual(@Request() req: any) {
     const clubId = req.user?.clubId;
@@ -143,9 +137,23 @@ export class JornadasController {
   @Post('guardar-jornada')
   async guardarJornada(@Request() req: any, @Body() body: any) {
     const clubId = req.user?.clubId;
-    const userId = req.user?.userId;
+    const userId = req.user?.id || req.user?.userId; // Probar ambos campos
+    this.logger.log('📝 POST /jornadas/guardar-jornada - Usuario completo:', JSON.stringify(req.user, null, 2));
+    this.logger.log('📝 POST /jornadas/guardar-jornada - clubId:', clubId, 'userId:', userId);
     this.logger.log('📝 POST /jornadas/guardar-jornada - Guardando jornada con turnos:', JSON.stringify(body, null, 2));
-    return await this.jornadasService.guardarRegistroJornada(clubId, userId, body);
+    
+    const resultado = await this.jornadasService.guardarRegistroJornada(clubId, userId, body);
+    
+    // Marcar turnos actuales como guardados para que no aparezcan en la siguiente vista
+    if (body.turnos && body.turnos.length > 0) {
+      const turnoIds = body.turnos.map(turno => turno.id).filter(id => id);
+      if (turnoIds.length > 0) {
+        this.logger.log('📝 Marcando turnos como guardados:', turnoIds);
+        await this.turnosService.marcarTurnosComoGuardados(turnoIds);
+      }
+    }
+    
+    return resultado;
   }
 
   @Post('activar-siguiente')

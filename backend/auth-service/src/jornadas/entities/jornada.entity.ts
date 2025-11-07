@@ -192,16 +192,16 @@ export class RegistroJornada {
   @Column({ name: 'club_id', type: 'uuid' })
   clubId: string;
 
-  @Column({ name: 'jornada_config_id', type: 'uuid' })
-  jornadaConfigId: string;
+  @Column({ name: 'jornada_config_id', type: 'integer' })
+  jornadaConfigId: number;
 
   @Column({ type: 'date' })
   fecha: Date;
 
-  @Column({ name: 'hora_inicio', length: 5 })
+  @Column({ name: 'hora_inicio', length: 8 })
   horaInicio: string;
 
-  @Column({ name: 'hora_fin', length: 5, nullable: true })
+  @Column({ name: 'hora_fin', length: 8, nullable: true })
   horaFin: string;
 
   @Column({ name: 'turnos_registrados', type: 'jsonb', default: '[]' })

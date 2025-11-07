@@ -27,6 +27,10 @@ export class CreateTurnoDto {
   jornada_config_id?: number;
 
   @IsOptional()
+  @IsInt()
+  jornada_id?: number; // ✅ jornada_id es un número entero, no UUID
+
+  @IsOptional()
   @IsString()
   observaciones?: string;
 }
@@ -51,10 +55,6 @@ export class UpdateTurnoDto {
   @IsOptional()
   @IsUUID()
   cancha_id?: string;
-
-  @IsOptional()
-  @IsUUID('4', { message: 'El ID del socio debe ser un UUID válido' })
-  socio_id?: string | null;
 
   @IsOptional()
   @IsEnum(EstadoTurno)

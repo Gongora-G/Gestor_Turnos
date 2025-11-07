@@ -5,9 +5,9 @@ import {
   ConfiguracionJornadas, 
   JornadaConfig,
   RegistroJornadaDiaria,
-  RegistroJornadaDetalle
+  RegistroJornadaDetalle,
+  RegistroJornada
 } from './entities/jornada.entity';
-import { Turno } from '../turnos/entities/turno.entity';
 import { 
   CreateJornadaConfigDto, 
   UpdateJornadaConfigDto, 
@@ -32,9 +32,9 @@ export class JornadasService {
     
     @InjectRepository(RegistroJornadaDetalle)
     private registrosDetalleRepository: Repository<RegistroJornadaDetalle>,
-
-    @InjectRepository(Turno)
-    private turnosRepository: Repository<Turno>,
+    
+    @InjectRepository(RegistroJornada)
+    private registrosJornadaRepository: Repository<RegistroJornada>,
   ) {}
 
   // ==========================================
@@ -70,87 +70,47 @@ export class JornadasService {
         this.logger.log(`✅ Configuración actualizada ID: ${configuracion.id}`);
       }
 
-      // 2. Sincronizar jornadas: actualizar existentes, crear nuevas, eliminar obsoletas
+      // 2. Eliminar jornadas existentes de esta configuración
       const jornadasExistentes = await this.jornadasConfigRepository.find({
         where: { configuracionId: configuracion.id }
       });
       
+      if (jornadasExistentes.length > 0) {
+        this.logger.log(`🗑️ Eliminando ${jornadasExistentes.length} jornadas existentes`);
+        await this.jornadasConfigRepository.remove(jornadasExistentes);
+      }
+
+      // 3. Crear las nuevas jornadas
       const jornadasCreadas: JornadaConfig[] = [];
-      const idsExistentes = new Set<number>();
       
-      // Procesar cada jornada del DTO
       for (let i = 0; i < dto.jornadas.length; i++) {
         const jornadaData = dto.jornadas[i];
+        this.logger.log(`📝 Creando jornada ${i + 1}:`, jornadaData.nombre);
+
+        // Generar código si no viene
         const codigo = jornadaData.codigo || `J${i + 1}`;
-        
-        // Normalizar formato de hora
+
+        // Normalizar formato de hora (agregar segundos si no los tiene)
         const horaInicio = this.normalizarHora(jornadaData.horaInicio);
         const horaFin = this.normalizarHora(jornadaData.horaFin);
 
-        // Buscar si existe una jornada con el mismo código
-        const jornadaExistente = jornadasExistentes.find(j => j.codigo === codigo);
+        const jornada = this.jornadasConfigRepository.create({
+          configuracionId: configuracion.id,
+          codigo,
+          nombre: jornadaData.nombre,
+          descripcion: jornadaData.descripcion,
+          horaInicio,
+          horaFin,
+          color: jornadaData.color || '#3b82f6',
+          orden: jornadaData.orden || (i + 1),
+          activa: jornadaData.activa !== false,
+          clubId,
+          configuradoPor: userId,
+        });
 
-        if (jornadaExistente) {
-          // ACTUALIZAR jornada existente
-          this.logger.log(`Actualizando jornada ${codigo}: ${jornadaData.nombre}`);
-          jornadaExistente.nombre = jornadaData.nombre;
-          jornadaExistente.descripcion = jornadaData.descripcion || '';
-          jornadaExistente.horaInicio = horaInicio;
-          jornadaExistente.horaFin = horaFin;
-          jornadaExistente.color = jornadaData.color || '#3b82f6';
-          jornadaExistente.orden = jornadaData.orden || (i + 1);
-          jornadaExistente.activa = true;
-          
-          const jornadaGuardada = await this.jornadasConfigRepository.save(jornadaExistente);
-          jornadasCreadas.push(jornadaGuardada);
-          idsExistentes.add(jornadaExistente.id);
-          this.logger.log(`Jornada ${codigo} actualizada`);
-        } else {
-          // CREAR nueva jornada
-          this.logger.log(`Creando nueva jornada ${codigo}: ${jornadaData.nombre}`);
-          const jornada = this.jornadasConfigRepository.create({
-            configuracionId: configuracion.id,
-            codigo,
-            nombre: jornadaData.nombre,
-            descripcion: jornadaData.descripcion,
-            horaInicio,
-            horaFin,
-            color: jornadaData.color || '#3b82f6',
-            orden: jornadaData.orden || (i + 1),
-            activa: true,
-            clubId,
-            configuradoPor: userId,
-          });
-
-          const jornadaGuardada = await this.jornadasConfigRepository.save(jornada);
-          jornadasCreadas.push(jornadaGuardada);
-          idsExistentes.add(jornadaGuardada.id);
-          this.logger.log(`Jornada ${codigo} creada con ID: ${jornadaGuardada.id}`);
-        }
-      }
-
-      // 3. ELIMINAR jornadas que ya no están en la configuración
-      const jornadasAEliminar = jornadasExistentes.filter(j => !idsExistentes.has(j.id));
-      if (jornadasAEliminar.length > 0) {
-        this.logger.log(`Verificando ${jornadasAEliminar.length} jornadas para eliminar`);
-        for (const jornada of jornadasAEliminar) {
-          // Verificar si la jornada tiene turnos asociados antes de eliminar
-          const turnosAsociados = await this.turnosRepository.count({
-            where: { jornada_config_id: jornada.id }
-          });
-
-          if (turnosAsociados > 0) {
-            this.logger.warn(
-              `No se puede eliminar la jornada ${jornada.codigo} (${jornada.nombre}) ` +
-              `porque tiene ${turnosAsociados} turno(s) asociado(s). Se mantiene en la configuración.`
-            );
-            // No eliminar, simplemente continuar con la siguiente
-            continue;
-          }
-
-          await this.jornadasConfigRepository.remove(jornada);
-          this.logger.log(`Jornada ${jornada.codigo} eliminada (sin turnos asociados)`);
-        }
+        const jornadaGuardada = await this.jornadasConfigRepository.save(jornada);
+        jornadasCreadas.push(jornadaGuardada);
+        this.logger.log(`✅ Jornada ${i + 1} creada con ID:`, jornadaGuardada.id);
       }
 
       this.logger.log('🎉 Configuración completa creada exitosamente');
@@ -197,18 +157,24 @@ export class JornadasService {
   async getConfiguracionActiva(clubId: string) {
     this.logger.log(`📡 getConfiguracionActiva - Buscando para clubId: ${clubId}`);
     
-    // Buscar primero CON filtro de club
-    let configuracion = await this.configuracionRepository.findOne({
-      where: { clubId, activa: true }
-    });
+    let configuracion: any = null;
+    
+    // Si hay clubId, buscar por club específico
+    if (clubId && clubId !== 'undefined' && clubId !== 'null') {
+      configuracion = await this.configuracionRepository.findOne({
+        where: { clubId, activa: true }
+      });
+      this.logger.log(`🔍 Configuración con clubId ${clubId}: ${configuracion ? 'ENCONTRADA' : 'NO ENCONTRADA'}`);
+    }
 
-    // Si no encuentra, buscar cualquier configuración activa (para debug)
+    // Si no encuentra por clubId o no hay clubId, buscar cualquier configuración activa
     if (!configuracion) {
-      this.logger.warn(`⚠️ No se encontró configuración activa para club ${clubId}, buscando sin filtro...`);
+      this.logger.warn(`⚠️ Buscando configuración activa sin filtro de club...`);
       configuracion = await this.configuracionRepository.findOne({
         where: { activa: true },
         order: { id: 'DESC' }
       });
+      this.logger.log(`🔍 Configuración sin filtro: ${configuracion ? 'ENCONTRADA ID: ' + configuracion.id : 'NO ENCONTRADA'}`);
     }
 
     if (!configuracion) {
@@ -340,21 +306,7 @@ export class JornadasService {
 
   async deleteJornadaConfig(id: number) {
     const jornada = await this.getJornadaById(id);
-    
-    // Verificar si hay turnos asociados a esta jornada
-    const turnosAsociados = await this.turnosRepository.count({
-      where: { jornada_config_id: id }
-    });
-
-    if (turnosAsociados > 0) {
-      throw new ConflictException(
-        `No se puede eliminar la ${jornada.nombre} porque tiene ${turnosAsociados} turno(s) asociado(s). ` +
-        `Si deseas reorganizar las jornadas, modifica los horarios de las jornadas existentes en lugar de eliminarlas.`
-      );
-    }
-
     await this.jornadasConfigRepository.remove(jornada);
-    this.logger.log(`Jornada ${jornada.nombre} eliminada correctamente (sin turnos asociados)`);
     return { message: 'Jornada eliminada correctamente' };
   }
 
@@ -394,7 +346,7 @@ export class JornadasService {
   }
 
   async getRegistrosDiarios(fechaInicio?: Date, fechaFin?: Date) {
-    const query = this.registrosDiariosRepository.createQueryBuilder('registro');
+    const query = this.registrosJornadaRepository.createQueryBuilder('registro');
 
     if (fechaInicio) {
       query.andWhere('registro.fecha >= :fechaInicio', { 
@@ -409,131 +361,40 @@ export class JornadasService {
     }
 
     return await query
-      .orderBy('registro.fecha', 'DESC')
+      .orderBy('registro.fecha_creacion', 'DESC')
       .getMany();
-  }
-
-  /**
-   * Obtiene los registros diarios CON todos sus detalles (jornadas y turnos)
-   * Este es el método que usa la vista de "Registro de Jornadas"
-   */
-  async getRegistrosDiariosConDetalles(clubId: string, fecha?: string) {
-    this.logger.log(`📊 Obteniendo registros completos para club ${clubId}, fecha: ${fecha || 'todas'}`);
-
-    // 1. Obtener registros diarios
-    const query = this.registrosDiariosRepository.createQueryBuilder('registro');
-    
-    if (fecha) {
-      query.where('registro.fecha = :fecha', { fecha });
-    }
-
-    const registrosDiarios = await query
-      .orderBy('registro.fecha', 'DESC')
-      .limit(30) // Últimos 30 días
-      .getMany();
-
-    if (!registrosDiarios.length) {
-      this.logger.log('📋 No hay registros para mostrar');
-      return [];
-    }
-
-    // 2. Para cada registro diario, obtener sus detalles por jornada
-    const registrosCompletos = await Promise.all(
-      registrosDiarios.map(async (registroDiario) => {
-        // Obtener detalles de jornadas para este día
-        const detalles = await this.registrosDetalleRepository.find({
-          where: { registroDiarioId: registroDiario.id }
-        });
-
-        // Obtener las configuraciones de jornadas referenciadas
-        const jornadaConfigIds = detalles.map(d => d.jornadaConfigId);
-        const jornadasConfig = await this.findJornadaConfigByIds(jornadaConfigIds);
-
-        // Obtener turnos de este día
-        const turnos = await this.turnosRepository
-          .createQueryBuilder('turno')
-          .leftJoinAndSelect('turno.cancha', 'cancha')
-          .leftJoinAndSelect('turno.socio', 'socio')
-          .leftJoinAndSelect('socio.tipo_membresia', 'tipo_membresia')
-          .where('turno.club_id = :clubId', { clubId })
-          .andWhere('turno.fecha = :fecha', { fecha: registroDiario.fecha })
-          .orderBy('turno.hora_inicio', 'ASC')
-          .getMany();
-
-        // Mapear detalles con sus jornadas y turnos
-        const jornadasDetalle = detalles.map((detalle) => {
-          const jornadaConfig = jornadasConfig.find(j => j.id === detalle.jornadaConfigId);
-          
-          // Filtrar turnos que pertenecen a esta jornada
-          const turnosJornada = turnos.filter(t => {
-            if (!t.jornada_config_id) return false;
-            return t.jornada_config_id === detalle.jornadaConfigId;
-          });
-
-          return {
-            codigo: jornadaConfig?.codigo || '?',
-            nombre: jornadaConfig?.nombre || 'Jornada',
-            hora_inicio: jornadaConfig?.horaInicio || '00:00',
-            hora_fin: jornadaConfig?.horaFin || '00:00',
-            color: jornadaConfig?.color || '#3b82f6',
-            turnos: turnosJornada.map(t => ({
-              id: t.id,
-              nombre: t.nombre,
-              numero_turno: t.numero_turno_dia,
-              hora_inicio: t.hora_inicio,
-              hora_fin: t.hora_fin,
-              cancha: t.cancha?.nombre || 'N/A',
-              socio: t.socio ? {
-                nombre: t.socio.nombre,
-                apellido: t.socio.apellido,
-                documento: t.socio.documento,
-                membresia: t.socio.tipo_membresia?.nombre || 'N/A',
-                membresia_color: t.socio.tipo_membresia?.color || '#6b7280'
-              } : null,
-              estado: t.estado,
-              observaciones: t.observaciones
-            })),
-            estadisticas: {
-              total_turnos: detalle.totalTurnos,
-              turnos_completados: detalle.turnosCompletados,
-              turnos_en_progreso: detalle.turnosEnProgreso,
-              duracion_promedio: '0h', // Calcular si es necesario
-              canchas_mas_usadas: detalle.canchasMasUsadas || []
-            }
-          };
-        });
-
-        return {
-          id: registroDiario.id,
-          fecha: registroDiario.fecha,
-          estado: registroDiario.estado,
-          jornadas_detalle: jornadasDetalle,
-          estadisticas: {
-            total_turnos: registroDiario.totalTurnos,
-            turnos_completados: registroDiario.totalCompletados,
-            turnos_pendientes: registroDiario.totalTurnos - registroDiario.totalCompletados,
-          },
-          created_at: registroDiario.createdAt
-        };
-      })
-    );
-
-    this.logger.log(`✅ Devolviendo ${registrosCompletos.length} registros completos`);
-    return registrosCompletos;
   }
 
   async determinarJornadaActualPorHora(clubId: string) {
-    const configuracion = await this.configuracionRepository.findOne({
-      where: { clubId, activa: true }
-    });
+    this.logger.log(`🕐 determinarJornadaActualPorHora - clubId: ${clubId}`);
+    
+    let configuracion: any = null;
+    
+    // Si hay clubId válido, buscar por club específico
+    if (clubId && clubId !== 'undefined' && clubId !== 'null') {
+      configuracion = await this.configuracionRepository.findOne({
+        where: { clubId, activa: true }
+      });
+    }
+
+    // Si no encuentra por clubId, buscar cualquier configuración activa
+    if (!configuracion) {
+      this.logger.warn(`⚠️ No hay configuración para club ${clubId}, usando configuración por defecto`);
+      configuracion = await this.configuracionRepository.findOne({
+        where: { activa: true },
+        order: { id: 'DESC' }
+      });
+    }
 
     if (!configuracion) {
-      this.logger.warn(`No hay configuración activa para el club ${clubId}`);
+      this.logger.warn(`❌ No hay configuración activa en absoluto`);
       return null;
     }
 
+    this.logger.log(`✅ Usando configuración ID: ${configuracion.id} - ${configuracion.nombre}`);
+
     const jornadas = await this.jornadasConfigRepository.find({
-      where: { configuracionId: configuracion.id },
+      where: { configuracionId: configuracion.id, activa: true },
       order: { orden: 'ASC' }
     });
 
@@ -556,11 +417,11 @@ export class JornadasService {
       
       let enRango = false;
       if (cruzaMedianoche) {
-        // Si cruza medianoche: está en rango si >= inicio O < fin (estricto en el límite superior)
-        enRango = horaActual >= inicio || horaActual < fin;
+        // Si cruza medianoche: está en rango si >= inicio O <= fin
+        enRango = horaActual >= inicio || horaActual <= fin;
       } else {
-        // Si NO cruza medianoche: está en rango si >= inicio Y < fin (estricto en el límite superior)
-        enRango = horaActual >= inicio && horaActual < fin;
+        // Si NO cruza medianoche: está en rango si >= inicio Y <= fin
+        enRango = horaActual >= inicio && horaActual <= fin;
       }
       
       if (enRango) {
@@ -569,8 +430,8 @@ export class JornadasService {
       }
     }
 
-    this.logger.warn(`No se encontró jornada para ${horaActual}`);
-    return jornadas[0];
+    this.logger.warn(`❌ No se encontró jornada activa para ${horaActual}`);
+    return null;
   }
 
   // 🎯 NUEVO: Determinar jornada basándose en una hora específica (hora del turno, no hora actual)
@@ -585,7 +446,7 @@ export class JornadasService {
     }
 
     const jornadas = await this.jornadasConfigRepository.find({
-      where: { configuracionId: configuracion.id },
+      where: { configuracionId: configuracion.id, activa: true },
       order: { orden: 'ASC' }
     });
 
@@ -611,13 +472,12 @@ export class JornadasService {
       
       let enRango = false;
       if (cruzaMedianoche) {
-        // Si cruza medianoche: está en rango si >= inicio O < fin (estricto en el límite superior)
-        // Esto excluye la hora exacta de fin para evitar conflictos con la siguiente jornada
-        enRango = horaNormalizada >= inicio || horaNormalizada < fin;
+        // Si cruza medianoche: está en rango si >= inicio O <= fin
+        enRango = horaNormalizada >= inicio || horaNormalizada <= fin;
         this.logger.log(`  Jornada ${jornada.nombre} cruza medianoche: ${inicio} - ${fin}, hora: ${horaNormalizada}, en rango: ${enRango}`);
       } else {
-        // Si NO cruza medianoche: está en rango si >= inicio Y < fin (estricto en el límite superior)
-        enRango = horaNormalizada >= inicio && horaNormalizada < fin;
+        // Si NO cruza medianoche: está en rango si >= inicio Y <= fin
+        enRango = horaNormalizada >= inicio && horaNormalizada <= fin;
         this.logger.log(`  Jornada ${jornada.nombre}: ${inicio} - ${fin}, hora: ${horaNormalizada}, en rango: ${enRango}`);
       }
       
@@ -627,85 +487,123 @@ export class JornadasService {
       }
     }
 
-    this.logger.warn(`⚠️ No se encontró jornada para ${horaNormalizada}`);
-    return null; // No asignar jornada si no hay ninguna que cubra ese horario
+    this.logger.warn(`⚠️ No se encontró jornada para ${horaNormalizada}, usando primera jornada como fallback`);
+    return jornadas[0];
   }
 
   async guardarRegistroJornada(clubId: string, userId: string, data: any) {
-    this.logger.log(`💾 Guardando registro de jornada`);
-    const { jornadaConfigId, turnos, fecha } = data;
+    try {
+      this.logger.log(`💾 Guardando registro de jornada para club: ${clubId}, usuario: ${userId}`);
+      this.logger.log(`📋 Datos recibidos:`, JSON.stringify(data, null, 2));
+      
+      const { jornadaConfigId, turnos, fecha } = data;
 
-    const jornadaConfig = await this.jornadasConfigRepository.findOne({
-      where: { id: jornadaConfigId }
-    });
-
-    if (!jornadaConfig) {
-      throw new NotFoundException(`Jornada no encontrada`);
-    }
-
-    const fechaRegistro = fecha ? new Date(fecha) : new Date();
-    const registroDiario = await this.getOrCreateRegistroDiario(fechaRegistro, jornadaConfig.configuracionId);
-
-    let detalle = await this.registrosDetalleRepository.findOne({
-      where: {
-        registroDiarioId: registroDiario.id,
-        jornadaConfigId: jornadaConfig.id
+      // Validar datos de entrada
+      if (!jornadaConfigId) {
+        throw new BadRequestException('jornadaConfigId es requerido');
       }
-    });
+      if (!turnos || !Array.isArray(turnos) || turnos.length === 0) {
+        throw new BadRequestException('turnos es requerido y debe ser un array con al menos un elemento');
+      }
 
-    if (!detalle) {
-      detalle = this.registrosDetalleRepository.create({
-        registroDiarioId: registroDiario.id,
-        jornadaConfigId: jornadaConfig.id,
-        totalTurnos: 0,
-        turnosCompletados: 0,
-        turnosEnProgreso: 0,
-        duracionTotal: 0,
-        canchasMasUsadas: []
+      // Buscar jornada config
+      const jornadaConfig = await this.jornadasConfigRepository.findOne({
+        where: { id: jornadaConfigId }
       });
+
+      if (!jornadaConfig) {
+        throw new NotFoundException(`Jornada con ID ${jornadaConfigId} no encontrada`);
+      }
+
+      this.logger.log(`✅ Jornada encontrada: ${jornadaConfig.nombre}`);
+
+      // Preparar fecha
+      const fechaRegistro = fecha ? new Date(fecha) : new Date();
+      const fechaStr = fechaRegistro.toISOString().split('T')[0];
+
+      this.logger.log(`📅 Fecha de registro: ${fechaStr}`);
+
+      // Procesar turnos y calcular estadísticas
+      const turnosCompletados = turnos.filter((t: any) => 
+        t.estado === 'completado' || t.estado === 'completada'
+      ).length;
+      
+      const turnosEnProgreso = turnos.filter((t: any) => 
+        t.estado === 'en_progreso' || t.estado === 'activo'
+      ).length;
+
+      // Calcular canchas más usadas
+      const canchas = turnos
+        .map((t: any) => t.numeroCancha || t.cancha || '1')
+        .filter((c: any) => c);
+        
+      const canchasContadas = canchas.reduce((acc: any, cancha: any) => {
+        const canchaStr = cancha.toString();
+        acc[canchaStr] = (acc[canchaStr] || 0) + 1;
+        return acc;
+      }, {});
+
+      const canchasMasUsadas = Object.entries(canchasContadas)
+        .sort(([, a]: any, [, b]: any) => b - a)
+        .slice(0, 3)
+        .map(([cancha]) => cancha);
+
+      this.logger.log(`📊 Estadísticas: ${turnos.length} turnos, ${turnosCompletados} completados, ${turnosEnProgreso} en progreso`);
+      this.logger.log(`🏟️ Canchas más usadas:`, canchasMasUsadas);
+
+      // **CREAR REGISTRO DIRECTO EN LA TABLA PRINCIPAL**
+      const registroJornada = this.registrosJornadaRepository.create({
+        clubId,
+        jornadaConfigId: jornadaConfig.id, // Usar el ID de la jornada encontrada (como número)
+        fecha: fechaStr as any, // TypeORM maneja la conversión de fecha
+        horaInicio: jornadaConfig.horaInicio,
+        horaFin: jornadaConfig.horaFin,
+        turnosRegistrados: turnos, // Guardar todos los turnos como JSON
+        estadisticas: {
+          totalTurnos: turnos.length,
+          turnosCompletados,
+          turnosEnProgreso,
+          canchasMasUsadas,
+          fechaCreacion: new Date().toISOString()
+        },
+        estado: 'completada',
+        observaciones: `Jornada ${jornadaConfig.nombre} guardada con ${turnos.length} turnos`,
+        creadoPor: userId
+      });
+
+      const registroGuardado = await this.registrosJornadaRepository.save(registroJornada);
+
+      this.logger.log(`✅ Registro guardado con ID: ${registroGuardado.id}`);
+
+      // Buscar siguiente jornada
+      const siguienteJornada = await this.obtenerSiguienteJornada(jornadaConfig);
+
+      // Respuesta compatible con el frontend
+      return {
+        registroDiario: {
+          id: registroGuardado.id,
+          fecha: registroGuardado.fecha,
+          estadisticas: {
+            totalTurnos: turnos.length,
+            turnosCompletados,
+            turnosEnProgreso
+          }
+        },
+        siguienteJornada: siguienteJornada ? {
+          id: siguienteJornada.id,
+          codigo: siguienteJornada.codigo,
+          nombre: siguienteJornada.nombre,
+          horaInicio: siguienteJornada.horaInicio,
+          horaFin: siguienteJornada.horaFin,
+          color: siguienteJornada.color
+        } : null,
+        mensaje: 'Jornada guardada exitosamente'
+      };
+
+    } catch (error) {
+      this.logger.error('❌ Error al guardar registro de jornada:', error);
+      throw error;
     }
-
-    const turnosCompletados = turnos.filter((t: any) => t.estado === 'completado').length;
-    const turnosEnProgreso = turnos.filter((t: any) => t.estado === 'en_progreso').length;
-    const canchas = turnos.map((t: any) => t.cancha).filter((c: string) => c);
-    const canchasContadas = canchas.reduce((acc: any, cancha: string) => {
-      acc[cancha] = (acc[cancha] || 0) + 1;
-      return acc;
-    }, {});
-    const canchasMasUsadas = Object.entries(canchasContadas)
-      .sort(([, a]: any, [, b]: any) => b - a)
-      .slice(0, 3)
-      .map(([cancha]) => cancha);
-
-    detalle.totalTurnos = turnos.length;
-    detalle.turnosCompletados = turnosCompletados;
-    detalle.turnosEnProgreso = turnosEnProgreso;
-    detalle.canchasMasUsadas = canchasMasUsadas;
-
-    await this.registrosDetalleRepository.save(detalle);
-
-    registroDiario.totalTurnos += turnos.length;
-    registroDiario.totalCompletados += turnosCompletados;
-    await this.registrosDiariosRepository.save(registroDiario);
-
-    const siguienteJornada = await this.obtenerSiguienteJornada(jornadaConfig);
-
-    this.logger.log(`✅ Registro guardado`);
-
-    return {
-      mensaje: 'Jornada guardada exitosamente',
-      registroDiarioId: registroDiario.id,
-      detalleId: detalle.id,
-      totalTurnos: turnos.length,
-      turnosCompletados,
-      siguienteJornada: siguienteJornada ? {
-        id: siguienteJornada.id,
-        codigo: siguienteJornada.codigo,
-        nombre: siguienteJornada.nombre,
-        horaInicio: siguienteJornada.horaInicio,
-        horaFin: siguienteJornada.horaFin
-      } : null
-    };
   }
 
   async obtenerSiguienteJornada(jornadaActual: JornadaConfig) {
@@ -754,15 +652,9 @@ export class JornadasService {
   async findJornadaConfigByIds(ids: number[]): Promise<JornadaConfig[]> {
     if (ids.length === 0) return [];
     
-    const jornadas = await this.jornadasConfigRepository
+    return await this.jornadasConfigRepository
       .createQueryBuilder('jornada')
       .where('jornada.id IN (:...ids)', { ids })
       .getMany();
-    
-    console.log('🔍 DEBUG findJornadaConfigByIds - IDs solicitados:', ids);
-    console.log('🔍 DEBUG findJornadaConfigByIds - Jornadas encontradas:', jornadas);
-    console.log('🔍 DEBUG findJornadaConfigByIds - Primearanad jornada estructura:', JSON.stringify(jornadas[0], null, 2));
-    
-    return jornadas;
   }
 }

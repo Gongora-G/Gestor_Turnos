@@ -22,6 +22,10 @@ export class TurnosController {
 
   @Post()
   create(@Body() createTurnoDto: CreateTurnoDto, @GetUser() user: User) {
+    console.log('🎯 CONTROLADOR - Petición POST /turnos recibida');
+    console.log('🎯 CONTROLADOR - DTO recibido:', JSON.stringify(createTurnoDto, null, 2));
+    console.log('🎯 CONTROLADOR - Usuario:', user.id, 'Club:', user.clubId);
+    
     if (!user.clubId) {
       throw new Error('Usuario no tiene club asignado');
     }

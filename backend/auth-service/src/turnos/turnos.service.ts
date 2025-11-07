@@ -1,12 +1,13 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, In } from 'typeorm';
 import { Turno } from './entities/turno.entity';
 import { Cancha } from '../configuracion/entities/cancha.entity';
 import { Socio } from '../socios/entities/socio.entity';
 import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
 import { CreateTurnoDto, UpdateTurnoDto, FiltrosTurnosDto } from './dto/turno.dto';
 import { JornadasService } from '../jornadas/jornadas.service';
+import { EstadoRegistro } from './entities/turno.entity';
 
 @Injectable()
 export class TurnosService {
@@ -27,6 +28,7 @@ export class TurnosService {
     console.log('👤 UsuarioId recibido:', usuarioId);
     console.log('📅 Fecha recibida:', createTurnoDto.fecha, '(tipo:', typeof createTurnoDto.fecha, ')');
     console.log('⏰ Hora inicio del turno:', createTurnoDto.hora_inicio);
+    console.log('🔍 DEBUG - DTO completo recibido:', JSON.stringify(createTurnoDto, null, 2));
     
     try {      
       const { nombreAutomatico, numeroTurnoDia } = await this.generarNombreSecuencial(
@@ -43,23 +45,11 @@ export class TurnosService {
             jornadaConfigId = jornadaParaTurno.id;
             console.log('🎯 Jornada asignada automáticamente basada en hora de inicio del turno:', jornadaParaTurno.nombre, `(ID: ${jornadaConfigId})`, `- Horario: ${jornadaParaTurno.horaInicio} a ${jornadaParaTurno.horaFin}`);
           } else {
-            // 🚫 VALIDACIÓN: No permitir crear turno si no hay jornada que cubra ese horario
-            // Convertir hora a formato 12h para el mensaje
-            const formatoHora12h = (hora24: string): string => {
-              const [hours, minutes] = hora24.split(':').map(Number);
-              const periodo = hours >= 12 ? 'PM' : 'AM';
-              const hours12 = hours % 12 || 12;
-              return `${hours12}:${minutes.toString().padStart(2, '0')} ${periodo}`;
-            };
-            
-            throw new BadRequestException(
-              `No hay ninguna jornada configurada para la hora ${formatoHora12h(createTurnoDto.hora_inicio)}. ` +
-              `Por favor, crea o ajusta las jornadas para cubrir este horario antes de crear el turno.`
-            );
+            console.log('⚠️ No se encontró jornada para la hora de inicio:', createTurnoDto.hora_inicio);
           }
         } catch (error) {
           console.error('❌ Error al determinar jornada para el turno:', error);
-          throw error; // Re-lanzar el error para que el frontend lo capture
+          // Continuar sin jornada si hay error
         }
       }
       
@@ -68,7 +58,8 @@ export class TurnosService {
         nombre: nombreAutomatico,
         numero_turno_dia: numeroTurnoDia,
         club_id: clubId,
-        jornada_config_id: jornadaConfigId, // Asignar jornada determinada
+        // Usar jornada_id del frontend como jornada_config_id hasta que se implemente la columna jornada_id
+        jornada_config_id: createTurnoDto.jornada_id || jornadaConfigId,
       };
 
       console.log('📅 Datos del turno antes de guardar:', {
@@ -91,6 +82,22 @@ export class TurnosService {
       return turnoGuardado;
     } catch (error) {
       console.error('❌ ERROR creando turno:', error);
+      throw error;
+    }
+  }
+
+  // 🆕 NUEVO: Marcar turnos como guardados después de registrar jornada
+  async marcarTurnosComoGuardados(turnoIds: string[]): Promise<void> {
+    console.log('📝 Marcando turnos como guardados:', turnoIds.length);
+    
+    try {
+      await this.turnosRepository.update(
+        { id: In(turnoIds) },
+        { estado_registro: EstadoRegistro.GUARDADO }
+      );
+      console.log('✅ Turnos marcados como guardados exitosamente');
+    } catch (error) {
+      console.error('❌ Error marcando turnos como guardados:', error);
       throw error;
     }
   }
@@ -119,9 +126,13 @@ export class TurnosService {
 
   async findAll(filtros: FiltrosTurnosDto, clubId: string, usuarioId?: string): Promise<any[]> {
     console.log('🔍 Obteniendo turnos con filtros:', filtros);
+    console.log('🔍 Club ID:', clubId);
+    console.log('🔍 Estado de registro filtro:', EstadoRegistro.ACTIVO);
     
     const query = this.turnosRepository.createQueryBuilder('turno')
-      .where('turno.club_id = :clubId', { clubId });
+      .where('turno.club_id = :clubId', { clubId })
+      // 🆕 FILTRO POR DEFECTO: Solo mostrar turnos ACTIVOS (no guardados)
+      .andWhere('(turno.estado_registro = :estadoActivo OR turno.estado_registro IS NULL)', { estadoActivo: EstadoRegistro.ACTIVO });
 
     // Aplicar filtros de fecha si se especifican
     if (filtros.fecha_inicio && filtros.fecha_fin) {
@@ -157,6 +168,12 @@ export class TurnosService {
       .getMany();
 
     console.log(`✅ Se encontraron ${turnos.length} turnos`);
+    console.log('🔍 Turnos encontrados (con estado_registro):', turnos.map(t => ({ 
+      id: t.id, 
+      nombre: t.nombre, 
+      estado_registro: t.estado_registro, 
+      jornada_config_id: t.jornada_config_id 
+    })));
 
     // Obtener IDs únicos de canchas, socios y jornadas
     const canchaIds = [...new Set(turnos.map(t => t.cancha_id).filter(Boolean))];
@@ -204,13 +221,15 @@ export class TurnosService {
       
       const resultado = {
         ...turno,
+        // 🆕 MAPEO: jornada_id para compatibilidad con frontend
+        jornada_id: turno.jornada_config_id,
         cancha: canchasMap.get(turno.cancha_id) || null,
         jornada_config: jornadaConfig ? {
           id: jornadaConfig.id,
           codigo: jornadaConfig.codigo,
           nombre: jornadaConfig.nombre,
-          hora_inicio: (jornadaConfig as any).hora_inicio || (jornadaConfig as any).horaInicio || null,
-          hora_fin: (jornadaConfig as any).hora_fin || (jornadaConfig as any).horaFin || null,
+          hora_inicio: jornadaConfig.horaInicio,
+          hora_fin: jornadaConfig.horaFin,
           color: jornadaConfig.color
         } : null,
         socio: socio ? {

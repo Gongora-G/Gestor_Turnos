@@ -3,6 +3,7 @@ import { Modal } from './Modal';
 import { Calendar, Users, Save, Search } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
 import { sociosService, type Socio } from '../services/sociosService';
+import { JornadasService } from '../services/jornadasService';
 import { formatTo12Hour } from '../utils';
 import { useToast } from '../contexts/ToastContext';
 import { convertTo24h, parseTimeString } from '../utils/timeFormat';
@@ -49,8 +50,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   const [loadingCanchas, setLoadingCanchas] = useState(true);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [loadingSocios, setLoadingSocios] = useState(true);
+  const [jornadaActual, setJornadaActual] = useState<any>(null);
   const [busquedaSocio, setBusquedaSocio] = useState('');
-  const [errorMessage, setErrorMessage] = useState<string>('');
   const { success: showSuccess, error: showError } = useToast();
   
   const [form, setForm] = useState<CreateTurnoForm>({
@@ -68,7 +69,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     if (isOpen) {
       cargarCanchas();
       cargarSocios();
-      // Resetear formulario y error
+      cargarJornadaActual();
+      // Resetear formulario
       setForm({
         socioId: '',
         fecha: getFechaActualLocal(), // Fecha actual por defecto en formato local
@@ -79,7 +81,6 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
         observaciones: ''
       });
       setBusquedaSocio('');
-      setErrorMessage(''); // Limpiar mensaje de error
     }
   }, [isOpen]);
 
@@ -131,6 +132,17 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     }
   };
 
+  const cargarJornadaActual = async () => {
+    try {
+      const jornada = await JornadasService.getJornadaActual();
+      setJornadaActual(jornada);
+      console.log('🏆 Jornada actual cargada en modal:', jornada);
+    } catch (error) {
+      console.error('Error al cargar jornada actual:', error);
+      setJornadaActual(null);
+    }
+  };
+
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -146,11 +158,6 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    // Limpiar mensaje de error al modificar cualquier campo
-    if (errorMessage) {
-      setErrorMessage('');
-    }
     
     setForm(prev => {
       const newForm = { 
@@ -169,7 +176,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
           fechaInicio.setHours(hours, minutes, 0, 0);
           
           const fechaFin = new Date(fechaInicio.getTime() + (cantidadHoras * 60 * 60 * 1000));
-          const horaFin = fechaFin.toTimeString().slice(0, 5);
+          // Usar formato 24h explícito
+          const horaFin = `${fechaFin.getHours().toString().padStart(2, '0')}:${fechaFin.getMinutes().toString().padStart(2, '0')}`;
           
           newForm.horaFin = horaFin;
         }
@@ -184,6 +192,12 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     
     if (!form.fecha || !form.horaInicio || !form.cancha) {
       showError('Campos requeridos', 'Por favor completa todos los campos obligatorios (fecha, hora inicio y cancha)');
+      return;
+    }
+
+    // Validar que haya jornada activa
+    if (!jornadaActual?.id) {
+      showError('Sin jornada activa', 'No hay una jornada activa disponible en este momento. No se pueden crear turnos.');
       return;
     }
 
@@ -224,17 +238,27 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
         hora_inicio: convertirHoraA24h(form.horaInicio),
         hora_fin: convertirHoraA24h(form.horaFin),
         cancha_id: form.cancha,
-        observaciones: form.observaciones || undefined
+        observaciones: form.observaciones || undefined,
+        jornada_id: jornadaActual?.id // ✅ INCLUIR JORNADA_ID
       };
 
       console.log('📅 Datos a enviar al backend:', turnoData);
+      console.log('📅 Jornada actual completa:', jornadaActual);
+      console.log('📅 Jornada actual ID:', jornadaActual?.id);
       console.log('📅 Fecha original del formulario:', form.fecha);
       console.log('📅 Fecha actual del sistema:', getFechaActualLocal());
+      
+      // Validar que jornada_id no sea undefined
+      if (!turnoData.jornada_id) {
+        console.error('❌ ADVERTENCIA: jornada_id es undefined!');
+      }
 
       // Agregar socio si está seleccionado
       if (form.socioId) {
         turnoData.socio_id = form.socioId;
       }
+      
+      console.log('🚀 ENVIANDO TURNO - Datos completos:', JSON.stringify(turnoData, null, 2));
       
       await turnosService.crearTurno(turnoData);
       
@@ -251,15 +275,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
       
     } catch (error: any) {
       console.error('Error al crear turno:', error);
-      
-      // Extraer mensaje de error específico del backend
-      const errorMsg = error?.response?.data?.message || error?.message || 'Ocurrió un error inesperado. Intenta nuevamente.';
-      
-      // Mostrar error dentro del modal
-      setErrorMessage(errorMsg);
-      
-      // También mostrar toast (ahora con z-index correcto)
-      showError('Error al crear turno', errorMsg);
+      showError('Error al crear turno', error.message || 'Ocurrió un error inesperado. Intenta nuevamente.');
     } finally {
       setLoading(false);
     }
@@ -455,32 +471,6 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
               </div>
             </div>
           </div>
-
-          {/* Mensaje de Error */}
-          {errorMessage && (
-            <div className="bg-red-900/20 border border-red-500/50 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0">
-                  <svg className="w-5 h-5 text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-semibold text-red-300 mb-1">Error al crear turno</h3>
-                  <p className="text-sm text-red-200">{errorMessage}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setErrorMessage('')}
-                  className="flex-shrink-0 text-red-400 hover:text-red-300 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Observaciones */}
           <div className="bg-gradient-to-r from-purple-900/10 to-purple-800/10 border border-purple-500/20 rounded-lg p-6">

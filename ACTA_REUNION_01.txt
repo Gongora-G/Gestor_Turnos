@@ -1,0 +1,216 @@
+================================================================================
+FORMATO ACTA DE REUNIÓN
+Aseguramiento de la calidad en el diseño del software
+================================================================================
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                          ACTA DE REUNIÓN                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  INFORMACIÓN GENERAL                                                     │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Proyecto:              TENNISFLOW
+Acta Nro.:             1
+Ciudad:                MEDELLÍN, ANTIOQUIA
+Lugar:                 MICROSOFT TEAMS
+Fecha:                 12 de agosto de 2025
+Hora inicio:           14:00 p.m.
+Duración:              1 hora 30 minutos
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  OBJETIVO DE LA REUNIÓN                                                  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Establecer los lineamientos técnicos, metodológicos y organizacionales para 
+la correcta ejecución del proyecto TENNISFLOW, asegurando la integración de 
+las herramientas tecnológicas necesarias para la gestión automática y 
+transparente de turnos de auxiliares de cancha en clubs de tenis. Asimismo, 
+se buscó definir estrategias de implementación de la metodología Kanban, 
+estructurar los roles del equipo de desarrollo y revisar los avances 
+iniciales en el diseño del sistema, con el fin de garantizar una base sólida 
+para las siguientes fases del proyecto.
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  PARTICIPANTES                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
+
+╔═══╦══════════════════════════╦════════════╦═══════════════════════════════╦═══════════════════════════════════╗
+║ # ║      PARTICIPANTE        ║ ASISTENCIA ║            ROL                ║        CORREO ELECTRÓNICO         ║
+╠═══╬══════════════════════════╬════════════╬═══════════════════════════════╬═══════════════════════════════════╣
+║ 1 ║ Jhoan Gongora Perdomo    ║    100%    ║ Líder del proyecto /          ║ jhoan.gongora@uniminuto.edu.co    ║
+║   ║                          ║            ║ Desarrollador Full Stack      ║                                   ║
+╠═══╬══════════════════════════╬════════════╬═══════════════════════════════╬═══════════════════════════════════╣
+║ 2 ║ Luisa Loaiza Pavón       ║    100%    ║ Desarrolladora Frontend /     ║ luisa.loaiza@uniminuto.edu.co     ║
+║   ║                          ║            ║ Diseñadora UX/UI              ║                                   ║
+╠═══╬══════════════════════════╬════════════╬═══════════════════════════════╬═══════════════════════════════════╣
+║ 3 ║ Juan Camilo Ávila        ║    100%    ║ Desarrollador Backend /       ║ juan.avila@uniminuto.edu.co       ║
+║   ║ Sánchez                  ║            ║ Arquitecto de Base de Datos   ║                                   ║
+╚═══╩══════════════════════════╩════════════╩═══════════════════════════════╩═══════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  TEMAS TRATADOS                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+1. Presentación general del proyecto y su alcance funcional
+   
+   - Problemática identificada: Manipulación manual de turnos en Club Puerto 
+     Peñaliza (30 auxiliares + 8 boleadores, 12 canchas, 2 jornadas)
+   
+   - Solución propuesta: Sistema automatizado con registro timestamp, 
+     algoritmo transparente y orden justo basado en datos reales
+   
+   - Casos de uso principales: Coordinador de Cancha (control total), 
+     Profesor de Tenis (supervisión), Auxiliares (consulta)
+
+2. Revisión del diseño de la base de datos y su integración con el sistema 
+   de gestión de turnos
+   
+   - Modelado de entidades: Usuarios, Roles, Clubs, Canchas, Turnos, 
+     Jornadas, Socios, Auxiliares
+   
+   - Relaciones críticas: Club-Canchas (1:N), Jornadas-Turnos (1:N), 
+     Usuario-Roles (N:M)
+   
+   - Motor seleccionado: PostgreSQL por soporte robusto a transacciones y 
+     escalabilidad
+   
+   - Migraciones: TypeORM para versionamiento automático del esquema
+
+3. Aplicación de la metodología Kanban para la organización de tareas
+   
+   - Tablero Kanban con columnas: Backlog, To Do, In Progress, Review, Done
+   
+   - Límites WIP (Work In Progress): Máximo 3 tareas por desarrollador en 
+     "In Progress"
+   
+   - Daily standups: 30 minutos diarios a las 9:00 AM para sincronización
+   
+   - Herramienta: GitHub Projects integrado con repositorio del código
+
+4. Definición de roles y responsabilidades de cada integrante del equipo
+   
+   - Jhoan Gongora: Arquitectura general, módulos críticos (Auth, Turnos), 
+     integración OAuth, despliegue final
+   
+   - Luisa Loaiza: Diseño UI/UX, componentes React, maquetación responsive, 
+     accesibilidad WCAG 2.1
+   
+   - Juan Camilo Ávila: Modelado de datos, optimización de queries, 
+     migraciones, documentación técnica
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  TAREAS Y COMPROMISOS                                                    │
+└──────────────────────────────────────────────────────────────────────────┘
+
+╔═══╦═══════════════════════════════════════════════════╦═══════════════╦════════════════════╗
+║ # ║                TAREA/ACTIVIDAD                    ║  RESPONSABLE  ║ FECHA COMPROMISO   ║
+╠═══╬═══════════════════════════════════════════════════╬═══════════════╬════════════════════╣
+║ 1 ║ Configurar repositorio Git y estructura de        ║ Juan Camilo   ║ 18 de agosto       ║
+║   ║ microservicios (NestJS + Docker Compose)          ║ Ávila         ║                    ║
+╠═══╬═══════════════════════════════════════════════════╬═══════════════╬════════════════════╣
+║ 2 ║ Diseñar mockups de interfaces principales         ║ Luisa Loaiza  ║ 25 de agosto       ║
+║   ║ (Login, Dashboard, Gestión de Turnos)             ║               ║                    ║
+╠═══╬═══════════════════════════════════════════════════╬═══════════════╬════════════════════╣
+║ 3 ║ Implementar módulo de autenticación con JWT y     ║ Jhoan         ║ 8 de septiembre    ║
+║   ║ roles (Coordinador, Profesor, Auxiliar)           ║ Gongora       ║                    ║
+╠═══╬═══════════════════════════════════════════════════╬═══════════════╬════════════════════╣
+║ 4 ║ Crear documentación inicial del proyecto          ║ Todo el       ║ 20 de agosto       ║
+║   ║ (README, arquitectura, plan de calidad)           ║ equipo        ║                    ║
+╠═══╬═══════════════════════════════════════════════════╬═══════════════╬════════════════════╣
+║ 5 ║ Diseñar la estrategia de posicionamiento digital  ║ Luisa Loaiza  ║ 1 de septiembre    ║
+║   ║ del proyecto TENNISFLOW (landing page)            ║               ║                    ║
+╚═══╩═══════════════════════════════════════════════════╩═══════════════╩════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  DECISIONES TOMADAS                                                      │
+└──────────────────────────────────────────────────────────────────────────┘
+
+✓ Stack tecnológico aprobado:
+  - Backend: NestJS (Node.js + TypeScript) con arquitectura de microservicios
+  - Frontend: React + Vite + TypeScript + TailwindCSS
+  - Base de datos: PostgreSQL con TypeORM
+  - Autenticación: JWT + OAuth 2.0 (Google)
+  - Contenedores: Docker + Docker Compose
+
+✓ Metodología de trabajo:
+  - Kanban con GitHub Projects
+  - Sprints de 2 semanas con entregas incrementales
+  - Daily standups de 30 minutos
+  - Code review obligatorio antes de merge a master
+
+✓ Estándares de código:
+  - ESLint + Prettier para formateo automático
+  - Convenciones de nombres: camelCase (variables), PascalCase (componentes)
+  - Commits descriptivos siguiendo Conventional Commits
+  - Cobertura de pruebas mínima: 70% en backend, 60% en frontend
+
+✓ Comunicación:
+  - Canal principal: Microsoft Teams
+  - Reuniones semanales: Lunes 14:00 PM (planificación) y Viernes 16:00 PM 
+    (retrospectiva)
+  - Documentación colaborativa: Google Docs + GitHub Wiki
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  PRÓXIMA REUNIÓN                                                         │
+└──────────────────────────────────────────────────────────────────────────┘
+
+Fecha programada:      19 de agosto de 2025
+Hora:                  14:00 p.m.
+Duración estimada:     1 hora
+Agenda propuesta:      
+  - Revisión de avances en configuración de repositorio
+  - Validación de mockups de interfaz
+  - Definición de historias de usuario prioritarias
+  - Asignación de tareas para Sprint 1
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  OBSERVACIONES ADICIONALES                                               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+• Se acordó realizar pair programming para módulos críticos (autenticación, 
+  algoritmo de asignación de turnos) con el fin de reducir errores y mejorar 
+  la calidad del código.
+
+• Se priorizará la documentación técnica desde el inicio del proyecto para 
+  facilitar la presentación final y el mantenimiento futuro.
+
+• Se estableció que el módulo de reportes será desarrollado en las últimas 
+  3 semanas del proyecto, una vez que los módulos core estén estables.
+
+• Se definió que las pruebas de integración end-to-end se realizarán con 
+  Playwright para validar flujos completos de usuario.
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│  FIRMAS                                                                  │
+└──────────────────────────────────────────────────────────────────────────┘
+
+╔════════════════════════════════╦══════════════════════════════════════════╗
+║   RESPONSABLE DEL ACTA         ║        FECHA DE ELABORACIÓN              ║
+╠════════════════════════════════╬══════════════════════════════════════════╣
+║   Jhoan Gongora Perdomo        ║        12 de agosto de 2025              ║
+╚════════════════════════════════╩══════════════════════════════════════════╝
+
+
+________________                    ________________                    ________________
+Jhoan Gongora P.                    Luisa Loaiza P.                    Juan C. Ávila S.
+Líder del Proyecto                  Desarrolladora Frontend            Desarrollador Backend
+
+
+================================================================================
+FIN DEL ACTA DE REUNIÓN #1
+================================================================================
+
+Documento generado para el proyecto TENNISFLOW
+Sistema de Gestión Automática de Turnos para Clubs de Tenis
+Corporación Universitaria Minuto de Dios - UNIMINUTO
+Facultad de Ingeniería - Ingeniería de Sistemas
+Medellín, Colombia - 2025
