@@ -699,6 +699,7 @@ export class JornadasService {
       });
 
       this.logger.log(`✅ Encontradas ${jornadas.length} jornadas configuradas para el club ${clubId}`);
+      this.logger.log(`🔍 DEBUG - IDs de jornadas devueltas:`, jornadas.map(j => ({ id: j.id, nombre: j.nombre, configuracionId: j.configuracionId })));
       return jornadas;
     } catch (error) {
       this.logger.error('❌ Error al obtener jornadas configuradas:', error);
@@ -709,7 +710,7 @@ export class JornadasService {
   // 📊 Obtener estadísticas detalladas de una jornada
   async getEstadisticasJornada(jornadaConfigId: number, clubId: string, fechaInicio: string, fechaFin: string): Promise<any> {
     try {
-      this.logger.log(`📊 Obteniendo estadísticas para jornada ${jornadaConfigId} del ${fechaInicio} al ${fechaFin}`);
+      this.logger.log(`📊 Obteniendo estadísticas REALES para jornada ${jornadaConfigId} del ${fechaInicio} al ${fechaFin}`);
 
       // Verificar que la jornada pertenece al club
       const jornada = await this.jornadasConfigRepository.findOne({
@@ -720,10 +721,57 @@ export class JornadasService {
         throw new Error(`Jornada ${jornadaConfigId} no encontrada`);
       }
 
-      // Consultar turnos directamente desde la tabla de turnos
-      // Necesitamos importar el repositorio de turnos para esto
-      // Por ahora, retornar estadísticas básicas de ejemplo hasta que implementemos la consulta correcta
-      
+      // Primero, verificar qué registros hay en total
+      const todosLosRegistros = await this.registrosDiariosRepository.find();
+      this.logger.log(`🔍 TOTAL registros en BD: ${todosLosRegistros.length}`);
+      todosLosRegistros.forEach(reg => {
+        this.logger.log(`📋 Registro: ID=${reg.id}, fecha=${reg.fecha}, jornadaConfigId=${reg.jornadaConfigId}, turnos=${reg.total_turnos}`);
+      });
+
+      // Consultar registros diarios de esta jornada en el período especificado
+      const registrosDiarios = await this.registrosDiariosRepository
+        .createQueryBuilder('registro')
+        .where('registro.jornadaConfigId = :jornadaConfigId', { jornadaConfigId })
+        .andWhere('registro.fecha >= :fechaInicio', { fechaInicio })
+        .andWhere('registro.fecha <= :fechaFin', { fechaFin })
+        .getMany();
+
+      this.logger.log(`📅 Encontrados ${registrosDiarios.length} registros para jornada ${jornada.codigo} (ID: ${jornadaConfigId})`);
+      this.logger.log(`🔍 Parámetros consulta: jornadaConfigId=${jornadaConfigId}, fechaInicio=${fechaInicio}, fechaFin=${fechaFin}`);
+
+      // Calcular estadísticas reales
+      let totalTurnos = 0;
+      let turnosCompletados = 0;
+      let diasConActividad = registrosDiarios.length;
+
+      for (const registro of registrosDiarios) {
+        // Sumar turnos del registro
+        const turnosDelRegistro = registro.total_turnos || 0;
+        const completadosDelRegistro = registro.turnos_completados || 0;
+        
+        totalTurnos += turnosDelRegistro;
+        turnosCompletados += completadosDelRegistro;
+
+        this.logger.log(`📊 Registro ${registro.fecha}: ${turnosDelRegistro} turnos, ${completadosDelRegistro} completados`);
+      }
+
+      const turnosEnProgreso = totalTurnos - turnosCompletados;
+      const promedioPorDia = diasConActividad > 0 ? Math.round(totalTurnos / diasConActividad * 100) / 100 : 0;
+      const tasaCompletado = totalTurnos > 0 ? Math.round((turnosCompletados / totalTurnos) * 100) : 0;
+      const tasaProgreso = totalTurnos > 0 ? Math.round((turnosEnProgreso / totalTurnos) * 100) : 0;
+
+      // Calcular horas totales basado en la duración de la jornada
+      let totalHoras = 0;
+      if (jornada.horaInicio && jornada.horaFin) {
+        const [inicioH, inicioM] = jornada.horaInicio.split(':').map(Number);
+        const [finH, finM] = jornada.horaFin.split(':').map(Number);
+        const duracionMinutos = (finH * 60 + finM) - (inicioH * 60 + inicioM);
+        const duracionHoras = duracionMinutos / 60;
+        totalHoras = Math.round(duracionHoras * diasConActividad * 100) / 100;
+      }
+
+      const promedioHorasPorDia = diasConActividad > 0 ? Math.round((totalHoras / diasConActividad) * 100) / 100 : 0;
+
       const estadisticas = {
         jornada: {
           id: jornada.id,
@@ -735,25 +783,25 @@ export class JornadasService {
         periodo: {
           fechaInicio,
           fechaFin,
-          diasConActividad: 0
+          diasConActividad
         },
         turnos: {
-          total: 0,
-          completados: 0,
-          enProgreso: 0,
-          promedioPorDia: 0
+          total: totalTurnos,
+          completados: turnosCompletados,
+          enProgreso: turnosEnProgreso,
+          promedioPorDia
         },
         tiempo: {
-          totalHoras: 0,
-          promedioHorasPorDia: 0
+          totalHoras,
+          promedioHorasPorDia
         },
         eficiencia: {
-          tasaCompletado: 0,
-          tasaProgreso: 0
+          tasaCompletado,
+          tasaProgreso
         }
       };
 
-      this.logger.log(`✅ Estadísticas (demo) calculadas para jornada ${jornada.nombre}`);
+      this.logger.log(`✅ Estadísticas REALES calculadas para jornada ${jornada.nombre}:`, JSON.stringify(estadisticas, null, 2));
       return estadisticas;
     } catch (error) {
       this.logger.error('❌ Error al obtener estadísticas de jornada:', error);

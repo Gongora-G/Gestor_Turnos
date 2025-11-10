@@ -82,6 +82,8 @@ export default function RegistroJornadas() {
   const [diaSeleccionado, setDiaSeleccionado] = useState<string>('');
   const [registrosPorDia, setRegistrosPorDia] = useState<{[fecha: string]: any[]}>({});
   const [jornadasSistemaColapsado, setJornadasSistemaColapsado] = useState(true);
+  const [estadisticasJornadas, setEstadisticasJornadas] = useState<{[jornadaId: string]: any}>({});
+  const [loadingEstadisticasJornadas, setLoadingEstadisticasJornadas] = useState(false);
   const [filtros, setFiltros] = useState({
     fechaInicio: (() => {
       const fecha = new Date();
@@ -111,6 +113,8 @@ export default function RegistroJornadas() {
       const jornadasData = await JornadasService.obtenerJornadasConfiguradas();
       console.log('✅ Jornadas del sistema cargadas:', jornadasData);
       setJornadasSistema(jornadasData);
+      
+      // Las estadísticas se cargarán solo cuando el usuario expanda la sección
       
     } catch (error: any) {
       console.error('❌ Error al cargar jornadas del sistema:', error);
@@ -254,6 +258,84 @@ export default function RegistroJornadas() {
       turnosEnProgreso: totalTurnos - turnosCompletados,
       registros: registrosDia
     };
+  };
+
+  // Cargar estadísticas de todas las jornadas del sistema
+  const cargarEstadisticasJornadas = async () => {
+    if (jornadasSistema.length > 0) {
+      await cargarEstadisticasJornadasConDatos(jornadasSistema);
+    }
+  };
+
+  // Cargar estadísticas con datos de jornadas específicos
+  const cargarEstadisticasJornadasConDatos = async (jornadas: any[]) => {
+    try {
+      setLoadingEstadisticasJornadas(true);
+      console.log('📊 Cargando estadísticas de jornadas del sistema...');
+      
+      const estadisticasTemp: {[jornadaId: string]: any} = {};
+      
+      // Para cada jornada del sistema, obtener sus estadísticas
+      for (const jornada of jornadas) {
+        try {
+          console.log(`📈 Cargando estadísticas para jornada ${jornada.codigo} (ID: ${jornada.id})...`);
+          
+          // Obtener estadísticas de los últimos 30 días
+          const fechaHoy = new Date().toISOString().split('T')[0];
+          const fechaHace30Dias = new Date();
+          fechaHace30Dias.setDate(fechaHace30Dias.getDate() - 30);
+          const fechaInicio = fechaHace30Dias.toISOString().split('T')[0];
+          
+          const estadisticas = await JornadasService.getEstadisticasJornada(
+            jornada.id,
+            fechaInicio,
+            fechaHoy
+          );
+          
+          console.log(`🔍 DEBUG - Estadísticas recibidas para ${jornada.codigo}:`, estadisticas);
+          
+          if (estadisticas && estadisticas.turnos) {
+            estadisticasTemp[jornada.id] = {
+              totalTurnos: estadisticas.turnos.total || 0,
+              turnosCompletados: estadisticas.turnos.completados || 0,
+              turnosEnProgreso: estadisticas.turnos.enProgreso || 0,
+              diasConActividad: estadisticas.periodo?.diasConActividad || 0,
+              promedioPorDia: estadisticas.turnos.promedioPorDia || 0
+            };
+          } else {
+            // Si no hay estadísticas, crear un objeto vacío
+            estadisticasTemp[jornada.id] = {
+              totalTurnos: 0,
+              turnosCompletados: 0,
+              turnosEnProgreso: 0,
+              diasConActividad: 0,
+              promedioPorDia: 0
+            };
+          }
+          
+          console.log(`✅ Estadísticas cargadas para ${jornada.codigo}:`, estadisticasTemp[jornada.id]);
+          
+        } catch (error) {
+          console.error(`❌ Error al cargar estadísticas para jornada ${jornada.codigo}:`, error);
+          // En caso de error, poner estadísticas en 0
+          estadisticasTemp[jornada.id] = {
+            totalTurnos: 0,
+            turnosCompletados: 0,
+            turnosEnProgreso: 0,
+            diasConActividad: 0,
+            promedioPorDia: 0
+          };
+        }
+      }
+      
+      setEstadisticasJornadas(estadisticasTemp);
+      console.log('✅ Todas las estadísticas de jornadas cargadas:', estadisticasTemp);
+      
+    } catch (error: any) {
+      console.error('❌ Error general al cargar estadísticas de jornadas:', error);
+    } finally {
+      setLoadingEstadisticasJornadas(false);
+    }
   };
 
   // Cargar datos reales del backend
@@ -745,7 +827,15 @@ export default function RegistroJornadas() {
       {/* Información del Sistema - Sección Colapsible */}
       <div className="bg-gray-800 rounded-lg p-6">
         <button
-          onClick={() => setJornadasSistemaColapsado(!jornadasSistemaColapsado)}
+          onClick={() => {
+            const nuevoEstado = !jornadasSistemaColapsado;
+            setJornadasSistemaColapsado(nuevoEstado);
+            
+            // Si se está expandiendo y no hay estadísticas cargadas, cargarlas
+            if (!nuevoEstado && Object.keys(estadisticasJornadas).length === 0 && jornadasSistema.length > 0) {
+              cargarEstadisticasJornadas();
+            }
+          }}
           className="w-full flex items-center justify-between text-left hover:bg-gray-700 rounded-lg p-3 transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -773,7 +863,17 @@ export default function RegistroJornadas() {
 
         {!jornadasSistemaColapsado && (
           <div className="mt-6 pt-6 border-t border-gray-700">
-            <p className="text-gray-400 mb-6">Vista general de las jornadas configuradas en el sistema</p>
+            <div className="flex items-center justify-between mb-6">
+              <p className="text-gray-400">Vista general de las jornadas configuradas en el sistema</p>
+              <button
+                onClick={cargarEstadisticasJornadas}
+                disabled={loadingEstadisticasJornadas}
+                className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3 h-3 ${loadingEstadisticasJornadas ? 'animate-spin' : ''}`} />
+                {loadingEstadisticasJornadas ? 'Cargando...' : 'Actualizar'}
+              </button>
+            </div>
             
             {loadingJornadas ? (
               <div className="flex items-center justify-center py-8">
@@ -810,16 +910,49 @@ export default function RegistroJornadas() {
                         
                         <div className="grid grid-cols-3 gap-2 mt-4">
                           <div className="text-center">
-                            <div className="text-lg font-bold text-blue-400">-</div>
+                            <div className="text-lg font-bold text-blue-400">
+                              {loadingEstadisticasJornadas ? (
+                                <div className="animate-pulse bg-gray-600 h-5 w-8 rounded mx-auto"></div>
+                              ) : (
+                                estadisticasJornadas[jornada.id]?.totalTurnos || 0
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400">Turnos</div>
+                            {estadisticasJornadas[jornada.id] && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {estadisticasJornadas[jornada.id].promedioPorDia || 0}/día
+                              </div>
+                            )}
                           </div>
                           <div className="text-center">
-                            <div className="text-lg font-bold text-green-400">-</div>
+                            <div className="text-lg font-bold text-green-400">
+                              {loadingEstadisticasJornadas ? (
+                                <div className="animate-pulse bg-gray-600 h-5 w-8 rounded mx-auto"></div>
+                              ) : (
+                                estadisticasJornadas[jornada.id]?.turnosCompletados || 0
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400">Completados</div>
+                            {estadisticasJornadas[jornada.id] && estadisticasJornadas[jornada.id].totalTurnos > 0 && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {Math.round((estadisticasJornadas[jornada.id].turnosCompletados / estadisticasJornadas[jornada.id].totalTurnos) * 100)}%
+                              </div>
+                            )}
                           </div>
                           <div className="text-center">
-                            <div className="text-lg font-bold text-yellow-400">-</div>
+                            <div className="text-lg font-bold text-yellow-400">
+                              {loadingEstadisticasJornadas ? (
+                                <div className="animate-pulse bg-gray-600 h-5 w-8 rounded mx-auto"></div>
+                              ) : (
+                                estadisticasJornadas[jornada.id]?.turnosEnProgreso || 0
+                              )}
+                            </div>
                             <div className="text-xs text-gray-400">Pendientes</div>
+                            {estadisticasJornadas[jornada.id] && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                {estadisticasJornadas[jornada.id].diasConActividad || 0} días activos
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
