@@ -36,8 +36,10 @@ export class TurnosService {
         clubId
       );
 
-      // 🎯 Determinar jornada basándose en la HORA DE INICIO DEL TURNO (no la hora actual)
-      let jornadaConfigId = createTurnoDto.jornada_config_id;
+      // 🎯 PRIORIZAR JORNADA ACTIVA ACTUAL del frontend
+      let jornadaConfigId = createTurnoDto.jornada_id; // Usar la jornada activa enviada desde el frontend
+      
+      // Solo calcular automáticamente si NO viene jornada_id del frontend
       if (!jornadaConfigId) {
         try {
           const jornadaParaTurno = await this.jornadasService.determinarJornadaPorHora(clubId, createTurnoDto.hora_inicio);
@@ -51,6 +53,8 @@ export class TurnosService {
           console.error('❌ Error al determinar jornada para el turno:', error);
           // Continuar sin jornada si hay error
         }
+      } else {
+        console.log('✅ Usando jornada activa del frontend:', jornadaConfigId, '- NO recalculando basado en hora del turno');
       }
       
       const turnoData = {
@@ -58,8 +62,8 @@ export class TurnosService {
         nombre: nombreAutomatico,
         numero_turno_dia: numeroTurnoDia,
         club_id: clubId,
-        // Usar jornada_id del frontend como jornada_config_id hasta que se implemente la columna jornada_id
-        jornada_config_id: createTurnoDto.jornada_id || jornadaConfigId,
+        // Usar la jornada_id del frontend (jornada activa actual)
+        jornada_config_id: jornadaConfigId,
       };
 
       console.log('📅 Datos del turno antes de guardar:', {

@@ -61,8 +61,9 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
   onEditar,
   onEliminar
 }) => {
-  const estadoCalculado = calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin);
-  // const estadoColor = getEstadoColor(estadoCalculado); // No usado actualmente
+  // 🔧 USAR EL ESTADO REAL DEL TURNO (no calcular automáticamente)
+  const estadoCalculado = turno.estado || calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin);
+  console.log(`🔍 TurnoCard ${turno.nombre}: estado prop=${turno.estado}, estadoFinal=${estadoCalculado}`);
 
   // Generar nombre de turno desde el backend o fallback
   const getTurnoDisplayName = (turno: Turno) => {

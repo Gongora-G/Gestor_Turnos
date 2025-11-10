@@ -270,6 +270,28 @@ export class JornadasService {
     console.log('Migrando turnos a jornada:', jornadaConfigId, turnos);
     // TODO: Implementar migración
   }
+
+  // 🔍 Obtener todas las jornadas configuradas del sistema
+  static async obtenerJornadasConfiguradas(): Promise<any[]> {
+    try {
+      const response = await apiService.get<any[]>('/jornadas/configuradas');
+      return response;
+    } catch (error) {
+      console.error('Error al obtener jornadas configuradas:', error);
+      return [];
+    }
+  }
+
+  // 📊 Obtener estadísticas detalladas de una jornada
+  static async getEstadisticasJornada(jornadaId: number, fechaInicio: string, fechaFin: string): Promise<any> {
+    try {
+      const response = await apiService.get<any>(`/jornadas/estadisticas/${jornadaId}?fechaInicio=${fechaInicio}&fechaFin=${fechaFin}`);
+      return response;
+    } catch (error) {
+      console.error('Error al obtener estadísticas de jornada:', error);
+      return null;
+    }
+  }
 }
 
 export default JornadasService;

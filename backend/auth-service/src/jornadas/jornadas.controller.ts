@@ -114,6 +114,41 @@ export class JornadasController {
     return await this.jornadasService.deleteJornadaConfig(id);
   }
 
+  // 🔍 Obtener todas las jornadas configuradas del sistema
+  @Get('configuradas')
+  async getJornadasConfiguradas(@Request() req: any) {
+    try {
+      const clubId = req.user?.clubId;
+      this.logger.log('🔍 GET /jornadas/configuradas - Club:', clubId);
+      
+      const jornadas = await this.jornadasService.getJornadasConfiguradas(clubId);
+      return jornadas;
+    } catch (error) {
+      this.logger.error('❌ Error en GET /jornadas/configuradas:', error);
+      throw error;
+    }
+  }
+
+  // 📊 Obtener estadísticas detalladas de una jornada
+  @Get('estadisticas/:id')
+  async getEstadisticasJornada(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('fechaInicio') fechaInicio: string,
+    @Query('fechaFin') fechaFin: string,
+    @Request() req: any
+  ) {
+    try {
+      const clubId = req.user?.clubId;
+      this.logger.log(`📊 GET /jornadas/estadisticas/${id} - Club: ${clubId}, Período: ${fechaInicio} a ${fechaFin}`);
+      
+      const estadisticas = await this.jornadasService.getEstadisticasJornada(id, clubId, fechaInicio, fechaFin);
+      return estadisticas;
+    } catch (error) {
+      this.logger.error('❌ Error en GET /jornadas/estadisticas:', error);
+      throw error;
+    }
+  }
+
   // ==========================================
   // REGISTROS DIARIOS
   // ==========================================

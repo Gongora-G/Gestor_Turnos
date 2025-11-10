@@ -48,6 +48,13 @@ export const TurnosPage: React.FC = () => {
   const [jornadaActual, setJornadaActual] = useState<any>(null);
   const [siguienteJornada, setSiguienteJornada] = useState<{ jornada: any; tiempoRestante: string } | null>(null);
   
+  // Estados para modales de finalización
+  const [modalFinalizacionAbierto, setModalFinalizacionAbierto] = useState(false);
+  const [modalSeleccionAbierto, setModalSeleccionAbierto] = useState(false);
+  const [turnosParaCompletar, setTurnosParaCompletar] = useState<any[]>([]);
+  const [turnosSeleccionados, setTurnosSeleccionados] = useState<string[]>([]);
+  const [forceRender, setForceRender] = useState(0); // Para forzar re-renders
+  
   // Estados de modales
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
   const [verTurnoModal, setVerTurnoModal] = useState<{ abierto: boolean; turno: Turno | null }>({
@@ -153,8 +160,9 @@ export const TurnosPage: React.FC = () => {
         return;
       }
       
-      console.log('🔄 Recargando turnos de jornada activa:', jornadaActual.id);
+      console.log('🔄 Recargando turnos de jornada activa:', jornadaActual.id, jornadaActual.nombre);
       const todosTurnos = await turnosService.obtenerTurnos();
+      console.log('📊 TODOS LOS TURNOS DEL BACKEND:', todosTurnos.length);
       
       console.log('🔍 DEBUG RECARGA - Total turnos:', todosTurnos.length);
       console.log('🔍 DEBUG RECARGA - Jornada activa ID:', jornadaActual.id);
@@ -184,6 +192,17 @@ export const TurnosPage: React.FC = () => {
         console.log(`  Turno ${turno.id}: jornada_config_id=${turno.jornada_config_id} vs jornadaActual=${jornadaActual.id} → ${coincide ? 'INCLUIDO' : 'EXCLUIDO'}`);
         
         return coincide;
+      });
+      
+      console.log('🔍 DEBUG ANTES DE SETEAR - Estados de turnos:', turnosDeJornada.map(t => ({ id: t.id, estado: t.estado, nombre: t.nombre })));
+      console.log('📊 RESUMEN RECARGA:', {
+        totalBackend: todosTurnos.length,
+        coincidentes: turnosDeJornada.length,
+        jornadaActual: { id: jornadaActual.id, nombre: jornadaActual.nombre },
+        estadosTurnos: turnosDeJornada.reduce((acc, t) => {
+          acc[t.estado] = (acc[t.estado] || 0) + 1;
+          return acc;
+        }, {} as any)
       });
       
       setTurnos(turnosDeJornada);
@@ -247,6 +266,66 @@ export const TurnosPage: React.FC = () => {
     }
   };
 
+  // 🎯 FUNCIONES PARA FINALIZACIÓN DE JORNADA
+  const mostrarModalFinalizacion = (turnosEnProgreso: any[]): Promise<string> => {
+    return new Promise((resolve) => {
+      setTurnosParaCompletar(turnosEnProgreso);
+      setModalFinalizacionAbierto(true);
+      
+      // Guardar resolve en una ref o variable para usarla en los botones del modal
+      (window as any).resolveFinalizacion = resolve;
+    });
+  };
+
+  const mostrarModalSeleccionTurnos = (turnosEnProgreso: any[]): Promise<string[]> => {
+    return new Promise((resolve) => {
+      setTurnosParaCompletar(turnosEnProgreso);
+      setTurnosSeleccionados([]);
+      setModalSeleccionAbierto(true);
+      
+      // Guardar resolve en una ref o variable para usarla en los botones del modal
+      (window as any).resolveSeleccion = resolve;
+    });
+  };
+
+  const completarTurnosAutomaticamente = async (turnoIds: string[]) => {
+    try {
+      console.log('🔄 Completando turnos automáticamente:', turnoIds);
+      
+      for (const turnoId of turnoIds) {
+        console.log(`  → Completando turno ID: ${turnoId}`);
+        const resultado = await turnosService.actualizarTurno(turnoId, { estado: 'completado' });
+        console.log(`  ✅ Turno ${turnoId} completado:`, resultado);
+      }
+      
+      console.log('🎉 Todos los turnos seleccionados han sido completados en el backend');
+      
+      showSuccess(
+        '✅ Turnos completados', 
+        `Se completaron ${turnoIds.length} turnos automáticamente`
+      );
+    } catch (error) {
+      console.error('❌ Error completando turnos:', error);
+      showError('Error', 'No se pudieron completar algunos turnos');
+      throw error;
+    }
+  };
+
+  // Handlers para los modales
+  const handleFinalizacionResponse = (respuesta: string) => {
+    setModalFinalizacionAbierto(false);
+    if ((window as any).resolveFinalizacion) {
+      (window as any).resolveFinalizacion(respuesta);
+    }
+  };
+
+  const handleSeleccionResponse = (seleccionados: string[]) => {
+    setModalSeleccionAbierto(false);
+    if ((window as any).resolveSeleccion) {
+      (window as any).resolveSeleccion(seleccionados);
+    }
+  };
+
   // Función para eliminar turno
   const handleConfirmarEliminar = async (turnoId: string) => {
     try {
@@ -266,17 +345,113 @@ export const TurnosPage: React.FC = () => {
       return;
     }
 
+    // 🔍 VALIDAR ESTADO DE TURNOS ANTES DE GUARDAR
+    const turnosEnProgreso = turnos.filter(turno => 
+      turno.estado !== 'completado' && turno.estado !== 'completada'
+    );
+    
+    console.log('🔍 DEBUG VALIDACIÓN:', {
+      totalTurnos: turnos.length,
+      turnosEnProgreso: turnosEnProgreso.length,
+      turnosCompletados: turnos.length - turnosEnProgreso.length
+    });
+
+    // Obtener jornada actual antes de procesar
+    const jornadaActual = await JornadasService.getJornadaActual();
+    if (!jornadaActual) {
+      showError('Sin jornada activa', 'No se pudo determinar la jornada actual basada en el horario');
+      return;
+    }
+
+    // Si hay turnos en progreso, mostrar opciones
+    if (turnosEnProgreso.length > 0) {
+      console.log('🔍 DEBUG TURNOS PARA MODAL:', turnosEnProgreso.map(t => ({ 
+        id: t.id, 
+        nombre: t.nombre, 
+        numero_turno_dia: t.numero_turno_dia,
+        estado: t.estado 
+      })));
+      
+      const respuesta = await mostrarModalFinalizacion(turnosEnProgreso);
+      
+      if (respuesta === 'cancelar') {
+        return; // No guardar nada
+      } else if (respuesta === 'autocompletar-todos') {
+        // Auto-completar todos los turnos y GUARDAR JORNADA
+        await completarTurnosAutomaticamente(turnosEnProgreso.map(t => t.id));
+        // Recargar turnos después de completar
+        await recargarTurnosJornadaActiva();
+        // Como se completaron TODOS, proceder a guardar la jornada
+      } else if (respuesta === 'seleccionar') {
+        // Mostrar modal de selección individual
+        const turnosSeleccionados = await mostrarModalSeleccionTurnos(turnosEnProgreso);
+        if (!turnosSeleccionados || turnosSeleccionados.length === 0) {
+          return; // Usuario canceló la selección
+        }
+        await completarTurnosAutomaticamente(turnosSeleccionados);
+        
+        console.log('🔄 ACTUALIZANDO ESTADO LOCAL INMEDIATAMENTE...');
+        
+        // ⚡ CALCULAR NUEVOS TURNOS ACTUALIZADOS
+        const turnosActualizados = turnos.map(turno => {
+          if (turnosSeleccionados.includes(turno.id)) {
+            console.log(`  🔄 Actualizando estado local del turno ${turno.id}: ${turno.estado} → completado`);
+            return { ...turno, estado: 'completado' };
+          }
+          return turno;
+        });
+        
+        // ⚡ ACTUALIZAR ESTADO INMEDIATAMENTE
+        setTurnos(turnosActualizados);
+        setForceRender(prev => prev + 1); // Forzar re-render
+        console.log('✅ Estado local actualizado inmediatamente, forzando re-render');
+        
+        // ⚠️ VERIFICAR USANDO LOS TURNOS ACTUALIZADOS (no el estado de React)
+        console.log('🔍 Verificando estado usando turnos actualizados...');
+        const turnosAunEnProgreso = turnosActualizados.filter(turno => {
+          const enProgreso = turno.estado !== 'completado' && turno.estado !== 'completada';
+          console.log(`  Turno ${turno.id}: estado=${turno.estado}, enProgreso=${enProgreso}`);
+          return enProgreso;
+        });
+        
+        console.log('🔄 Recarga adicional del backend en paralelo...');
+        // Recarga del backend en paralelo para confirmación (pero no bloqueante)
+        recargarTurnosJornadaActiva().catch(console.error);
+        
+        if (turnosAunEnProgreso.length > 0) {
+          showSuccess(
+            '✅ Turnos seleccionados completados', 
+            `Quedan ${turnosAunEnProgreso.length} turnos por completar antes de guardar la jornada`
+          );
+          setGuardandoJornada(false);
+          return; // NO guardar jornada todavía
+        }
+        // Si llegamos aquí, todos los turnos están completados, proceder a guardar
+      }
+    }
+
     setGuardandoJornada(true);
     try {
-      // Obtener jornada actual usando el nuevo endpoint
-      const jornadaActual = await JornadasService.getJornadaActual();
+      // Ya tenemos jornadaActual obtenida arriba
+
+      console.log('📋 Guardando jornada:', jornadaActual.nombre, 'con', turnos.length, 'turnos');
+
+      // 🔐 VALIDACIÓN FINAL: Asegurar que todos los turnos estén completados
+      const turnosNoCompletados = turnos.filter(turno => 
+        turno.estado !== 'completado' && turno.estado !== 'completada'
+      );
       
-      if (!jornadaActual) {
-        showError('Sin jornada activa', 'No se pudo determinar la jornada actual basada en el horario');
+      if (turnosNoCompletados.length > 0) {
+        console.error('❌ ERROR: Intentando guardar jornada con turnos no completados:', turnosNoCompletados);
+        showError(
+          'Error de validación', 
+          `No se puede guardar la jornada. Hay ${turnosNoCompletados.length} turnos que no están completados.`
+        );
+        setGuardandoJornada(false);
         return;
       }
 
-      console.log('📋 Guardando jornada:', jornadaActual.nombre, 'con', turnos.length, 'turnos');
+      console.log('✅ Todos los turnos están completados, procediendo a guardar...');
 
       // Convertir turnos actuales al formato requerido por el nuevo endpoint
       const turnosData = turnos.map(turno => ({
@@ -284,12 +459,19 @@ export const TurnosPage: React.FC = () => {
         numeroCancha: parseInt(turno.cancha?.id || '1'),
         horaInicio: turno.hora_inicio,
         horaFin: turno.hora_fin,
-        estado: calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin, 'activo'),
+        estado: 'completado', // 🔐 FORZAR que todos los turnos estén completados al guardar la jornada
         clienteId: turno.socio?.id || undefined,
         clienteNombre: turno.socio?.nombre || undefined,
         monto: 0, // Por defecto, actualizar según tu lógica
         metodoPago: 'efectivo' // Por defecto, actualizar según tu lógica
       }));
+
+      // Debug: verificar ID de jornada activa vs jornadas disponibles
+      console.log('🔍 DEBUG JORNADA ACTIVA:', {
+        jornadaActual: jornadaActual,
+        jornadaActualId: jornadaActual.id,
+        jornadaActualIdParsed: parseInt(jornadaActual.id)
+      });
 
       // Llamar al nuevo servicio para guardar la jornada con todos los turnos
       const resultado = await JornadasService.guardarRegistroJornada({
@@ -304,37 +486,26 @@ export const TurnosPage: React.FC = () => {
       const stats = resultado.registroDiario.estadisticas;
       showSuccess(
         '✅ Jornada guardada exitosamente',
-        `Se registraron ${stats.totalTurnos} turnos (${stats.turnosCompletados} completados). ${
-          resultado.siguienteJornada ? 
-          `Siguiente jornada: "${resultado.siguienteJornada.nombre}"` : 
-          'No hay siguiente jornada configurada'
-        }`
+        `Se registraron ${stats.totalTurnos} turnos (${stats.turnosCompletados} completados). ${resultado.mensaje || 'Los turnos han sido guardados correctamente.'}`
       );
 
       // Limpiar turnos después de guardar la jornada
       console.log('🧹 Limpiando vista de turnos...');
       setTurnos([]); // Limpiar vista - los turnos están guardados en el backend
       
-      // Verificar si hay siguiente jornada y activarla automáticamente
+      // Recargar jornada actual basada en horario REAL (no usar "siguienteJornada" automática)
       setTimeout(async () => {
-        console.log('🔄 Verificando siguiente jornada...');
+        console.log('🔄 Recargando jornada actual basada en horario real...');
         try {
-          if (resultado.siguienteJornada) {
-            console.log('🎯 Activando siguiente jornada:', resultado.siguienteJornada.nombre);
-            // Usar directamente la siguiente jornada devuelta por el backend
-            setJornadaActual(resultado.siguienteJornada);
-            console.log('✅ Nueva jornada activa:', resultado.siguienteJornada.nombre, '(ID:', resultado.siguienteJornada.id, ')');
-          } else {
-            // Si no hay siguiente jornada, obtener la jornada actual
-            const jornadaResponse = await JornadasService.getJornadaActual();
-            setJornadaActual(jornadaResponse);
-          }
+          // SIEMPRE obtener la jornada actual basada en la hora actual del sistema
+          const jornadaResponse = await JornadasService.getJornadaActual();
+          setJornadaActual(jornadaResponse);
           
           const canchasResponse = await canchasService.obtenerCanchas();
           setCanchas(canchasResponse);
           
           if (jornadaResponse) {
-            console.log('✅ Nueva jornada activa:', jornadaResponse.nombre, '(ID:', jornadaResponse.id, ')');
+            console.log('✅ Jornada activa actual:', jornadaResponse.nombre, '(ID:', jornadaResponse.id, ')');
             console.log('✅ Plano limpio listo para crear nuevos turnos');
           } else {
             console.log('⚠️ No hay jornada activa basada en la hora actual');
@@ -949,7 +1120,7 @@ export const TurnosPage: React.FC = () => {
             }}>
               {turnosFiltrados.map((turno, index) => (
                 <TurnoCard
-                  key={turno.id}
+                  key={`${turno.id}-${forceRender}-${turno.estado}`}
                   turno={{
                     ...turno,
                     // Forzar numeración del plano - sobrescribir completamente
@@ -1006,7 +1177,260 @@ export const TurnosPage: React.FC = () => {
         turno={eliminarTurnoModal.turno}
       />
 
+      {/* Modal de Finalización de Jornada */}
+      {modalFinalizacionAbierto && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 max-w-4xl w-full mx-4 border border-gray-600 shadow-2xl relative">
+            {/* Botón X para cerrar */}
+            <button
+              onClick={() => handleFinalizacionResponse('cancelar')}
+              className="absolute top-4 right-4 w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
 
+            {/* Header */}
+            <div className="text-center mb-6 pr-8">
+              <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Turnos Pendientes
+              </h3>
+              <p className="text-gray-300">
+                Hay <span className="font-bold text-yellow-400">{turnosParaCompletar.length} turnos en progreso</span> que deben completarse antes de guardar la jornada.
+              </p>
+            </div>
+            
+            {/* Lista de turnos con distribución mejorada */}
+            <div className="bg-gray-900/50 rounded-lg p-4 mb-6 border border-gray-700">
+              <h4 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
+                📋 Turnos a completar:
+              </h4>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {turnosParaCompletar.map((turno, index) => (
+                  <div key={turno.id} className="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-colors">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-yellow-400 text-sm font-bold">{index + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-white font-medium truncate">{`Turno - ${String(index + 1).padStart(3, '0')}`}</div>
+                          <div className="px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded text-xs font-medium flex-shrink-0">
+                            En Progreso
+                          </div>
+                        </div>
+                        <div className="text-sm text-gray-400 space-y-1">
+                          <div className="flex items-center gap-1">
+                            <span>🏟️</span>
+                            <span className="truncate">{turno.cancha?.nombre || 'Cancha N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span>⏰</span>
+                            <span>{turno.hora_inicio} - {turno.hora_fin}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Pregunta */}
+            <div className="text-center mb-6">
+              <p className="text-gray-300 font-medium">
+                ¿Qué deseas hacer con estos turnos?
+              </p>
+            </div>
+
+            {/* Botones de acción - Distribución mejorada */}
+            <div className="space-y-4">
+              {/* Fila superior - Dos botones lado a lado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleFinalizacionResponse('autocompletar-todos')}
+                  className="px-6 py-4 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-3 font-semibold shadow-lg hover:shadow-green-500/25 transform hover:scale-[1.02]"
+                >
+                  <span className="text-xl">✅</span>
+                  <div className="text-center md:text-left">
+                    <div>Completar TODOS automáticamente</div>
+                    <div className="text-sm text-green-200 opacity-90">Marcar todos como completados</div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => handleFinalizacionResponse('seleccionar')}
+                  className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-3 font-semibold shadow-lg hover:shadow-blue-500/25 transform hover:scale-[1.02]"
+                >
+                  <span className="text-xl">🎯</span>
+                  <div className="text-center md:text-left">
+                    <div>Seleccionar cuáles completar</div>
+                    <div className="text-sm text-blue-200 opacity-90">Elegir turnos específicos</div>
+                  </div>
+                </button>
+              </div>
+              
+              {/* Fila inferior - Un botón centrado */}
+              <div className="flex justify-center">
+                <button
+                  onClick={() => handleFinalizacionResponse('cancelar')}
+                  className="w-full max-w-md px-6 py-4 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-3 font-semibold shadow-lg hover:shadow-gray-500/25 transform hover:scale-[1.02]"
+                >
+                  <span className="text-xl">❌</span>
+                  <div className="text-center">
+                    <div>Cancelar guardado</div>
+                    <div className="text-sm text-gray-300 opacity-90">No guardar la jornada ahora</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Selección Individual */}
+      {modalSeleccionAbierto && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl p-6 max-w-4xl w-full mx-4 border border-gray-600 shadow-2xl relative">
+            {/* Botón X para cerrar */}
+            <button
+              onClick={() => setModalSeleccionAbierto(false)}
+              className="absolute top-4 right-4 w-8 h-8 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-gray-300 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+
+            {/* Header */}
+            <div className="text-center mb-6 pr-8">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🎯</span>
+              </div>
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Seleccionar Turnos a Completar
+              </h3>
+              <p className="text-gray-300">
+                Marca los turnos que deseas completar automáticamente
+              </p>
+            </div>
+            
+            {/* Lista de turnos seleccionables */}
+            <div className="mb-6">
+              <div className="bg-gray-900/50 rounded-lg p-4 border border-gray-700">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                    📋 Turnos disponibles:
+                  </h4>
+                  <div className="text-xs text-gray-400">
+                    {turnosSeleccionados.length} de {turnosParaCompletar.length} seleccionados
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-80 overflow-y-auto">
+                  {turnosParaCompletar.map((turno, index) => {
+                    const isSelected = turnosSeleccionados.includes(turno.id);
+                    return (
+                      <label 
+                        key={turno.id} 
+                        className={`flex items-start gap-3 p-4 rounded-lg cursor-pointer transition-all duration-200 border-2 ${
+                          isSelected 
+                            ? 'bg-blue-900/30 border-blue-500 shadow-lg shadow-blue-500/20' 
+                            : 'bg-gray-800 border-gray-700 hover:bg-gray-700 hover:border-gray-600'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all flex-shrink-0 mt-1 ${
+                          isSelected 
+                            ? 'bg-blue-500 border-blue-500' 
+                            : 'border-gray-500 hover:border-blue-400'
+                        }`}>
+                          {isSelected && <span className="text-white text-sm">✓</span>}
+                        </div>
+                        
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setTurnosSeleccionados([...turnosSeleccionados, turno.id]);
+                            } else {
+                              setTurnosSeleccionados(turnosSeleccionados.filter(id => id !== turno.id));
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className="w-7 h-7 bg-yellow-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-yellow-400 text-xs font-bold">{index + 1}</span>
+                              </div>
+                              <div className="text-white font-semibold truncate">{`Turno - ${String(index + 1).padStart(3, '0')}`}</div>
+                            </div>
+                            <div className="px-2 py-1 bg-yellow-900/50 text-yellow-300 rounded text-xs font-medium flex-shrink-0">
+                              En Progreso
+                            </div>
+                          </div>
+                          
+                          <div className="text-sm text-gray-400 space-y-1">
+                            <div className="flex items-center gap-1">
+                              <span>🏟️</span>
+                              <span className="truncate">{turno.cancha?.nombre || 'Cancha N/A'}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>⏰</span>
+                              <span>{turno.hora_inicio} - {turno.hora_fin}</span>
+                            </div>
+                            {turno.socio && (
+                              <div className="flex items-center gap-1">
+                                <span>👤</span>
+                                <span className="truncate text-xs">{turno.socio.nombre} {turno.socio.apellido}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Botones de acción - Distribución mejorada */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={() => handleSeleccionResponse(turnosSeleccionados)}
+                disabled={turnosSeleccionados.length === 0}
+                className={`px-6 py-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-3 font-semibold shadow-lg transform hover:scale-[1.02] ${
+                  turnosSeleccionados.length === 0
+                    ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white hover:shadow-green-500/25'
+                }`}
+              >
+                <span className="text-xl">✅</span>
+                <div className="text-center">
+                  <div>Completar Seleccionados</div>
+                  <div className="text-sm opacity-90">
+                    {turnosSeleccionados.length === 0 ? 'Selecciona al menos uno' : `${turnosSeleccionados.length} turno${turnosSeleccionados.length > 1 ? 's' : ''}`}
+                  </div>
+                </div>
+              </button>
+              
+              <button
+                onClick={() => handleSeleccionResponse([])}
+                className="px-6 py-4 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white rounded-xl transition-all duration-200 flex items-center justify-center gap-3 font-semibold shadow-lg hover:shadow-gray-500/25 transform hover:scale-[1.02]"
+              >
+                <span className="text-xl">❌</span>
+                <div className="text-center">
+                  <div>Cancelar</div>
+                  <div className="text-sm text-gray-300 opacity-90">No completar ninguno</div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Estilos para la animación de spin */}
       <style>

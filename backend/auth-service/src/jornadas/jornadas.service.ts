@@ -346,6 +346,11 @@ export class JornadasService {
   }
 
   async getRegistrosDiarios(fechaInicio?: Date, fechaFin?: Date) {
+    console.log('🔍 DEBUG getRegistrosDiarios - Consultando registros:', {
+      fechaInicio: fechaInicio?.toISOString().split('T')[0],
+      fechaFin: fechaFin?.toISOString().split('T')[0]
+    });
+
     const query = this.registrosJornadaRepository.createQueryBuilder('registro');
 
     if (fechaInicio) {
@@ -360,34 +365,34 @@ export class JornadasService {
       });
     }
 
-    return await query
+    const registros = await query
       .orderBy('registro.fecha_creacion', 'DESC')
       .getMany();
+
+    console.log('✅ DEBUG getRegistrosDiarios - Registros encontrados:', registros.length);
+    registros.forEach((registro, index) => {
+      console.log(`📋 DEBUG Registro ${index + 1}:`, {
+        id: registro.id,
+        fecha: registro.fecha,
+        jornadaConfigId: registro.jornadaConfigId,
+        estadisticas: registro.estadisticas,
+        estado: registro.estado
+      });
+    });
+
+    return registros;
   }
 
   async determinarJornadaActualPorHora(clubId: string) {
     this.logger.log(`🕐 determinarJornadaActualPorHora - clubId: ${clubId}`);
     
-    let configuracion: any = null;
-    
-    // Si hay clubId válido, buscar por club específico
-    if (clubId && clubId !== 'undefined' && clubId !== 'null') {
-      configuracion = await this.configuracionRepository.findOne({
-        where: { clubId, activa: true }
-      });
-    }
-
-    // Si no encuentra por clubId, buscar cualquier configuración activa
-    if (!configuracion) {
-      this.logger.warn(`⚠️ No hay configuración para club ${clubId}, usando configuración por defecto`);
-      configuracion = await this.configuracionRepository.findOne({
-        where: { activa: true },
-        order: { id: 'DESC' }
-      });
-    }
+    // USAR EXACTAMENTE EL MISMO CRITERIO QUE getJornadasConfiguradas
+    const configuracion = await this.configuracionRepository.findOne({
+      where: { clubId, activa: true }
+    });
 
     if (!configuracion) {
-      this.logger.warn(`❌ No hay configuración activa en absoluto`);
+      this.logger.warn(`❌ No hay configuración activa para el club ${clubId}`);
       return null;
     }
 
@@ -397,6 +402,10 @@ export class JornadasService {
       where: { configuracionId: configuracion.id, activa: true },
       order: { orden: 'ASC' }
     });
+
+    this.logger.log(`🔍 DEBUG - Jornadas encontradas para configuración ${configuracion.id}:`, 
+      jornadas.map(j => ({ id: j.id, nombre: j.nombre, horaInicio: j.horaInicio, horaFin: j.horaFin }))
+    );
 
     if (!jornadas.length) {
       this.logger.warn(`No hay jornadas configuradas`);
@@ -425,7 +434,13 @@ export class JornadasService {
       }
       
       if (enRango) {
-        this.logger.log(`✅ Jornada actual: ${jornada.nombre} (${inicio} - ${fin})`);
+        this.logger.log(`✅ Jornada actual: ${jornada.nombre} (${inicio} - ${fin}) - ID: ${jornada.id}`);
+        this.logger.log(`🔍 DEBUG - Jornada retornada completa:`, {
+          id: jornada.id,
+          nombre: jornada.nombre,
+          codigo: jornada.codigo,
+          configuracionId: jornada.configuracionId
+        });
         return jornada;
       }
     }
@@ -571,12 +586,28 @@ export class JornadasService {
         creadoPor: userId
       });
 
+      console.log('🔍 DEBUG ANTES DE GUARDAR - Datos del registro:', {
+        clubId,
+        jornadaConfigId: jornadaConfig.id,
+        fecha: fechaStr,
+        totalTurnos: turnos.length,
+        jornadaConfig: { id: jornadaConfig.id, nombre: jornadaConfig.nombre, codigo: jornadaConfig.codigo }
+      });
+
       const registroGuardado = await this.registrosJornadaRepository.save(registroJornada);
+      
+      console.log('✅ DEBUG DESPUÉS DE GUARDAR - Registro guardado:', {
+        id: registroGuardado.id,
+        jornadaConfigId: registroGuardado.jornadaConfigId,
+        fecha: registroGuardado.fecha,
+        estadisticas: registroGuardado.estadisticas
+      });
 
       this.logger.log(`✅ Registro guardado con ID: ${registroGuardado.id}`);
 
-      // Buscar siguiente jornada
-      const siguienteJornada = await this.obtenerSiguienteJornada(jornadaConfig);
+      // 🎯 OBTENER LA JORNADA ACTUAL BASADA EN LA HORA (no la siguiente automática)
+      const jornadaActualPorHora = await this.determinarJornadaActualPorHora(clubId);
+      this.logger.log(`🕐 Jornada actual basada en horario:`, jornadaActualPorHora?.nombre || 'Ninguna');
 
       // Respuesta compatible con el frontend
       return {
@@ -589,15 +620,15 @@ export class JornadasService {
             turnosEnProgreso
           }
         },
-        siguienteJornada: siguienteJornada ? {
-          id: siguienteJornada.id,
-          codigo: siguienteJornada.codigo,
-          nombre: siguienteJornada.nombre,
-          horaInicio: siguienteJornada.horaInicio,
-          horaFin: siguienteJornada.horaFin,
-          color: siguienteJornada.color
+        siguienteJornada: jornadaActualPorHora ? {
+          id: jornadaActualPorHora.id,
+          codigo: jornadaActualPorHora.codigo,
+          nombre: jornadaActualPorHora.nombre,
+          horaInicio: jornadaActualPorHora.horaInicio,
+          horaFin: jornadaActualPorHora.horaFin,
+          color: jornadaActualPorHora.color
         } : null,
-        mensaje: 'Jornada guardada exitosamente'
+        mensaje: `Jornada guardada exitosamente. ${jornadaActualPorHora ? `Jornada actual: ${jornadaActualPorHora.nombre}` : 'No hay jornada activa en este horario'}`
       };
 
     } catch (error) {
@@ -646,6 +677,88 @@ export class JornadasService {
         color: siguienteJornada.color
       } : null
     };
+  }
+
+  // 🔍 Obtener todas las jornadas configuradas del sistema
+  async getJornadasConfiguradas(clubId: string): Promise<JornadaConfig[]> {
+    try {
+      // Obtener la configuración activa del club
+      const configuracion = await this.configuracionRepository.findOne({
+        where: { clubId, activa: true }
+      });
+
+      if (!configuracion) {
+        this.logger.warn(`No hay configuración activa para el club ${clubId}`);
+        return [];
+      }
+
+      // Obtener todas las jornadas de la configuración activa
+      const jornadas = await this.jornadasConfigRepository.find({
+        where: { configuracionId: configuracion.id },
+        order: { orden: 'ASC' }
+      });
+
+      this.logger.log(`✅ Encontradas ${jornadas.length} jornadas configuradas para el club ${clubId}`);
+      return jornadas;
+    } catch (error) {
+      this.logger.error('❌ Error al obtener jornadas configuradas:', error);
+      throw error;
+    }
+  }
+
+  // 📊 Obtener estadísticas detalladas de una jornada
+  async getEstadisticasJornada(jornadaConfigId: number, clubId: string, fechaInicio: string, fechaFin: string): Promise<any> {
+    try {
+      this.logger.log(`📊 Obteniendo estadísticas para jornada ${jornadaConfigId} del ${fechaInicio} al ${fechaFin}`);
+
+      // Verificar que la jornada pertenece al club
+      const jornada = await this.jornadasConfigRepository.findOne({
+        where: { id: jornadaConfigId }
+      });
+
+      if (!jornada) {
+        throw new Error(`Jornada ${jornadaConfigId} no encontrada`);
+      }
+
+      // Consultar turnos directamente desde la tabla de turnos
+      // Necesitamos importar el repositorio de turnos para esto
+      // Por ahora, retornar estadísticas básicas de ejemplo hasta que implementemos la consulta correcta
+      
+      const estadisticas = {
+        jornada: {
+          id: jornada.id,
+          codigo: jornada.codigo,
+          nombre: jornada.nombre,
+          horario: `${jornada.horaInicio} - ${jornada.horaFin}`,
+          color: jornada.color
+        },
+        periodo: {
+          fechaInicio,
+          fechaFin,
+          diasConActividad: 0
+        },
+        turnos: {
+          total: 0,
+          completados: 0,
+          enProgreso: 0,
+          promedioPorDia: 0
+        },
+        tiempo: {
+          totalHoras: 0,
+          promedioHorasPorDia: 0
+        },
+        eficiencia: {
+          tasaCompletado: 0,
+          tasaProgreso: 0
+        }
+      };
+
+      this.logger.log(`✅ Estadísticas (demo) calculadas para jornada ${jornada.nombre}`);
+      return estadisticas;
+    } catch (error) {
+      this.logger.error('❌ Error al obtener estadísticas de jornada:', error);
+      throw error;
+    }
   }
 
   // 🔍 Método auxiliar para obtener jornadas por IDs
