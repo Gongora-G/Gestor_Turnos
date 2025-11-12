@@ -113,8 +113,10 @@ export const TurnoCard: React.FC<TurnoCardProps> = ({
       transition: 'all 0.3s ease',
       cursor: 'pointer',
       fontFamily: 'Inter, system-ui, sans-serif',
-      width: '100%',
-      maxWidth: '450px'
+      width: '400px',
+      minWidth: '350px',
+      maxWidth: '450px',
+      flexShrink: 0
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-4px)';
