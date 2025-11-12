@@ -1,9 +1,19 @@
 import React from 'react';
-import { X, Calendar, Clock, MapPin, User, FileText, Award, Circle } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, User, FileText, Award, Circle, Users } from 'lucide-react';
 import { formatTo12Hour } from '../utils/dateTime';
 import { calcularEstadoAutomatico, getEstadoColor, getEstadoTexto } from '../utils/turnoStates';
 
 // Tipos locales para evitar problemas de importación
+interface PersonalInfo {
+  id: string;
+  nombre: string;
+  apellido: string;
+  tipoPersonal: {
+    nombre: string;
+    color?: string;
+  };
+}
+
 interface Turno {
   id: string;
   nombre?: string;
@@ -29,6 +39,7 @@ interface Turno {
     nombre: string;
     tipo_membresia: string;
   };
+  personal_asignado?: string[];
   estado: 'en_progreso' | 'completado';
   observaciones?: string;
   created_at: string;
@@ -39,17 +50,24 @@ interface VerTurnoModalProps {
   isOpen: boolean;
   onClose: () => void;
   turno: Turno | null;
+  personalData?: PersonalInfo[];
 }
 
 export const VerTurnoModal: React.FC<VerTurnoModalProps> = ({
   isOpen,
   onClose,
-  turno
+  turno,
+  personalData = []
 }) => {
   if (!isOpen || !turno) return null;
 
   const estadoCalculado = calcularEstadoAutomatico(turno.fecha, turno.hora_inicio, turno.hora_fin);
   const estadoColor = getEstadoColor(estadoCalculado);
+  
+  // Obtener personal asignado con sus datos completos
+  const personalAsignado = turno.personal_asignado
+    ?.map(id => personalData.find(p => p.id === id))
+    .filter((p): p is PersonalInfo => p !== undefined) || [];
 
   const getTurnoDisplayName = (turno: Turno) => {
     // Usar el nombre del turno si existe, sino generar uno basado en el número del día
@@ -98,161 +116,155 @@ export const VerTurnoModal: React.FC<VerTurnoModalProps> = ({
           </button>
         </div>
 
-        {/* Content */}
+        {/* Content - Grid Compacto */}
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             
-            {/* Información básica */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
-                Información General
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="bg-gradient-to-r from-blue-500/10 to-indigo-500/10 p-4 rounded-xl border border-blue-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-500 rounded-lg">
-                      <Calendar className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-400">Fecha</span>
-                      <p className="font-bold text-white">
-                        {new Date(turno.fecha).toLocaleDateString('es-ES', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-emerald-500/10 to-green-500/10 p-4 rounded-xl border border-emerald-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-emerald-500 rounded-lg">
-                      <Clock className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-400">Horario</span>
-                      <p className="font-bold text-white">
-                        {formatTo12Hour(turno.hora_inicio)} - {formatTo12Hour(turno.hora_fin)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 p-4 rounded-xl border border-purple-500/20">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-purple-500 rounded-lg">
-                      <MapPin className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <span className="text-sm text-gray-400">Cancha</span>
-                      <p className="font-bold text-white">{getCanchaDisplayName(turno)}</p>
-                    </div>
-                  </div>
-                </div>
-
+            {/* Fecha */}
+            <div className="bg-blue-500/10 p-3 rounded-lg border border-blue-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Calendar className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-gray-400">Fecha</span>
               </div>
+              <p className="text-sm font-semibold text-white">
+                {new Date(turno.fecha).toLocaleDateString('es-ES', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short'
+                })}
+              </p>
             </div>
 
-            {/* Información de participantes */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2">
-                Participantes
-              </h3>
-              
-              <div className="space-y-4">
-                {turno.usuario_id && (
-                  <div className="bg-gradient-to-r from-blue-500/10 to-cyan-500/10 p-4 rounded-xl border border-blue-500/20">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-500 rounded-lg">
-                        <User className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-400">Usuario</span>
-                        <p className="font-bold text-white">Usuario asignado</p>
-                        <p className="text-xs text-gray-500 font-mono">ID: {turno.usuario_id.slice(0, 8)}...</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {turno.socio_id && (
-                  <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 p-4 rounded-xl border border-yellow-500/20">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-yellow-500 rounded-lg">
-                        <Award className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-400">Socio</span>
-                        <p className="font-bold text-white">Socio del club</p>
-                        <p className="text-xs text-gray-500 font-mono">ID: {turno.socio_id.slice(0, 8)}...</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {!turno.usuario_id && !turno.socio_id && (
-                  <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 text-center">
-                    <p className="text-gray-400 italic">Sin participantes asignados</p>
-                  </div>
-                )}
+            {/* Horario */}
+            <div className="bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs text-gray-400">Horario</span>
               </div>
+              <p className="text-sm font-semibold text-white">
+                {formatTo12Hour(turno.hora_inicio)} - {formatTo12Hour(turno.hora_fin)}
+              </p>
             </div>
+
+            {/* Cancha */}
+            <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20">
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin className="w-4 h-4 text-purple-400" />
+                <span className="text-xs text-gray-400">Cancha</span>
+              </div>
+              <p className="text-sm font-semibold text-white">{getCanchaDisplayName(turno)}</p>
+            </div>
+
+            {/* Usuario/Socio */}
+            <div className={`p-3 rounded-lg border ${
+              turno.socio_id 
+                ? 'bg-yellow-500/10 border-yellow-500/20' 
+                : turno.usuario_id 
+                  ? 'bg-blue-500/10 border-blue-500/20'
+                  : 'bg-gray-500/10 border-gray-500/20'
+            }`}>
+              <div className="flex items-center gap-2 mb-1">
+                {turno.socio_id ? (
+                  <Award className="w-4 h-4 text-yellow-400" />
+                ) : turno.usuario_id ? (
+                  <User className="w-4 h-4 text-blue-400" />
+                ) : (
+                  <User className="w-4 h-4 text-gray-400" />
+                )}
+                <span className="text-xs text-gray-400">
+                  {turno.socio_id ? 'Socio' : turno.usuario_id ? 'Usuario' : 'Sin asignar'}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-white truncate">
+                {turno.socio?.nombre || turno.usuario?.nombre || 'Disponible'}
+              </p>
+            </div>
+
           </div>
 
-          {/* Observaciones */}
-          {turno.observaciones && (
-            <div className="mt-6 pt-6 border-t border-gray-700">
-              <div className="bg-gradient-to-r from-gray-500/10 to-slate-500/10 p-4 rounded-xl border border-gray-600">
-                <div className="flex items-start gap-3">
-                  <div className="p-2 bg-gray-600 rounded-lg">
-                    <FileText className="w-5 h-5 text-white" />
+          {/* Personal Asignado - Compacto */}
+          {personalAsignado.length > 0 && (
+            <div className="bg-purple-500/10 p-3 rounded-lg border border-purple-500/20 mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-4 h-4 text-purple-400" />
+                <span className="text-xs font-semibold text-purple-400 uppercase">
+                  Personal ({personalAsignado.length})
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {personalAsignado.map((persona) => (
+                  <div 
+                    key={persona.id}
+                    className="flex items-center gap-2 bg-purple-500/15 border border-purple-500/25 rounded-md px-2 py-1.5"
+                  >
+                    <div 
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                      style={{ 
+                        background: persona.tipoPersonal.color || '#8b5cf6',
+                        boxShadow: `0 0 8px ${persona.tipoPersonal.color || '#8b5cf6'}60`
+                      }}
+                    >
+                      {persona.nombre[0]}{persona.apellido[0]}
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-white leading-none">
+                        {persona.nombre} {persona.apellido}
+                      </p>
+                      <p className="text-[10px] text-purple-400 leading-none mt-0.5">
+                        {persona.tipoPersonal.nombre}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <span className="text-sm text-gray-400">Observaciones</span>
-                    <p className="mt-2 text-white bg-gray-800 p-3 rounded-lg border border-gray-700">
-                      {turno.observaciones}
-                    </p>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           )}
 
-          {/* Información técnica */}
-          <div className="mt-6 pt-6 border-t border-gray-700">
-            <h3 className="text-sm font-semibold text-white mb-3">
-              Información Técnica
-            </h3>
-            <div className="grid grid-cols-2 gap-4 text-xs text-gray-400 bg-gray-800 p-4 rounded-xl border border-gray-700">
+          {/* Observaciones - Compacto */}
+          {turno.observaciones && (
+            <div className="bg-gray-500/10 p-3 rounded-lg border border-gray-600 mb-4">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="w-4 h-4 text-gray-400" />
+                <span className="text-xs text-gray-400">Observaciones</span>
+              </div>
+              <p className="text-sm text-white italic">
+                {turno.observaciones}
+              </p>
+            </div>
+          )}
+
+          {/* Información técnica - Compacto */}
+          <div className="bg-gray-800 p-3 rounded-lg border border-gray-700">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
               <div>
-                <span className="font-medium text-gray-300">ID Turno:</span>
-                <p className="font-mono text-blue-400">{turno.id}</p>
+                <span className="text-gray-500">ID Turno:</span>
+                <p className="font-mono text-blue-400 text-[10px]">{turno.id.slice(0, 16)}...</p>
               </div>
               <div>
-                <span className="font-medium text-gray-300">ID Cancha:</span>
-                <p className="font-mono text-purple-400">{turno.cancha_id}</p>
+                <span className="text-gray-500">ID Cancha:</span>
+                <p className="font-mono text-purple-400 text-[10px]">{turno.cancha_id.slice(0, 16)}...</p>
               </div>
               <div>
-                <span className="font-medium text-gray-300">Creado:</span>
-                <p className="text-gray-200">{new Date(turno.created_at).toLocaleString('es-ES')}</p>
+                <span className="text-gray-500">Creado:</span>
+                <p className="text-gray-300 text-[10px]">{new Date(turno.created_at).toLocaleString('es-ES', { 
+                  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                })}</p>
               </div>
               <div>
-                <span className="font-medium text-gray-300">Actualizado:</span>
-                <p className="text-gray-200">{new Date(turno.updated_at).toLocaleString('es-ES')}</p>
+                <span className="text-gray-500">Actualizado:</span>
+                <p className="text-gray-300 text-[10px]">{new Date(turno.updated_at).toLocaleString('es-ES', { 
+                  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
+                })}</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t border-gray-700 bg-gray-800">
+        {/* Footer - Compacto */}
+        <div className="flex justify-end gap-2 p-4 border-t border-gray-700 bg-gray-800">
           <button
             onClick={onClose}
-            className="px-6 py-2 bg-gray-700 text-white hover:bg-gray-600 rounded-xl transition-colors font-semibold border border-gray-600"
+            className="px-5 py-1.5 bg-gray-700 text-white hover:bg-gray-600 rounded-lg transition-colors text-sm font-medium border border-gray-600"
           >
             Cerrar
           </button>

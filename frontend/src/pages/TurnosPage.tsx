@@ -13,6 +13,7 @@ import { turnosService, canchasService, type Turno as TurnoService } from '../se
 import { JornadasService } from '../services/jornadasService';
 import { calcularEstadoAutomatico } from '../utils/turnoStates';
 import { useToast } from '../contexts/ToastContext';
+import { apiService } from '../services/api';
 
 // Usar el tipo del servicio
 type Turno = TurnoService;
@@ -35,10 +36,21 @@ interface CanchaBackend {
   updated_at: string;
 }
 
+interface PersonalInfo {
+  id: string;
+  nombre: string;
+  apellido: string;
+  tipoPersonal: {
+    nombre: string;
+    color?: string;
+  };
+}
+
 export const TurnosPage: React.FC = () => {
   const { success: showSuccess, error: showError, warning: showWarning } = useToast();
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [canchas, setCanchas] = useState<CanchaBackend[]>([]);
+  const [personalData, setPersonalData] = useState<PersonalInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
@@ -79,10 +91,14 @@ export const TurnosPage: React.FC = () => {
       setError(null);
       
       console.log('🔍 Cargando datos básicos y turnos del día...');
-      const [canchasResponse, jornadaResponse] = await Promise.all([
+      const [canchasResponse, jornadaResponse, personalResponse] = await Promise.all([
         canchasService.obtenerCanchas(),
-        JornadasService.getJornadaActual()
+        JornadasService.getJornadaActual(),
+        apiService.get<PersonalInfo[]>('/personal/activos')
       ]);
+      
+      setPersonalData(personalResponse);
+      console.log('👥 Personal cargado:', personalResponse.length);
       
       // Cargar turnos de la jornada activa
       if (jornadaResponse?.id) {
@@ -1127,6 +1143,7 @@ export const TurnosPage: React.FC = () => {
                     numero_turno_dia: index + 1,
                     nombre: `Turno - ${String(index + 1).padStart(3, '0')}` // Forzar nombre también
                   }}
+                  personalData={personalData}
                   onVer={() => handleVerTurno(turno)}
                   onEditar={() => handleEditarTurno(turno)}
                   onEliminar={() => handleEliminarTurno(turno)}
@@ -1160,6 +1177,7 @@ export const TurnosPage: React.FC = () => {
         isOpen={verTurnoModal.abierto}
         onClose={() => setVerTurnoModal({ abierto: false, turno: null })}
         turno={verTurnoModal.turno}
+        personalData={personalData}
       />
 
       <EditarTurnoModal

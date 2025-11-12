@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { 
   ConfiguracionJornadas, 
   JornadaConfig,
@@ -35,6 +35,8 @@ export class JornadasService {
     
     @InjectRepository(RegistroJornada)
     private registrosJornadaRepository: Repository<RegistroJornada>,
+    
+    private dataSource: DataSource,
   ) {}
 
   // ==========================================
@@ -370,17 +372,52 @@ export class JornadasService {
       .getMany();
 
     console.log('✅ DEBUG getRegistrosDiarios - Registros encontrados:', registros.length);
-    registros.forEach((registro, index) => {
-      console.log(`📋 DEBUG Registro ${index + 1}:`, {
-        id: registro.id,
-        fecha: registro.fecha,
-        jornadaConfigId: registro.jornadaConfigId,
-        estadisticas: registro.estadisticas,
-        estado: registro.estado
-      });
-    });
 
-    return registros;
+    // Para cada registro, obtener los turnos asociados con información de canchas
+    const registrosConTurnos = await Promise.all(
+      registros.map(async (registro) => {
+        console.log(`📋 DEBUG Procesando registro:`, {
+          id: registro.id,
+          fecha: registro.fecha,
+          jornadaConfigId: registro.jornadaConfigId
+        });
+
+        // Obtener turnos de esta fecha y jornada_config_id
+        const turnos = await this.dataSource.query(`
+          SELECT 
+            t.id,
+            t.fecha,
+            t.hora_inicio as "horaInicio",
+            t.hora_fin as "horaFin",
+            t.estado,
+            t.nombre as "clienteNombre",
+            t.observaciones as "notas",
+            t.cancha_id as "canchaId",
+            c.nombre as "nombreCancha"
+          FROM auth.turnos t
+          LEFT JOIN auth.canchas c ON t.cancha_id = c.id
+          WHERE t.fecha = $1 AND t.jornada_config_id = $2
+          ORDER BY t.hora_inicio ASC
+        `, [registro.fecha, registro.jornadaConfigId]);
+
+        console.log(`🎾 DEBUG Turnos encontrados para registro ${registro.id}:`, turnos.length);
+        turnos.forEach((turno, index) => {
+          console.log(`  Turno ${index + 1}:`, {
+            id: turno.id,
+            cancha: turno.nombreCancha,
+            cliente: turno.clienteNombre,
+            horario: `${turno.horaInicio} - ${turno.horaFin}`
+          });
+        });
+
+        return {
+          ...registro,
+          turnosRegistrados: turnos || []
+        };
+      })
+    );
+
+    return registrosConTurnos;
   }
 
   async determinarJornadaActualPorHora(clubId: string) {
@@ -682,28 +719,58 @@ export class JornadasService {
   // 🔍 Obtener todas las jornadas configuradas del sistema
   async getJornadasConfiguradas(clubId: string): Promise<JornadaConfig[]> {
     try {
-      // Obtener la configuración activa del club
-      const configuracion = await this.configuracionRepository.findOne({
-        where: { clubId, activa: true }
-      });
-
-      if (!configuracion) {
-        this.logger.warn(`No hay configuración activa para el club ${clubId}`);
+      this.logger.log(`🔍 DEBUG - getJornadasConfiguradas para club: ${clubId}`);
+      
+      // TEMPORAL: Obtener jornadas que realmente tienen registros
+      const registrosUnicos = await this.registrosJornadaRepository
+        .createQueryBuilder('registro')
+        .select('DISTINCT registro.jornadaConfigId', 'jornadaConfigId')
+        .getRawMany();
+      
+      this.logger.log(`🔍 DEBUG - Jornadas con registros:`, registrosUnicos.map(r => r.jornadaConfigId));
+      
+      if (registrosUnicos.length === 0) {
+        this.logger.warn(`No hay registros de jornadas para el club ${clubId}`);
         return [];
       }
-
-      // Obtener todas las jornadas de la configuración activa
-      const jornadas = await this.jornadasConfigRepository.find({
-        where: { configuracionId: configuracion.id },
-        order: { orden: 'ASC' }
-      });
-
-      this.logger.log(`✅ Encontradas ${jornadas.length} jornadas configuradas para el club ${clubId}`);
-      this.logger.log(`🔍 DEBUG - IDs de jornadas devueltas:`, jornadas.map(j => ({ id: j.id, nombre: j.nombre, configuracionId: j.configuracionId })));
-      return jornadas;
+      
+      // Obtener las jornadas que realmente tienen datos
+      const idsConDatos = registrosUnicos.map(r => parseInt(r.jornadaConfigId));
+      const jornadasConDatos = await this.jornadasConfigRepository
+        .createQueryBuilder('jornada')
+        .where('jornada.id IN (:...ids)', { ids: idsConDatos })
+        .orderBy('jornada.orden', 'ASC')
+        .getMany();
+      
+      this.logger.log(`✅ Encontradas ${jornadasConDatos.length} jornadas CON DATOS para el club ${clubId}`);
+      this.logger.log(`🔍 DEBUG - IDs de jornadas CON DATOS:`, jornadasConDatos.map(j => ({ id: j.id, nombre: j.nombre, configuracionId: j.configuracionId })));
+      
+      return jornadasConDatos;
     } catch (error) {
       this.logger.error('❌ Error al obtener jornadas configuradas:', error);
-      throw error;
+      
+      // Fallback al método original
+      try {
+        const configuracion = await this.configuracionRepository.findOne({
+          where: { clubId, activa: true }
+        });
+
+        if (!configuracion) {
+          this.logger.warn(`No hay configuración activa para el club ${clubId}`);
+          return [];
+        }
+
+        const jornadas = await this.jornadasConfigRepository.find({
+          where: { configuracionId: configuracion.id },
+          order: { orden: 'ASC' }
+        });
+
+        this.logger.log(`✅ FALLBACK - Encontradas ${jornadas.length} jornadas configuradas`);
+        return jornadas;
+      } catch (fallbackError) {
+        this.logger.error('❌ Error en fallback:', fallbackError);
+        throw error;
+      }
     }
   }
 
@@ -721,15 +788,8 @@ export class JornadasService {
         throw new Error(`Jornada ${jornadaConfigId} no encontrada`);
       }
 
-      // Primero, verificar qué registros hay en total
-      const todosLosRegistros = await this.registrosDiariosRepository.find();
-      this.logger.log(`🔍 TOTAL registros en BD: ${todosLosRegistros.length}`);
-      todosLosRegistros.forEach(reg => {
-        this.logger.log(`📋 Registro: ID=${reg.id}, fecha=${reg.fecha}, jornadaConfigId=${reg.jornadaConfigId}, turnos=${reg.total_turnos}`);
-      });
-
-      // Consultar registros diarios de esta jornada en el período especificado
-      const registrosDiarios = await this.registrosDiariosRepository
+      // Consultar registros de jornadas (no diarios) que tienen estadisticas
+      const registrosDiarios = await this.registrosJornadaRepository
         .createQueryBuilder('registro')
         .where('registro.jornadaConfigId = :jornadaConfigId', { jornadaConfigId })
         .andWhere('registro.fecha >= :fechaInicio', { fechaInicio })
@@ -745,9 +805,9 @@ export class JornadasService {
       let diasConActividad = registrosDiarios.length;
 
       for (const registro of registrosDiarios) {
-        // Sumar turnos del registro
-        const turnosDelRegistro = registro.total_turnos || 0;
-        const completadosDelRegistro = registro.turnos_completados || 0;
+        // Sumar turnos del registro (desde el campo estadisticas)
+        const turnosDelRegistro = registro.estadisticas?.totalTurnos || 0;
+        const completadosDelRegistro = registro.estadisticas?.turnosCompletados || 0;
         
         totalTurnos += turnosDelRegistro;
         turnosCompletados += completadosDelRegistro;

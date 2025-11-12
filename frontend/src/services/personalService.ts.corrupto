@@ -1,0 +1,371 @@
+import { apiService } from './api';const API_BASE_URL = 'http://localhost:3001/api';
+
+
+
+// ===== INTERFACES =====export interface CreateCaddieDto {
+
+export interface CreateCaddieDto {  nombre: string;
+
+  nombre: string;  apellido: string;
+
+  apellido: string;  telefono?: string;
+
+  telefono?: string;  email?: string;
+
+  email?: string;  nivel_experiencia?: number;
+
+  nivel_experiencia?: number;  nivel_juego?: string;
+
+  nivel_juego?: string;  ranking_habilidad?: number;
+
+  ranking_habilidad?: number;  tarifa_por_hora?: number;
+
+  tarifa_por_hora?: number;  clubId: string;
+
+  clubId: string;}
+
+}
+
+export interface CreateBoleadorDto {
+
+export interface CreateBoleadorDto {  nombre: string;
+
+  nombre: string;  apellido: string;
+
+  apellido: string;  telefono?: string;
+
+  telefono?: string;  email?: string;
+
+  email?: string;  nivel_experiencia?: number;
+
+  nivel_experiencia?: number;  nivel_juego?: string;
+
+  nivel_juego?: string;  ranking_habilidad?: number;
+
+  ranking_habilidad?: number;  tarifa_por_hora?: number;
+
+  tarifa_por_hora?: number;  clubId: string;
+
+  clubId: string;}
+
+}
+
+export interface UpdateCaddieDto extends Partial<CreateCaddieDto> {}
+
+export interface UpdateCaddieDto extends Partial<CreateCaddieDto> {}export interface UpdateBoleadorDto extends Partial<CreateBoleadorDto> {}
+
+export interface UpdateBoleadorDto extends Partial<CreateBoleadorDto> {}
+
+export interface CaddieResponse {
+
+export interface CaddieResponse {  id: string;
+
+  id: string;  nombre: string;
+
+  nombre: string;  apellido: string;
+
+  apellido: string;  telefono?: string;
+
+  telefono?: string;  email?: string;
+
+  email?: string;  nivel_experiencia?: number;
+
+  nivel_experiencia?: number;  nivel_juego?: string;
+
+  nivel_juego?: string;  ranking_habilidad?: number;
+
+  ranking_habilidad?: number;  tarifa_por_hora?: number;
+
+  tarifa_por_hora?: number;  estado: 'disponible' | 'ocupado' | 'descanso' | 'inactivo';
+
+  estado: 'disponible' | 'ocupado' | 'descanso' | 'inactivo';  activo: boolean;
+
+  activo: boolean;  clubId: string;
+
+  clubId: string;  createdAt: string;
+
+  createdAt: string;  updatedAt: string;
+
+  updatedAt: string;}
+
+}
+
+export interface BoleadorResponse {
+
+export interface BoleadorResponse {  id: string;
+
+  id: string;  nombre: string;
+
+  nombre: string;  apellido: string;
+
+  apellido: string;  telefono?: string;
+
+  telefono?: string;  email?: string;
+
+  email?: string;  nivel_experiencia?: number;
+
+  nivel_experiencia?: number;  nivel_juego?: string;
+
+  nivel_juego?: string;  ranking_habilidad?: number;
+
+  ranking_habilidad?: number;  tarifa_por_hora?: number;
+
+  tarifa_por_hora?: number;  estado: 'disponible' | 'ocupado' | 'descanso' | 'inactivo';
+
+  estado: 'disponible' | 'ocupado' | 'descanso' | 'inactivo';  activo: boolean;
+
+  activo: boolean;  clubId: string;
+
+  clubId: string;  createdAt: string;
+
+  createdAt: string;  updatedAt: string;
+
+  updatedAt: string;}
+
+}
+
+class PersonalService {
+
+// ===== SERVICIO =====  // ===== CADDIES =====
+
+class PersonalService {  async getAllCaddies(): Promise<CaddieResponse[]> {
+
+  // CADDIES    try {
+
+  async getAllCaddies(): Promise<CaddieResponse[]> {      const response = await fetch(`${API_BASE_URL}/caddies`);
+
+    return await apiService.get<CaddieResponse[]>('/caddies');      if (!response.ok) {
+
+  }        throw new Error(`Error ${response.status}: ${response.statusText}`);
+
+      }
+
+  async getCaddieById(id: string): Promise<CaddieResponse> {      return await response.json();
+
+    return await apiService.get<CaddieResponse>(`/caddies/${id}`);    } catch (error) {
+
+  }      console.error('Error fetching caddies:', error);
+
+      throw error;
+
+  async createCaddie(data: CreateCaddieDto): Promise<CaddieResponse> {    }
+
+    return await apiService.post<CaddieResponse>('/caddies', data);  }
+
+  }
+
+  async getCaddieById(id: string): Promise<CaddieResponse> {
+
+  async updateCaddie(id: string, data: UpdateCaddieDto): Promise<CaddieResponse> {    try {
+
+    return await apiService.patch<CaddieResponse>(`/caddies/${id}`, data);      const response = await fetch(`${API_BASE_URL}/caddies/${id}`);
+
+  }      if (!response.ok) {
+
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+
+  async deleteCaddie(id: string): Promise<void> {      }
+
+    await apiService.delete(`/caddies/${id}`);      return await response.json();
+
+  }    } catch (error) {
+
+      console.error('Error fetching caddie:', error);
+
+  // BOLEADORES      throw error;
+
+  async getAllBoleadores(): Promise<BoleadorResponse[]> {    }
+
+    return await apiService.get<BoleadorResponse[]>('/boleadores');  }
+
+  }
+
+  async createCaddie(data: CreateCaddieDto): Promise<CaddieResponse> {
+
+  async getBoleadorById(id: string): Promise<BoleadorResponse> {    try {
+
+    return await apiService.get<BoleadorResponse>(`/boleadores/${id}`);      const response = await fetch(`${API_BASE_URL}/caddies`, {
+
+  }        method: 'POST',
+
+        headers: {
+
+  async createBoleador(data: CreateBoleadorDto): Promise<BoleadorResponse> {          'Content-Type': 'application/json',
+
+    return await apiService.post<BoleadorResponse>('/boleadores', data);        },
+
+  }        body: JSON.stringify(data),
+
+      });
+
+  async updateBoleador(id: string, data: UpdateBoleadorDto): Promise<BoleadorResponse> {      
+
+    return await apiService.patch<BoleadorResponse>(`/boleadores/${id}`, data);      if (!response.ok) {
+
+  }        throw new Error(`Error ${response.status}: ${response.statusText}`);
+
+      }
+
+  async deleteBoleador(id: string): Promise<void> {      
+
+    await apiService.delete(`/boleadores/${id}`);      return await response.json();
+
+  }    } catch (error) {
+
+      console.error('Error creating caddie:', error);
+
+  // DISPONIBILIDAD      throw error;
+
+  async getAvailablePersonal(    }
+
+    tipo: 'caddie' | 'boleador',  }
+
+    fecha: string,
+
+    hora: string  async updateCaddie(id: string, data: UpdateCaddieDto): Promise<CaddieResponse> {
+
+  ): Promise<CaddieResponse[] | BoleadorResponse[]> {    try {
+
+    const endpoint = tipo === 'caddie' ? 'caddies' : 'boleadores';      const response = await fetch(`${API_BASE_URL}/caddies/${id}`, {
+
+    return await apiService.get(`/${endpoint}/available?fecha=${fecha}&hora=${hora}`);        method: 'PATCH',
+
+  }        headers: {
+
+}          'Content-Type': 'application/json',
+
+        },
+
+export const personalService = new PersonalService();        body: JSON.stringify(data),
+
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating caddie:', error);
+      throw error;
+    }
+  }
+
+  async deleteCaddie(id: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/caddies/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting caddie:', error);
+      throw error;
+    }
+  }
+
+  // ===== BOLEADORES =====
+  async getAllBoleadores(): Promise<BoleadorResponse[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/boleadores`);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching boleadores:', error);
+      throw error;
+    }
+  }
+
+  async getBoleadorById(id: string): Promise<BoleadorResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/boleadores/${id}`);
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching boleador:', error);
+      throw error;
+    }
+  }
+
+  async createBoleador(data: CreateBoleadorDto): Promise<BoleadorResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/boleadores`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error creating boleador:', error);
+      throw error;
+    }
+  }
+
+  async updateBoleador(id: string, data: UpdateBoleadorDto): Promise<BoleadorResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/boleadores/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error('Error updating boleador:', error);
+      throw error;
+    }
+  }
+
+  async deleteBoleador(id: string): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/boleadores/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting boleador:', error);
+      throw error;
+    }
+  }
+
+  // ===== UTILIDADES =====
+  async getAvailablePersonal(tipo: 'caddie' | 'boleador', fecha: string, hora: string): Promise<CaddieResponse[] | BoleadorResponse[]> {
+    try {
+      const endpoint = tipo === 'caddie' ? 'caddies' : 'boleadores';
+      const response = await fetch(`${API_BASE_URL}/${endpoint}/available?fecha=${fecha}&hora=${hora}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+      
+      return await response.json();
+    } catch (error) {
+      console.error(`Error fetching available ${tipo}s:`, error);
+      throw error;
+    }
+  }
+}
+
+export const personalService = new PersonalService();

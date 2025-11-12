@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Save, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import configuracionJornadasService from '../services/configuracionJornadasService';
-import type { ConfiguracionJornadas, JornadaConfig, DiaSemana } from '../services/configuracionJornadasService';
+import type { ConfiguracionJornadas, JornadaConfig } from '../types/jornadas-config';
 import { useToast } from '../contexts/ToastContext';
 
 // Modal de confirmación de eliminación

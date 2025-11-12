@@ -10,6 +10,7 @@ import { ConfiguracionModule } from './configuracion/configuracion.module';
 import { TurnosModule } from './turnos/turnos.module';
 import { SociosModule } from './socios/socios.module';
 import { JornadasModule } from './jornadas/jornadas.module';
+import { PersonalModule } from './personal/personal.module';
 
 @Module({
   imports: [
@@ -36,6 +37,8 @@ import { JornadasModule } from './jornadas/jornadas.module';
     SociosModule,
     // 🕐 Jornadas module
     JornadasModule,
+    // 👨‍💼 Personal module (Caddies y Boleadores)
+    PersonalModule,
   ],
   controllers: [AppController],
   providers: [AppService],

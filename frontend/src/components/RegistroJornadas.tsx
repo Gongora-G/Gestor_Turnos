@@ -769,7 +769,28 @@ export default function RegistroJornadas() {
                           <div key={index} className="bg-gray-900 rounded-lg p-3 border border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-medium text-white">
-                                🎾 Cancha {turno.numeroCancha || turno.cancha || 'N/A'}
+                                🎾 {(() => {
+                                  console.log('🏟️ Datos turno:', turno);
+                                  console.log('🏟️ numeroCancha:', turno.numeroCancha);
+                                  console.log('🏟️ cancha:', turno.cancha);
+                                  console.log('🏟️ nombreCancha:', turno.nombreCancha);
+                                  
+                                  // Usar el nombre de la cancha que viene del backend
+                                  if (turno.nombreCancha) {
+                                    return turno.nombreCancha;
+                                  }
+                                  
+                                  const canchaId = turno.numeroCancha || turno.cancha;
+                                  if (!canchaId) return 'Sin cancha asignada';
+                                  
+                                  // Si es un número largo, puede ser un ID de base de datos
+                                  if (typeof canchaId === 'string' && canchaId.length > 10) {
+                                    return `Cancha ID: ${canchaId.slice(-4)}`;
+                                  }
+                                  
+                                  // Si es un número corto, asumir que es número de cancha
+                                  return `Cancha ${canchaId}`;
+                                })()}
                               </span>
                               <div className={`px-2 py-1 rounded text-xs ${
                                 turno.estado === 'completado' || turno.estado === 'completada'
@@ -1288,7 +1309,28 @@ export default function RegistroJornadas() {
                             <div key={turnoIndex} className="bg-gray-900 rounded-lg p-4 border border-gray-700">
                               <div className="flex items-center justify-between mb-2">
                                 <span className="text-sm font-medium text-white">
-                                  🎾 Cancha {turno.numeroCancha || turno.cancha || 'N/A'}
+                                  🎾 {(() => {
+                                    console.log('🏟️ Modal - Datos turno:', turno);
+                                    console.log('🏟️ Modal - numeroCancha:', turno.numeroCancha);
+                                    console.log('🏟️ Modal - cancha:', turno.cancha);
+                                    console.log('🏟️ Modal - nombreCancha:', turno.nombreCancha);
+                                    
+                                    // Usar el nombre de la cancha que viene del backend
+                                    if (turno.nombreCancha) {
+                                      return turno.nombreCancha;
+                                    }
+                                    
+                                    const canchaId = turno.numeroCancha || turno.cancha;
+                                    if (!canchaId) return 'Sin cancha asignada';
+                                    
+                                    // Si es un número largo, puede ser un ID de base de datos
+                                    if (typeof canchaId === 'string' && canchaId.length > 10) {
+                                      return `Cancha ID: ${canchaId.slice(-4)}`;
+                                    }
+                                    
+                                    // Si es un número corto, asumir que es número de cancha
+                                    return `Cancha ${canchaId}`;
+                                  })()}
                                 </span>
                                 <div className={`px-2 py-1 rounded text-xs font-medium ${
                                   turno.estado === 'completado' || turno.estado === 'completada'

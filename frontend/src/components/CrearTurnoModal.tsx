@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Calendar, Users, Save, Search } from 'lucide-react';
-import { turnosService, canchasService } from '../services';
+import { turnosService, canchasService, apiService } from '../services';
 import { sociosService, type Socio } from '../services/sociosService';
 import { JornadasService } from '../services/jornadasService';
+import { type PersonalUnificado } from '../services/personalUnificadoService';
 import { formatTo12Hour } from '../utils';
 import { useToast } from '../contexts/ToastContext';
 import { convertTo24h, parseTimeString } from '../utils/timeFormat';
@@ -29,6 +30,7 @@ interface CreateTurnoForm {
   horaFin: string;
   cancha: string;
   observaciones: string;
+  personalAsignado: string[]; // Array de IDs de personal
 }
 
 // Función para obtener la fecha actual en formato local (YYYY-MM-DD)
@@ -50,6 +52,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   const [loadingCanchas, setLoadingCanchas] = useState(true);
   const [socios, setSocios] = useState<Socio[]>([]);
   const [loadingSocios, setLoadingSocios] = useState(true);
+  const [personal, setPersonal] = useState<PersonalUnificado[]>([]);
+  const [loadingPersonal, setLoadingPersonal] = useState(true);
   const [jornadaActual, setJornadaActual] = useState<any>(null);
   const [busquedaSocio, setBusquedaSocio] = useState('');
   const { success: showSuccess, error: showError } = useToast();
@@ -61,7 +65,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     cantidadHoras: 1,
     horaFin: '',
     cancha: '',
-    observaciones: ''
+    observaciones: '',
+    personalAsignado: []
   });
 
   // Cargar datos al abrir el modal
@@ -69,6 +74,7 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     if (isOpen) {
       cargarCanchas();
       cargarSocios();
+      cargarPersonal();
       cargarJornadaActual();
       // Resetear formulario
       setForm({
@@ -78,7 +84,8 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
         cantidadHoras: 1,
         horaFin: '',
         cancha: '',
-        observaciones: ''
+        observaciones: '',
+        personalAsignado: []
       });
       setBusquedaSocio('');
     }
@@ -132,6 +139,21 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
     }
   };
 
+  const cargarPersonal = async () => {
+    try {
+      setLoadingPersonal(true);
+      // No necesitamos pasar clubId porque el backend lo obtiene del token JWT
+      const personalData = await apiService.get<PersonalUnificado[]>('/personal/activos');
+      console.log('✅ Personal cargado en modal:', personalData);
+      setPersonal(personalData);
+    } catch (error) {
+      console.error('❌ Error al cargar personal:', error);
+      showError('Error al cargar personal', 'No se pudo cargar el personal disponible');
+    } finally {
+      setLoadingPersonal(false);
+    }
+  };
+
   const cargarJornadaActual = async () => {
     try {
       const jornada = await JornadasService.getJornadaActual();
@@ -155,6 +177,23 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
 
     return () => clearTimeout(timeoutId);
   }, [busquedaSocio]);
+
+  const togglePersonal = (personalId: string) => {
+    setForm(prev => {
+      const yaSeleccionado = prev.personalAsignado.includes(personalId);
+      if (yaSeleccionado) {
+        return {
+          ...prev,
+          personalAsignado: prev.personalAsignado.filter(id => id !== personalId)
+        };
+      } else {
+        return {
+          ...prev,
+          personalAsignado: [...prev.personalAsignado, personalId]
+        };
+      }
+    });
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -256,6 +295,11 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
       // Agregar socio si está seleccionado
       if (form.socioId) {
         turnoData.socio_id = form.socioId;
+      }
+
+      // Agregar personal asignado si hay alguno seleccionado
+      if (form.personalAsignado && form.personalAsignado.length > 0) {
+        turnoData.personal_asignado = form.personalAsignado;
       }
       
       console.log('🚀 ENVIANDO TURNO - Datos completos:', JSON.stringify(turnoData, null, 2));
@@ -377,6 +421,76 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Asignar Personal */}
+          <div className="bg-gradient-to-r from-purple-900/10 to-purple-800/10 border border-purple-500/20 rounded-lg p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-white">
+              <Users className="w-5 h-5 text-purple-400" />
+              Asignar Personal (Opcional)
+            </h3>
+            
+            {loadingPersonal ? (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
+                <p className="text-gray-400 mt-2">Cargando personal...</p>
+              </div>
+            ) : personal.length === 0 ? (
+              <div className="text-center py-4 bg-gray-800/50 border border-gray-600 rounded-lg">
+                <Users className="w-12 h-12 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400">No hay personal disponible</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {personal.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => togglePersonal(p.id)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border-2 transition-all ${
+                      form.personalAsignado.includes(p.id)
+                        ? 'border-purple-500 bg-purple-500/20'
+                        : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                    }`}
+                  >
+                    <div className="flex-shrink-0">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        form.personalAsignado.includes(p.id)
+                          ? 'bg-purple-500'
+                          : 'bg-gray-700'
+                      }`}>
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1 text-left">
+                      <p className="font-medium text-white">
+                        {p.nombre} {p.apellido}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {p.tipoPersonal.nombre}
+                      </p>
+                    </div>
+                    {form.personalAsignado.includes(p.id) && (
+                      <div className="flex-shrink-0">
+                        <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center">
+                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {form.personalAsignado.length > 0 && (
+              <div className="mt-3 p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                <p className="text-sm text-purple-300">
+                  ✓ {form.personalAsignado.length} {form.personalAsignado.length === 1 ? 'persona asignada' : 'personas asignadas'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Programación */}

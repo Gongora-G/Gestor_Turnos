@@ -1,7 +1,9 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 // import { Club } from '../database/entities/club.entity';
 // import { User } from '../users/entities/user.entity';
 // import { Cancha } from '../configuracion/entities/cancha.entity';
+import { Caddie } from './caddie.entity';
+import { Boleador } from './boleador.entity';
 
 export enum EstadoTurno {
   EN_PROGRESO = 'en_progreso',
@@ -51,6 +53,30 @@ export class Turno {
 
   @Column('uuid', { nullable: true })
   socio_id: string;
+
+  // Relaciones con Caddie y Boleador
+  @Column('uuid', { nullable: true })
+  caddie_id: string;
+
+  @ManyToOne(() => Caddie, caddie => caddie.turnos_como_caddie, { nullable: true })
+  @JoinColumn({ name: 'caddie_id' })
+  caddie: Caddie;
+
+  @Column('uuid', { nullable: true })
+  boleador_id: string;
+
+  @ManyToOne(() => Boleador, boleador => boleador.turnos_como_boleador, { nullable: true })
+  @JoinColumn({ name: 'boleador_id' })
+  boleador: Boleador;
+
+  // Array de IDs de personal asignado al turno (nuevo sistema unificado)
+  @Column({
+    type: 'jsonb',
+    nullable: true,
+    default: '[]',
+    comment: 'Array de IDs de personal asignado al turno del sistema unificado'
+  })
+  personal_asignado: string[];
 
   @Column({
     type: 'enum',

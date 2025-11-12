@@ -6,6 +6,8 @@ import {
   Calendar, 
   FileText, 
   Settings,
+  Users,
+  Award,
   ChevronRight 
 } from 'lucide-react';
 
@@ -33,7 +35,12 @@ const GlobalNavigation: React.FC = () => {
       icon: Calendar,
       description: 'Administrar reservas'
     },
-
+    {
+      path: '/personal',
+      label: 'Personal',
+      icon: Users,
+      description: 'Gestión de personal del club'
+    },
     {
       path: '/reportes',
       label: 'Reportes',

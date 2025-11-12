@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, User, FileText } from 'lucide-react';
+import { X, Calendar, Clock, MapPin, User, FileText, Users } from 'lucide-react';
 import { formatTo24Hour, formatTo12Hour } from '../utils/dateTime';
 import { useToast } from '../contexts/ToastContext';
+import { apiService } from '../services/api';
+import type { PersonalUnificado } from '../services/personalUnificadoService';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -29,6 +31,7 @@ interface Turno {
     nombre: string;
     tipo_membresia: string;
   };
+  personal_asignado?: string[];
   estado: 'en_progreso' | 'completado';
   observaciones?: string;
   created_at: string;
@@ -67,11 +70,34 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
     hora_inicio: '',
     hora_fin: '',
     cancha_id: '',
-    observaciones: ''
+    observaciones: '',
+    personal_asignado: [] as string[]
   });
   
+  const [personal, setPersonal] = useState<PersonalUnificado[]>([]);
+  const [loadingPersonal, setLoadingPersonal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Cargar personal disponible
+  const cargarPersonal = async () => {
+    try {
+      setLoadingPersonal(true);
+      const personalData = await apiService.get<PersonalUnificado[]>('/personal/activos');
+      console.log('✅ Personal cargado en modal edición:', personalData);
+      setPersonal(personalData);
+    } catch (error) {
+      console.error('Error al cargar personal:', error);
+      addToast({
+        type: 'error',
+        title: 'Error',
+        message: 'No se pudo cargar el personal disponible',
+        duration: 3000
+      });
+    } finally {
+      setLoadingPersonal(false);
+    }
+  };
 
   // Cargar datos del turno cuando se abre el modal
   useEffect(() => {
@@ -81,11 +107,23 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
         hora_inicio: turno.hora_inicio,
         hora_fin: turno.hora_fin,
         cancha_id: turno.cancha_id,
-        observaciones: turno.observaciones || ''
+        observaciones: turno.observaciones || '',
+        personal_asignado: turno.personal_asignado || []
       });
       setErrors({});
+      cargarPersonal();
     }
   }, [isOpen, turno]);
+  
+  // Función para alternar selección de personal
+  const togglePersonal = (personalId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      personal_asignado: prev.personal_asignado.includes(personalId)
+        ? prev.personal_asignado.filter(id => id !== personalId)
+        : [...prev.personal_asignado, personalId]
+    }));
+  };
 
   if (!isOpen || !turno) return null;
 
@@ -138,7 +176,8 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
         hora_inicio: formData.hora_inicio,
         hora_fin: formData.hora_fin,
         cancha_id: formData.cancha_id,
-        observaciones: formData.observaciones
+        observaciones: formData.observaciones,
+        personal_asignado: formData.personal_asignado
       });
       
       // Mostrar notificación de éxito
@@ -223,146 +262,204 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6">
+        {/* Form - Compacto */}
+        <form onSubmit={handleSubmit} className="p-5">
           {errors.general && (
-            <div className="mb-4 p-3 bg-red-900/20 border border-red-500/50 text-red-400 rounded-xl">
+            <div className="mb-3 p-2 bg-red-900/20 border border-red-500/50 text-red-400 rounded-lg text-sm">
               {errors.general}
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 mb-4">
             
-            {/* Columna izquierda */}
-            <div className="space-y-4">
-              {/* Fecha */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  Fecha
-                </label>
-                <input
-                  type="date"
-                  value={formData.fecha}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-800 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.fecha ? 'border-red-500' : 'border-gray-600'}`}
-                />
-                {errors.fecha && <p className="text-red-400 text-sm mt-1">{errors.fecha}</p>}
-              </div>
-
-              {/* Hora de inicio */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-                  <Clock className="w-4 h-4 text-emerald-400" />
-                  Hora de Inicio
-                </label>
-                <input
-                  type="time"
-                  value={formData.hora_inicio}
-                  onChange={(e) => handleHoraInicioChange(e.target.value)}
-                  className={`w-full px-3 py-2 bg-gray-800 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.hora_inicio ? 'border-red-500' : 'border-gray-600'}`}
-                />
-                {errors.hora_inicio && <p className="text-red-400 text-sm mt-1">{errors.hora_inicio}</p>}
-                {formData.hora_inicio && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Formato 12h: {formatTo12Hour(formData.hora_inicio)}
-                  </p>
-                )}
-              </div>
-
-              {/* Hora de fin */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-                  <Clock className="w-4 h-4 text-emerald-400" />
-                  Hora de Fin
-                </label>
-                <input
-                  type="time"
-                  value={formData.hora_fin}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hora_fin: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-800 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.hora_fin ? 'border-red-500' : 'border-gray-600'}`}
-                />
-                {errors.hora_fin && <p className="text-red-400 text-sm mt-1">{errors.hora_fin}</p>}
-                {formData.hora_fin && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Formato 12h: {formatTo12Hour(formData.hora_fin)}
-                  </p>
-                )}
-              </div>
+            {/* Fecha */}
+            <div className="col-span-2">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+                <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                Fecha
+              </label>
+              <input
+                type="date"
+                value={formData.fecha}
+                onChange={(e) => setFormData(prev => ({ ...prev, fecha: e.target.value }))}
+                className={`w-full px-2.5 py-1.5 text-sm bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.fecha ? 'border-red-500' : 'border-gray-600'}`}
+              />
+              {errors.fecha && <p className="text-red-400 text-xs mt-1">{errors.fecha}</p>}
             </div>
 
-            {/* Columna derecha */}
-            <div className="space-y-4">
-              {/* Cancha */}
-              <div>
-                <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-                  <MapPin className="w-4 h-4 text-purple-400" />
-                  Cancha
-                </label>
-                <select
-                  value={formData.cancha_id}
-                  onChange={(e) => setFormData(prev => ({ ...prev, cancha_id: e.target.value }))}
-                  className={`w-full px-3 py-2 bg-gray-800 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.cancha_id ? 'border-red-500' : 'border-gray-600'}`}
-                >
-                  <option value="" className="bg-gray-800 text-gray-400">Seleccionar Cancha</option>
-                  {canchas.map((cancha) => (
-                    <option key={cancha.id} value={cancha.id} className="bg-gray-800 text-white">
-                      {cancha.nombre}
-                    </option>
-                  ))}
-                </select>
-                {errors.cancha_id && <p className="text-red-400 text-sm mt-1">{errors.cancha_id}</p>}
-              </div>
-
-              {/* Duración calculada */}
-              {formData.hora_inicio && formData.hora_fin && (
-                <div className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-xl border border-blue-500/30">
-                  <p className="text-sm text-blue-300">
-                    <strong>Duración:</strong> {
-                      (() => {
-                        const inicio = new Date(`2000-01-01T${formData.hora_inicio}`);
-                        const fin = new Date(`2000-01-01T${formData.hora_fin}`);
-                        const diffMs = fin.getTime() - inicio.getTime();
-                        const diffHours = diffMs / (1000 * 60 * 60);
-                        return `${diffHours.toFixed(1)} horas`;
-                      })()
-                    }
-                  </p>
-                </div>
+            {/* Hora de inicio */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                Hora Inicio
+              </label>
+              <input
+                type="time"
+                value={formData.hora_inicio}
+                onChange={(e) => handleHoraInicioChange(e.target.value)}
+                className={`w-full px-2.5 py-1.5 text-sm bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.hora_inicio ? 'border-red-500' : 'border-gray-600'}`}
+              />
+              {errors.hora_inicio && <p className="text-red-400 text-xs mt-1">{errors.hora_inicio}</p>}
+              {formData.hora_inicio && (
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {formatTo12Hour(formData.hora_inicio)}
+                </p>
               )}
             </div>
+
+            {/* Hora de fin */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                Hora Fin
+              </label>
+              <input
+                type="time"
+                value={formData.hora_fin}
+                onChange={(e) => setFormData(prev => ({ ...prev, hora_fin: e.target.value }))}
+                className={`w-full px-2.5 py-1.5 text-sm bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.hora_fin ? 'border-red-500' : 'border-gray-600'}`}
+              />
+              {errors.hora_fin && <p className="text-red-400 text-xs mt-1">{errors.hora_fin}</p>}
+              {formData.hora_fin && (
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  {formatTo12Hour(formData.hora_fin)}
+                </p>
+              )}
+            </div>
+
+            {/* Cancha */}
+            <div className="col-span-2">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+                <MapPin className="w-3.5 h-3.5 text-purple-400" />
+                Cancha
+              </label>
+              <select
+                value={formData.cancha_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, cancha_id: e.target.value }))}
+                className={`w-full px-2.5 py-1.5 text-sm bg-gray-800 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white ${errors.cancha_id ? 'border-red-500' : 'border-gray-600'}`}
+              >
+                <option value="" className="bg-gray-800 text-gray-400">Seleccionar Cancha</option>
+                {canchas.map((cancha) => (
+                  <option key={cancha.id} value={cancha.id} className="bg-gray-800 text-white">
+                    {cancha.nombre}
+                  </option>
+                ))}
+              </select>
+              {errors.cancha_id && <p className="text-red-400 text-xs mt-1">{errors.cancha_id}</p>}
+            </div>
+
+            {/* Duración calculada */}
+            {formData.hora_inicio && formData.hora_fin && (
+              <div className="col-span-2 p-2 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                <p className="text-xs text-blue-300">
+                  <strong>Duración:</strong> {
+                    (() => {
+                      const inicio = new Date(`2000-01-01T${formData.hora_inicio}`);
+                      const fin = new Date(`2000-01-01T${formData.hora_fin}`);
+                      const diffMs = fin.getTime() - inicio.getTime();
+                      const diffHours = diffMs / (1000 * 60 * 60);
+                      return `${diffHours.toFixed(1)} horas`;
+                    })()
+                  }
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Observaciones */}
-          <div className="mt-6">
-            <label className="flex items-center gap-2 text-sm font-medium text-white mb-2">
-              <FileText className="w-4 h-4 text-gray-400" />
-              Observaciones (Opcional)
+          {/* Asignar Personal - Compacto */}
+          <div className="mb-4">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-2">
+              <Users className="w-3.5 h-3.5 text-purple-400" />
+              Asignar Personal
+            </label>
+            
+            {loadingPersonal ? (
+              <div className="flex items-center justify-center p-4 bg-gray-800 rounded-lg border border-gray-700">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
+                <span className="ml-2 text-gray-400 text-sm">Cargando...</span>
+              </div>
+            ) : personal.length === 0 ? (
+              <div className="p-4 bg-gray-800 rounded-lg border border-gray-700 text-center">
+                <p className="text-gray-400 text-sm">Sin personal disponible</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 max-h-44 overflow-y-auto p-0.5">
+                {personal.map((persona) => {
+                  const isSelected = formData.personal_asignado.includes(persona.id);
+                  return (
+                    <div
+                      key={persona.id}
+                      onClick={() => togglePersonal(persona.id)}
+                      className={`p-2 rounded-lg border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'bg-purple-500/20 border-purple-500'
+                          : 'bg-gray-800 border-gray-700 hover:border-purple-500/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {persona.nombre} {persona.apellido}
+                          </p>
+                          <p className="text-[10px] text-purple-400 truncate">
+                            {persona.tipoPersonal.nombre}
+                          </p>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 ${
+                          isSelected
+                            ? 'bg-purple-500 border-purple-500'
+                            : 'border-gray-600'
+                        }`}>
+                          {isSelected && (
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {formData.personal_asignado.length > 0 && (
+              <p className="mt-1.5 text-xs text-purple-400">
+                {formData.personal_asignado.length} seleccionado(s)
+              </p>
+            )}
+          </div>
+
+          {/* Observaciones - Compacto */}
+          <div className="mb-4">
+            <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+              <FileText className="w-3.5 h-3.5 text-gray-400" />
+              Observaciones
             </label>
             <textarea
               value={formData.observaciones}
               onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-              rows={3}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
-              placeholder="Comentarios adicionales sobre el turno..."
+              rows={2}
+              className="w-full px-2.5 py-1.5 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
+              placeholder="Comentarios adicionales..."
             />
           </div>
 
-          {/* Footer */}
-          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-gray-700">
+          {/* Footer - Compacto */}
+          <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 bg-gray-700 text-white hover:bg-gray-600 rounded-xl transition-colors border border-gray-600"
+              className="px-4 py-1.5 text-sm bg-gray-700 text-white hover:bg-gray-600 rounded-lg transition-colors border border-gray-600"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              className="px-4 py-1.5 text-sm bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {loading ? 'Guardando...' : 'Guardar Cambios'}
+              {loading ? 'Guardando...' : 'Guardar'}
             </button>
           </div>
         </form>

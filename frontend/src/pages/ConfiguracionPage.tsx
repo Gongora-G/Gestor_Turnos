@@ -1,4 +1,5 @@
 ﻿import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Settings, 
   Building, 
@@ -6,17 +7,20 @@ import {
   CreditCard,
   UserCheck,
   FileText,
-  Clock
+  Clock,
+  Users,
+  Activity
 } from 'lucide-react';
-import { GlobalNavigation } from '../components';
+import { GlobalNavigation, TiposPersonalConfig } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
 import ConfiguracionJornadasSimple from '../components/ConfiguracionJornadasSimple';
 import { SociosPage } from './SociosPage';
 
-type CategoriaConfig = 'general' | 'membresias' | 'canchas' | 'configuracion-jornadas' | 'registro-jornadas' | 'socios' | 'sistema';
+type CategoriaConfig = 'general' | 'membresias' | 'canchas' | 'configuracion-jornadas' | 'registro-jornadas' | 'socios' | 'tipos-personal' | 'sistema';
 
 const ConfiguracionPage: React.FC = () => {
   const [categoriaActiva, setCategoriaActiva] = useState<CategoriaConfig>('general');
+  const navigate = useNavigate();
 
   const categorias = [
     { 
@@ -60,6 +64,13 @@ const ConfiguracionPage: React.FC = () => {
       icono: UserCheck, 
       color: '#06b6d4',
       descripcion: 'Administrar socios del club'
+    },
+    { 
+      id: 'tipos-personal' as CategoriaConfig, 
+      nombre: 'Tipos de Personal', 
+      icono: Users, 
+      color: '#ec4899',
+      descripcion: 'Configurar tipos de personal del club'
     },
     { 
       id: 'sistema' as CategoriaConfig, 
@@ -149,13 +160,75 @@ const ConfiguracionPage: React.FC = () => {
 
   const renderSistema = () => (
     <div style={cardStyles}>
-      <h3 style={{ color: '#f9fafb', fontSize: '20px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <h3 style={{ color: '#f9fafb', fontSize: '20px', fontWeight: '600', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
         <Shield size={24} style={{ color: '#f59e0b' }} />
         Configuración del Sistema
       </h3>
-      <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px' }}>
-        Configuración avanzada del sistema - Próximamente
-      </p>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+        {/* Card: Estados del Personal */}
+        <button
+          onClick={() => navigate('/configuracion/estados-personal')}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: '20px',
+            background: 'linear-gradient(135deg, #8b5cf620 0%, #8b5cf610 100%)',
+            border: '1px solid #8b5cf640',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            textAlign: 'left',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.borderColor = '#8b5cf680';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.borderColor = '#8b5cf640';
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ padding: '8px', backgroundColor: '#8b5cf620', borderRadius: '8px' }}>
+              <Activity size={24} style={{ color: '#8b5cf6' }} />
+            </div>
+            <h4 style={{ color: '#f9fafb', fontSize: '16px', fontWeight: '600', margin: 0 }}>
+              Estados del Personal
+            </h4>
+          </div>
+          <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
+            Gestiona y crea estados personalizados para el personal (Disponible, Ocupado, etc.)
+          </p>
+        </button>
+
+        {/* Placeholder para futuras configuraciones */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            padding: '20px',
+            background: 'linear-gradient(135deg, #6b728020 0%, #6b728010 100%)',
+            border: '1px solid #6b728030',
+            borderRadius: '12px',
+            opacity: 0.6,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div style={{ padding: '8px', backgroundColor: '#6b728020', borderRadius: '8px' }}>
+              <Shield size={24} style={{ color: '#6b7280' }} />
+            </div>
+            <h4 style={{ color: '#f9fafb', fontSize: '16px', fontWeight: '600', margin: 0 }}>
+              Más Configuraciones
+            </h4>
+          </div>
+          <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0, lineHeight: '1.5' }}>
+            Próximamente más opciones de configuración del sistema
+          </p>
+        </div>
+      </div>
     </div>
   );
 
@@ -163,6 +236,14 @@ const ConfiguracionPage: React.FC = () => {
     return (
       <div style={{ backgroundColor: 'transparent', padding: 0, margin: 0 }}>
         <SociosPage isSubModule={true} />
+      </div>
+    );
+  };
+
+  const renderTiposPersonal = () => {
+    return (
+      <div style={{ backgroundColor: 'transparent', padding: 0, margin: 0 }}>
+        <TiposPersonalConfig />
       </div>
     );
   };
@@ -181,6 +262,8 @@ const ConfiguracionPage: React.FC = () => {
         return renderRegistroJornadas();
       case 'socios':
         return renderSocios();
+      case 'tipos-personal':
+        return renderTiposPersonal();
       case 'sistema':
         return renderSistema();
       default:

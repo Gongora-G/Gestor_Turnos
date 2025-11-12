@@ -1,4 +1,4 @@
-import { IsString, IsUUID, IsOptional, IsEnum, IsDateString, IsInt } from 'class-validator';
+import { IsString, IsUUID, IsOptional, IsEnum, IsDateString, IsInt, IsArray } from 'class-validator';
 import { EstadoTurno } from '../entities/turno.entity';
 
 export class CreateTurnoDto {
@@ -21,6 +21,19 @@ export class CreateTurnoDto {
   @IsOptional()
   @IsUUID()
   socio_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  caddie_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  boleador_id?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  personal_asignado?: string[];
 
   @IsOptional()
   @IsInt()
@@ -55,6 +68,19 @@ export class UpdateTurnoDto {
   @IsOptional()
   @IsUUID()
   cancha_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  caddie_id?: string;
+
+  @IsOptional()
+  @IsUUID()
+  boleador_id?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  personal_asignado?: string[];
 
   @IsOptional()
   @IsEnum(EstadoTurno)

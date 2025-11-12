@@ -16,3 +16,4 @@ export { default as GestionCategorias } from './GestionCategorias';
 export { default as RegistroJornadas } from './RegistroJornadas';
 export { PublicRoute } from './PublicRoute';
 export { default as ConfirmDeleteModal } from './ConfirmDeleteModal';
+export { TiposPersonalConfig } from './TiposPersonalConfig';

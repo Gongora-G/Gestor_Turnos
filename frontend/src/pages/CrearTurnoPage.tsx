@@ -7,13 +7,15 @@ import TimeInput12h from '../components/TimeInput12h';
 
 interface CreateTurnoForm {
   usuarioId: string;
-  caddieId: string;
+  socioId: string;
   fecha: string;
   horaInicio: string;
   cantidadHoras: number;
   horaFin: string;
   cancha: string; // Cambiar a string para UUIDs
   observaciones: string;
+  caddieId?: string;
+  boleadorId?: string;
 }
 
 interface Cancha {
@@ -28,15 +30,18 @@ export const CrearTurnoPage: React.FC = () => {
   const [error, setError] = useState('');
   const [canchas, setCanchas] = useState<Cancha[]>([]);
   const [loadingCanchas, setLoadingCanchas] = useState(true);
+
   const [form, setForm] = useState<CreateTurnoForm>({
     usuarioId: '',
-    caddieId: '',
+    socioId: '',
     fecha: new Date().toISOString().split('T')[0], // Inicializar con fecha actual
     horaInicio: '',
     cantidadHoras: 1,
     horaFin: '',
     cancha: '',
-    observaciones: ''
+    observaciones: '',
+    caddieId: undefined,
+    boleadorId: undefined
   });
 
   // Estilos para los selects profesionales
@@ -141,8 +146,17 @@ export const CrearTurnoPage: React.FC = () => {
         turnoData.usuario_id = form.usuarioId.trim();
       }
       
-      if (form.caddieId && form.caddieId.trim() && uuidRegex.test(form.caddieId.trim())) {
-        turnoData.socio_id = form.caddieId.trim();
+      if (form.socioId && form.socioId.trim() && uuidRegex.test(form.socioId.trim())) {
+        turnoData.socio_id = form.socioId.trim();
+      }
+
+      // Agregar caddie y boleador si están seleccionados
+      if (form.caddieId && uuidRegex.test(form.caddieId)) {
+        turnoData.caddie_id = form.caddieId;
+      }
+
+      if (form.boleadorId && uuidRegex.test(form.boleadorId)) {
+        turnoData.boleador_id = form.boleadorId;
       }
       
       console.log('📤 Enviando datos al backend:', turnoData);
@@ -191,6 +205,8 @@ export const CrearTurnoPage: React.FC = () => {
       return newForm;
     });
   };
+
+
 
   return (
     <div style={{
@@ -286,7 +302,82 @@ export const CrearTurnoPage: React.FC = () => {
                 </h3>
                 
                 <div style={{ display: 'grid', gap: '20px' }}>
-                  <div style={{ marginBottom: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        fontSize: '14px', 
+                        fontWeight: '500', 
+                        marginBottom: '8px',
+                        color: '#d1d5db'
+                      }}>
+                        Usuario ID (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        name="usuarioId"
+                        value={form.usuarioId}
+                        onChange={handleChange}
+                        placeholder="Ingresa UUID del usuario (opcional)"
+                        style={inputStyles}
+                        onFocus={(e) => {
+                          e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #8b5cf6, #3b82f6) border-box';
+                          e.target.style.transform = 'scale(1.02)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6) border-box';
+                          e.target.style.transform = 'scale(1)';
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        fontSize: '14px', 
+                        fontWeight: '500', 
+                        marginBottom: '8px',
+                        color: '#d1d5db'
+                      }}>
+                        Socio ID (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        name="socioId"
+                        value={form.socioId}
+                        onChange={handleChange}
+                        placeholder="Ingresa UUID del socio (opcional)"
+                        style={inputStyles}
+                        onFocus={(e) => {
+                          e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #8b5cf6, #3b82f6) border-box';
+                          e.target.style.transform = 'scale(1.02)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6) border-box';
+                          e.target.style.transform = 'scale(1)';
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal de apoyo - Versión simplificada */}
+              <div>
+                <h3 style={{ 
+                  fontSize: '18px', 
+                  fontWeight: '600', 
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Users style={{ width: '20px', height: '20px', color: '#10b981' }} />
+                  Personal de Apoyo (Opcional)
+                </h3>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                  <div>
                     <label style={{ 
                       display: 'block', 
                       fontSize: '14px', 
@@ -294,68 +385,37 @@ export const CrearTurnoPage: React.FC = () => {
                       marginBottom: '8px',
                       color: '#d1d5db'
                     }}>
-                      Usuario ID (opcional)
+                      Caddie ID (opcional)
                     </label>
                     <input
                       type="text"
-                      name="usuarioId"
-                      value={form.usuarioId}
-                      onChange={handleChange}
-                      placeholder="Ingresa UUID del usuario (opcional)"
+                      name="caddieId"
+                      value={form.caddieId || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, caddieId: e.target.value }))}
+                      placeholder="UUID del caddie (opcional)"
                       style={inputStyles}
-                      onFocus={(e) => {
-                        e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #8b5cf6, #3b82f6) border-box';
-                        e.target.style.transform = 'scale(1.02)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6) border-box';
-                        e.target.style.transform = 'scale(1)';
-                      }}
                     />
                   </div>
-                </div>
-              </div>
-
-              {/* Información del caddie */}
-              <div>
-                <h3 style={{ 
-                  fontSize: '18px', 
-                  fontWeight: '600', 
-                  marginBottom: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}>
-                  <Users style={{ width: '20px', height: '20px', color: '#10b981' }} />
-                  Asignación de Caddie
-                </h3>
-                
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '14px', 
-                    fontWeight: '500', 
-                    marginBottom: '8px',
-                    color: '#d1d5db'
-                  }}>
-                    Socio/Caddie ID (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    name="caddieId"
-                    value={form.caddieId}
-                    onChange={handleChange}
-                    placeholder="Ingresa UUID del socio/caddie (opcional)"
-                    style={inputStyles}
-                    onFocus={(e) => {
-                      e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #8b5cf6, #3b82f6) border-box';
-                      e.target.style.transform = 'scale(1.02)';
-                    }}
-                    onBlur={(e) => {
-                      e.target.style.background = 'linear-gradient(#111827, #111827) padding-box, linear-gradient(135deg, #3b82f6, #8b5cf6) border-box';
-                      e.target.style.transform = 'scale(1)';
-                    }}
-                  />
+                  
+                  <div>
+                    <label style={{ 
+                      display: 'block', 
+                      fontSize: '14px', 
+                      fontWeight: '500', 
+                      marginBottom: '8px',
+                      color: '#d1d5db'
+                    }}>
+                      Boleador ID (opcional)
+                    </label>
+                    <input
+                      type="text"
+                      name="boleadorId"
+                      value={form.boleadorId || ''}
+                      onChange={(e) => setForm(prev => ({ ...prev, boleadorId: e.target.value }))}
+                      placeholder="UUID del boleador (opcional)"
+                      style={inputStyles}
+                    />
+                  </div>
                 </div>
               </div>
 

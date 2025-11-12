@@ -2,18 +2,26 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, In } from 'typeorm';
 import { Turno } from './entities/turno.entity';
+import { Caddie } from './entities/caddie.entity';
+import { Boleador } from './entities/boleador.entity';
 import { Cancha } from '../configuracion/entities/cancha.entity';
 import { Socio } from '../socios/entities/socio.entity';
 import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
 import { CreateTurnoDto, UpdateTurnoDto, FiltrosTurnosDto } from './dto/turno.dto';
 import { JornadasService } from '../jornadas/jornadas.service';
 import { EstadoRegistro } from './entities/turno.entity';
+import { PersonalService } from '../personal/personal.service';
+import { EstadoPersonalService } from '../configuracion/estado-personal.service';
 
 @Injectable()
 export class TurnosService {
   constructor(
     @InjectRepository(Turno)
     private turnosRepository: Repository<Turno>,
+    @InjectRepository(Caddie)
+    private caddiesRepository: Repository<Caddie>,
+    @InjectRepository(Boleador)
+    private boleadoresRepository: Repository<Boleador>,
     @InjectRepository(Cancha)
     private canchasRepository: Repository<Cancha>,
     @InjectRepository(Socio)
@@ -21,6 +29,8 @@ export class TurnosService {
     @InjectRepository(TipoMembresia)
     private tipoMembresiaRepository: Repository<TipoMembresia>,
     private jornadasService: JornadasService,
+    private personalService: PersonalService,
+    private estadoPersonalService: EstadoPersonalService,
   ) {}
 
   async create(createTurnoDto: CreateTurnoDto, clubId: string, usuarioId?: string): Promise<Turno> {
@@ -83,6 +93,17 @@ export class TurnosService {
       
       const turnoGuardado = await this.turnosRepository.save(turno);
       console.log('✅ Turno creado:', turnoGuardado.id, 'con jornada:', turnoGuardado.jornada_config_id);
+
+      // 🎯 AUTOMATIZACIÓN: Cambiar estado del personal asignado a "Ocupado"
+      if (createTurnoDto.personal_asignado && createTurnoDto.personal_asignado.length > 0) {
+        await this.cambiarEstadoPersonalAsignado(
+          createTurnoDto.personal_asignado,
+          'Ocupado',
+          parseInt(clubId)
+        );
+        console.log(`✅ ${createTurnoDto.personal_asignado.length} personal(es) marcado(s) como Ocupado`);
+      }
+
       return turnoGuardado;
     } catch (error) {
       console.error('❌ ERROR creando turno:', error);
@@ -273,17 +294,49 @@ export class TurnosService {
   async update(id: string, updateTurnoDto: UpdateTurnoDto, clubId: string): Promise<Turno> {
     const turno = await this.findOne(id, clubId);
 
+    // 🎯 AUTOMATIZACIÓN: Manejar cambios en personal asignado
+    const personalAnterior = turno.personal_asignado || [];
+    const personalNuevo = updateTurnoDto.personal_asignado || [];
+
+    // Personal que se quitó del turno → volver a Disponible
+    const personalRemovido = personalAnterior.filter(id => !personalNuevo.includes(id));
+    if (personalRemovido.length > 0) {
+      await this.cambiarEstadoPersonalAsignado(personalRemovido, 'Disponible', parseInt(clubId));
+      console.log(`✅ ${personalRemovido.length} personal(es) liberado(s) - vuelto a Disponible`);
+    }
+
+    // Personal agregado al turno → marcar como Ocupado
+    const personalAgregado = personalNuevo.filter(id => !personalAnterior.includes(id));
+    if (personalAgregado.length > 0) {
+      await this.cambiarEstadoPersonalAsignado(personalAgregado, 'Ocupado', parseInt(clubId));
+      console.log(`✅ ${personalAgregado.length} personal(es) asignado(s) - marcado como Ocupado`);
+    }
+
     Object.assign(turno, updateTurnoDto);
     return await this.turnosRepository.save(turno);
   }
 
   async remove(id: string, clubId: string): Promise<void> {
     const turno = await this.findOne(id, clubId);
+    
+    // 🎯 AUTOMATIZACIÓN: Liberar personal asignado al eliminar turno
+    if (turno.personal_asignado && turno.personal_asignado.length > 0) {
+      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', parseInt(clubId));
+      console.log(`✅ Turno eliminado - ${turno.personal_asignado.length} personal(es) liberado(s)`);
+    }
+
     await this.turnosRepository.remove(turno);
   }
 
   async cambiarEstado(id: string, estado: string, clubId: string): Promise<Turno> {
     const turno = await this.findOne(id, clubId);
+    
+    // 🎯 AUTOMATIZACIÓN: Si el turno se completa, liberar personal asignado
+    if (estado === 'completada' && turno.personal_asignado && turno.personal_asignado.length > 0) {
+      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', parseInt(clubId));
+      console.log(`✅ Turno completado - ${turno.personal_asignado.length} personal(es) liberado(s)`);
+    }
+
     turno.estado = estado as any;
     return await this.turnosRepository.save(turno);
   }
@@ -321,5 +374,27 @@ export class TurnosService {
     });
 
     return horarios;
+  }
+
+  /**
+   * Método privado para cambiar el estado de múltiples personal
+   * @param personalIds - Array de IDs del personal
+   * @param nombreEstado - Nombre del estado (Disponible, Ocupado, etc.)
+   * @param clubId - ID del club
+   */
+  private async cambiarEstadoPersonalAsignado(
+    personalIds: string[],
+    nombreEstado: string,
+    clubId: number
+  ): Promise<void> {
+    try {
+      // Cambiar estado de cada personal
+      for (const personalId of personalIds) {
+        await this.personalService.updateEstadoPorNombre(personalId, nombreEstado, clubId);
+      }
+    } catch (error) {
+      console.error(`❌ Error cambiando estado del personal a ${nombreEstado}:`, error);
+      // No lanzar error para no bloquear la creación/actualización del turno
+    }
   }
 }

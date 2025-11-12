@@ -4,7 +4,8 @@ import { AuthProvider } from './contexts';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast';
 import { ProtectedRoute, PublicRoute } from './components';
-import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
+import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, PersonalPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
+import ConfiguracionEstadosPage from './pages/ConfiguracionEstadosPage';
 
 function App() {
   return (
@@ -74,8 +75,15 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-
-
+              {/* Personal Routes */}
+              <Route
+                path="/personal"
+                element={
+                  <ProtectedRoute>
+                    <PersonalPage />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* Configuración Routes */}
               <Route
@@ -83,6 +91,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ConfiguracionPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuracion/estados-personal"
+                element={
+                  <ProtectedRoute>
+                    <ConfiguracionEstadosPage />
                   </ProtectedRoute>
                 }
               />
