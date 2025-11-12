@@ -136,6 +136,7 @@ export const PersonalPage: React.FC = () => {
           email: formData.email,
           tipoPersonalId: tipoSeleccionado,
           datosEspecificos: formData.datosEspecificos,
+          clubId: clubId,
         });
         toast.success('Personal creado correctamente');
       } else if (selectedItem) {
@@ -596,14 +597,14 @@ export const PersonalPage: React.FC = () => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Email
+                        Email (Opcional)
                       </label>
                       <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-md text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="email@ejemplo.com"
+                        placeholder="email@ejemplo.com (opcional)"
                       />
                     </div>
                   </div>

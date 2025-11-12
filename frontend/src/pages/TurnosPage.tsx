@@ -1129,7 +1129,7 @@ export const TurnosPage: React.FC = () => {
               display: 'flex',
               flexWrap: 'wrap',
               gap: '24px',
-              justifyContent: 'center',
+              justifyContent: 'flex-start',
               alignItems: 'flex-start',
               width: '100%',
               padding: '0 20px'
