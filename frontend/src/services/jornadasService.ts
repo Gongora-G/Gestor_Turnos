@@ -271,6 +271,58 @@ export class JornadasService {
     // TODO: Implementar migración
   }
 
+  // ==========================================
+  // 🗑️ SOFT DELETE Y PAPELERA
+  // ==========================================
+
+  /**
+   * Eliminar (mover a papelera) un registro de jornada
+   */
+  static async eliminarRegistroDiario(id: string): Promise<{ mensaje: string }> {
+    const response = await apiService.delete<{ mensaje: string }>(`/jornadas/registro-diario/${id}`);
+    return response;
+  }
+
+  /**
+   * Restaurar un registro desde la papelera
+   */
+  static async restaurarRegistroDiario(id: string): Promise<any> {
+    const response = await apiService.post<any>(`/jornadas/registro-diario/${id}/restaurar`);
+    return response;
+  }
+
+  /**
+   * Obtener todos los registros en la papelera
+   */
+  static async obtenerPapelera(): Promise<any[]> {
+    const response = await apiService.get<any[]>('/jornadas/papelera');
+    return response;
+  }
+
+  /**
+   * Eliminar permanentemente un registro
+   */
+  static async eliminarPermanentemente(id: string): Promise<{ mensaje: string }> {
+    const response = await apiService.delete<{ mensaje: string }>(`/jornadas/registro-diario/${id}/permanente`);
+    return response;
+  }
+
+  /**
+   * Vaciar toda la papelera
+   */
+  static async vaciarPapelera(): Promise<{ mensaje: string; eliminados: number }> {
+    const response = await apiService.post<{ mensaje: string; eliminados: number }>('/jornadas/papelera/vaciar');
+    return response;
+  }
+
+  /**
+   * Ejecutar limpieza automática de registros antiguos (más de 30 días)
+   */
+  static async limpiarPapeleraAutomatica(): Promise<{ eliminados: number }> {
+    const response = await apiService.post<{ eliminados: number }>('/jornadas/papelera/limpiar-automatica');
+    return response;
+  }
+
   // 🔍 Obtener todas las jornadas configuradas del sistema
   static async obtenerJornadasConfiguradas(): Promise<any[]> {
     try {

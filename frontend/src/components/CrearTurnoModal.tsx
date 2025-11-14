@@ -142,9 +142,9 @@ export const CrearTurnoModal: React.FC<CrearTurnoModalProps> = ({
   const cargarPersonal = async () => {
     try {
       setLoadingPersonal(true);
-      // No necesitamos pasar clubId porque el backend lo obtiene del token JWT
-      const personalData = await apiService.get<PersonalUnificado[]>('/personal/activos');
-      console.log('✅ Personal cargado en modal:', personalData);
+      // Cargar solo personal disponible (no ocupado)
+      const personalData = await apiService.get<PersonalUnificado[]>('/personal/disponibles');
+      console.log('✅ Personal disponible cargado en modal:', personalData);
       setPersonal(personalData);
     } catch (error) {
       console.error('❌ Error al cargar personal:', error);

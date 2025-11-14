@@ -40,7 +40,18 @@ export class TurnosService {
     console.log('⏰ Hora inicio del turno:', createTurnoDto.hora_inicio);
     console.log('🔍 DEBUG - DTO completo recibido:', JSON.stringify(createTurnoDto, null, 2));
     
-    try {      
+    try {
+      // 🎯 VALIDACIÓN: Verificar disponibilidad del personal antes de crear el turno
+      if (createTurnoDto.personal_asignado && createTurnoDto.personal_asignado.length > 0) {
+        await this.validarDisponibilidadPersonal(
+          createTurnoDto.personal_asignado,
+          createTurnoDto.fecha,
+          createTurnoDto.hora_inicio,
+          createTurnoDto.hora_fin,
+          clubId
+        );
+      }
+      
       const { nombreAutomatico, numeroTurnoDia } = await this.generarNombreSecuencial(
         createTurnoDto.fecha, 
         clubId
@@ -95,13 +106,20 @@ export class TurnosService {
       console.log('✅ Turno creado:', turnoGuardado.id, 'con jornada:', turnoGuardado.jornada_config_id);
 
       // 🎯 AUTOMATIZACIÓN: Cambiar estado del personal asignado a "Ocupado"
+      console.log('🔍 Verificando personal asignado en DTO:', createTurnoDto.personal_asignado);
+      console.log('🔍 Tipo:', typeof createTurnoDto.personal_asignado, '- Es array:', Array.isArray(createTurnoDto.personal_asignado));
+      console.log('🔍 Personal en turno guardado:', turnoGuardado.personal_asignado);
+      
       if (createTurnoDto.personal_asignado && createTurnoDto.personal_asignado.length > 0) {
+        console.log('✅ HAY personal asignado, procediendo a cambiar estado...');
         await this.cambiarEstadoPersonalAsignado(
           createTurnoDto.personal_asignado,
           'Ocupado',
-          parseInt(clubId)
+          clubId // ✅ FIX: Mantener como string UUID, no convertir a number
         );
         console.log(`✅ ${createTurnoDto.personal_asignado.length} personal(es) marcado(s) como Ocupado`);
+      } else {
+        console.log('⚠️ NO hay personal asignado en el turno');
       }
 
       return turnoGuardado;
@@ -298,18 +316,33 @@ export class TurnosService {
     const personalAnterior = turno.personal_asignado || [];
     const personalNuevo = updateTurnoDto.personal_asignado || [];
 
+    // Personal agregado al turno → validar disponibilidad
+    const personalAgregado = personalNuevo.filter(id => !personalAnterior.includes(id));
+    if (personalAgregado.length > 0) {
+      // Validar disponibilidad del nuevo personal
+      const fechaTurno = updateTurnoDto.fecha || turno.fecha;
+      const horaInicio = updateTurnoDto.hora_inicio || turno.hora_inicio;
+      const horaFin = updateTurnoDto.hora_fin || turno.hora_fin;
+      
+      await this.validarDisponibilidadPersonal(
+        personalAgregado,
+        fechaTurno,
+        horaInicio,
+        horaFin,
+        clubId,
+        id // Excluir el turno actual de la validación
+      );
+      
+      // Marcar como Ocupado
+      await this.cambiarEstadoPersonalAsignado(personalAgregado, 'Ocupado', clubId);
+      console.log(`✅ ${personalAgregado.length} personal(es) asignado(s) - marcado como Ocupado`);
+    }
+
     // Personal que se quitó del turno → volver a Disponible
     const personalRemovido = personalAnterior.filter(id => !personalNuevo.includes(id));
     if (personalRemovido.length > 0) {
-      await this.cambiarEstadoPersonalAsignado(personalRemovido, 'Disponible', parseInt(clubId));
+      await this.cambiarEstadoPersonalAsignado(personalRemovido, 'Disponible', clubId);
       console.log(`✅ ${personalRemovido.length} personal(es) liberado(s) - vuelto a Disponible`);
-    }
-
-    // Personal agregado al turno → marcar como Ocupado
-    const personalAgregado = personalNuevo.filter(id => !personalAnterior.includes(id));
-    if (personalAgregado.length > 0) {
-      await this.cambiarEstadoPersonalAsignado(personalAgregado, 'Ocupado', parseInt(clubId));
-      console.log(`✅ ${personalAgregado.length} personal(es) asignado(s) - marcado como Ocupado`);
     }
 
     Object.assign(turno, updateTurnoDto);
@@ -321,7 +354,7 @@ export class TurnosService {
     
     // 🎯 AUTOMATIZACIÓN: Liberar personal asignado al eliminar turno
     if (turno.personal_asignado && turno.personal_asignado.length > 0) {
-      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', parseInt(clubId));
+      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', clubId);
       console.log(`✅ Turno eliminado - ${turno.personal_asignado.length} personal(es) liberado(s)`);
     }
 
@@ -333,7 +366,7 @@ export class TurnosService {
     
     // 🎯 AUTOMATIZACIÓN: Si el turno se completa, liberar personal asignado
     if (estado === 'completada' && turno.personal_asignado && turno.personal_asignado.length > 0) {
-      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', parseInt(clubId));
+      await this.cambiarEstadoPersonalAsignado(turno.personal_asignado, 'Disponible', clubId);
       console.log(`✅ Turno completado - ${turno.personal_asignado.length} personal(es) liberado(s)`);
     }
 
@@ -377,6 +410,76 @@ export class TurnosService {
   }
 
   /**
+   * Validar que el personal esté disponible en el horario del turno
+   * @param personalIds - Array de IDs del personal a asignar
+   * @param fecha - Fecha del turno
+   * @param horaInicio - Hora de inicio del turno
+   * @param horaFin - Hora de fin del turno
+   * @param clubId - ID del club
+   * @param turnoIdExcluir - ID del turno a excluir de la validación (para ediciones)
+   */
+  private async validarDisponibilidadPersonal(
+    personalIds: string[],
+    fecha: string,
+    horaInicio: string,
+    horaFin: string,
+    clubId: string,
+    turnoIdExcluir?: string
+  ): Promise<void> {
+    try {
+      // Verificar que cada personal no esté asignado a otro turno en el mismo horario
+      for (const personalId of personalIds) {
+        // Buscar turnos activos en la misma fecha y horario
+        const query = this.turnosRepository
+          .createQueryBuilder('turno')
+          .where('turno.club_id = :clubId', { clubId })
+          .andWhere('DATE(turno.fecha) = DATE(:fecha)', { fecha: fecha.split('T')[0] })
+          .andWhere('turno.estado_registro = :estadoActivo', { estadoActivo: EstadoRegistro.ACTIVO })
+          .andWhere('turno.estado NOT IN (:...estadosExcluidos)', { 
+            estadosExcluidos: ['cancelada', 'completada'] 
+          })
+          .andWhere(
+            '(turno.hora_inicio < :horaFin AND turno.hora_fin > :horaInicio)',
+            { horaInicio, horaFin }
+          );
+        
+        // Excluir el turno actual si estamos editando
+        if (turnoIdExcluir) {
+          query.andWhere('turno.id != :turnoIdExcluir', { turnoIdExcluir });
+        }
+        
+        const todosTurnos = await query.getMany();
+
+        // Filtrar turnos donde el personal está asignado (verificación en memoria)
+        const turnosConflicto = todosTurnos.filter(turno => 
+          turno.personal_asignado && 
+          Array.isArray(turno.personal_asignado) && 
+          turno.personal_asignado.includes(personalId)
+        );
+
+        if (turnosConflicto.length > 0) {
+          // Obtener información del personal para el mensaje de error
+          const personal = await this.personalService.findOne(personalId);
+          const turnoConflicto = turnosConflicto[0];
+          
+          throw new ForbiddenException(
+            `El personal ${personal.nombre} ${personal.apellido} ya está asignado al turno "${turnoConflicto.nombre}" ` +
+            `de ${turnoConflicto.hora_inicio} a ${turnoConflicto.hora_fin}. ` +
+            `Por favor selecciona otro personal o modifica el horario.`
+          );
+        }
+      }
+    } catch (error) {
+      // Si el error es de validación de negocio, relanzarlo
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      // Si es otro tipo de error, loguearlo y continuar (no bloquear la creación)
+      console.error('⚠️ Error en validación de disponibilidad del personal:', error);
+    }
+  }
+
+  /**
    * Método privado para cambiar el estado de múltiples personal
    * @param personalIds - Array de IDs del personal
    * @param nombreEstado - Nombre del estado (Disponible, Ocupado, etc.)
@@ -385,15 +488,23 @@ export class TurnosService {
   private async cambiarEstadoPersonalAsignado(
     personalIds: string[],
     nombreEstado: string,
-    clubId: number
+    clubId: string
   ): Promise<void> {
+    console.log(`🔄 Intentando cambiar estado de ${personalIds.length} personal(es) a "${nombreEstado}"`);
+    console.log(`📋 IDs del personal:`, personalIds);
+    console.log(`🏢 Club ID:`, clubId);
+    
     try {
       // Cambiar estado de cada personal
       for (const personalId of personalIds) {
-        await this.personalService.updateEstadoPorNombre(personalId, nombreEstado, clubId);
+        console.log(`  → Cambiando estado del personal ${personalId} a "${nombreEstado}"...`);
+        const resultado = await this.personalService.updateEstadoPorNombre(personalId, nombreEstado, clubId);
+        console.log(`  ✅ Estado actualizado para personal ${personalId}:`, resultado.estado);
       }
+      console.log(`✅ Todos los estados actualizados correctamente`);
     } catch (error) {
       console.error(`❌ Error cambiando estado del personal a ${nombreEstado}:`, error);
+      console.error(`❌ Error completo:`, error.stack);
       // No lanzar error para no bloquear la creación/actualización del turno
     }
   }

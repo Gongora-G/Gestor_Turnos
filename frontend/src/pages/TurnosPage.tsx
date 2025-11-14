@@ -393,11 +393,16 @@ export const TurnosPage: React.FC = () => {
       if (respuesta === 'cancelar') {
         return; // No guardar nada
       } else if (respuesta === 'autocompletar-todos') {
-        // Auto-completar todos los turnos y GUARDAR JORNADA
+        // Auto-completar todos los turnos (SIN GUARDAR JORNADA)
         await completarTurnosAutomaticamente(turnosEnProgreso.map(t => t.id));
         // Recargar turnos después de completar
         await recargarTurnosJornadaActiva();
-        // Como se completaron TODOS, proceder a guardar la jornada
+        showSuccess(
+          '✅ Turnos completados', 
+          'Todos los turnos han sido completados. Ahora puedes guardar la jornada cuando desees.'
+        );
+        setGuardandoJornada(false);
+        return; // NO proceder a guardar jornada automáticamente
       } else if (respuesta === 'seleccionar') {
         // Mostrar modal de selección individual
         const turnosSeleccionados = await mostrarModalSeleccionTurnos(turnosEnProgreso);
@@ -442,7 +447,13 @@ export const TurnosPage: React.FC = () => {
           setGuardandoJornada(false);
           return; // NO guardar jornada todavía
         }
-        // Si llegamos aquí, todos los turnos están completados, proceder a guardar
+        // Todos los turnos están completados, pero NO guardar automáticamente
+        showSuccess(
+          '✅ Todos los turnos completados', 
+          'Todos los turnos han sido completados. Ahora puedes guardar la jornada cuando desees.'
+        );
+        setGuardandoJornada(false);
+        return; // NO proceder a guardar jornada automáticamente
       }
     }
 

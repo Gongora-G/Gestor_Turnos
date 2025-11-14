@@ -355,6 +355,9 @@ export class JornadasService {
 
     const query = this.registrosJornadaRepository.createQueryBuilder('registro');
 
+    // 🔒 FILTRAR: No mostrar registros eliminados
+    query.andWhere('(registro.eliminado = :eliminado OR registro.eliminado IS NULL)', { eliminado: false });
+
     if (fechaInicio) {
       query.andWhere('registro.fecha >= :fechaInicio', { 
         fechaInicio: fechaInicio.toISOString().split('T')[0] 
@@ -877,5 +880,188 @@ export class JornadasService {
       .createQueryBuilder('jornada')
       .where('jornada.id IN (:...ids)', { ids })
       .getMany();
+  }
+
+  // ==========================================
+  // 🗑️ SOFT DELETE Y PAPELERA
+  // ==========================================
+
+  /**
+   * Eliminar (soft delete) un registro de jornada
+   */
+  async eliminarRegistroDiario(id: string, userId: string): Promise<{ mensaje: string }> {
+    try {
+      this.logger.log(`🔍 Buscando registro con ID: ${id}`);
+      this.logger.log(`🔍 Tipo de ID recibido: ${typeof id}`);
+      
+      const registro = await this.registrosJornadaRepository.findOne({ 
+        where: { id } 
+      });
+
+      this.logger.log(`🔍 Registro encontrado:`, registro);
+
+      if (!registro) {
+        this.logger.error(`❌ Registro con ID ${id} NO encontrado en la base de datos`);
+        throw new NotFoundException(`Registro con ID ${id} no encontrado`);
+      }
+
+      if (registro.eliminado) {
+        throw new BadRequestException('Este registro ya está en la papelera');
+      }
+
+      // Soft delete
+      registro.eliminado = true;
+      registro.fechaEliminacion = new Date();
+      registro.eliminadoPor = userId;
+
+      await this.registrosJornadaRepository.save(registro);
+
+      this.logger.log(`🗑️ Registro ${id} movido a papelera por usuario ${userId}`);
+      
+      return { 
+        mensaje: 'Registro movido a la papelera. Se eliminará permanentemente en 30 días.' 
+      };
+    } catch (error) {
+      this.logger.error('❌ Error al eliminar registro:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Restaurar un registro de jornada desde la papelera
+   */
+  async restaurarRegistroDiario(id: string): Promise<RegistroJornada> {
+    try {
+      const registro = await this.registrosJornadaRepository.findOne({ 
+        where: { id } 
+      });
+
+      if (!registro) {
+        throw new NotFoundException(`Registro con ID ${id} no encontrado`);
+      }
+
+      if (!registro.eliminado) {
+        throw new BadRequestException('Este registro no está en la papelera');
+      }
+
+      // Restaurar
+      registro.eliminado = false;
+      registro.fechaEliminacion = null as any;
+      registro.eliminadoPor = null as any;
+
+      const registroRestaurado = await this.registrosJornadaRepository.save(registro);
+
+      this.logger.log(`♻️ Registro ${id} restaurado desde la papelera`);
+      
+      return registroRestaurado;
+    } catch (error) {
+      this.logger.error('❌ Error al restaurar registro:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener registros en la papelera
+   */
+  async obtenerPapelera(): Promise<RegistroJornada[]> {
+    try {
+      const registrosEliminados = await this.registrosJornadaRepository.find({
+        where: { eliminado: true },
+        order: { fechaEliminacion: 'DESC' }
+      });
+
+      this.logger.log(`📋 Se encontraron ${registrosEliminados.length} registros en la papelera`);
+      
+      return registrosEliminados;
+    } catch (error) {
+      this.logger.error('❌ Error al obtener papelera:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Eliminar permanentemente un registro (hard delete)
+   */
+  async eliminarPermanentemente(id: string): Promise<{ mensaje: string }> {
+    try {
+      const registro = await this.registrosJornadaRepository.findOne({ 
+        where: { id } 
+      });
+
+      if (!registro) {
+        throw new NotFoundException(`Registro con ID ${id} no encontrado`);
+      }
+
+      // Eliminar el registro
+      await this.registrosJornadaRepository.remove(registro);
+
+      this.logger.log(`💥 Registro ${id} eliminado PERMANENTEMENTE`);
+      
+      return { 
+        mensaje: 'Registro eliminado permanentemente' 
+      };
+    } catch (error) {
+      this.logger.error('❌ Error al eliminar permanentemente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Limpiar registros antiguos de la papelera (más de 30 días)
+   * Este método debe ser llamado por un cron job
+   */
+  async limpiarPapeleraAutomaticamente(): Promise<{ eliminados: number }> {
+    try {
+      const hace30Dias = new Date();
+      hace30Dias.setDate(hace30Dias.getDate() - 30);
+
+      const registrosAntiguos = await this.registrosJornadaRepository
+        .createQueryBuilder('registro')
+        .where('registro.eliminado = :eliminado', { eliminado: true })
+        .andWhere('registro.fechaEliminacion < :fecha', { fecha: hace30Dias })
+        .getMany();
+
+      let contador = 0;
+      for (const registro of registrosAntiguos) {
+        // Eliminar registro
+        await this.registrosJornadaRepository.remove(registro);
+        contador++;
+      }
+
+      this.logger.log(`🧹 Limpieza automática: ${contador} registros eliminados permanentemente`);
+      
+      return { eliminados: contador };
+    } catch (error) {
+      this.logger.error('❌ Error en limpieza automática de papelera:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vaciar completamente la papelera
+   */
+  async vaciarPapelera(): Promise<{ mensaje: string; eliminados: number }> {
+    try {
+      const registrosEliminados = await this.registrosJornadaRepository.find({
+        where: { eliminado: true }
+      });
+
+      let contador = 0;
+      for (const registro of registrosEliminados) {
+        // Eliminar registro
+        await this.registrosJornadaRepository.remove(registro);
+        contador++;
+      }
+
+      this.logger.log(`🗑️💥 Papelera vaciada: ${contador} registros eliminados permanentemente`);
+      
+      return { 
+        mensaje: 'Papelera vaciada completamente',
+        eliminados: contador
+      };
+    } catch (error) {
+      this.logger.error('❌ Error al vaciar papelera:', error);
+      throw error;
+    }
   }
 }

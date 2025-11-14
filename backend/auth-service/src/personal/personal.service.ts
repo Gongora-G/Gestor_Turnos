@@ -96,21 +96,27 @@ export class PersonalService {
     clubId: string,
     tipoPersonalId?: number,
   ): Promise<Personal[]> {
-    const where: any = {
-      clubId,
-      activo: true,
-      estado: 'disponible',
-    };
+    // Usar query builder para una búsqueda más robusta
+    const query = this.personalRepository
+      .createQueryBuilder('personal')
+      .leftJoinAndSelect('personal.tipoPersonal', 'tipoPersonal')
+      .leftJoinAndSelect('personal.estadoObj', 'estadoObj')
+      .where('personal.clubId = :clubId', { clubId })
+      .andWhere('personal.activo = :activo', { activo: true })
+      // Buscar por campo deprecado o por estado relacionado
+      .andWhere(
+        '(LOWER(personal.estado) = :estadoStr OR LOWER(estadoObj.nombre) = :estadoStr)',
+        { estadoStr: 'disponible' }
+      );
 
     if (tipoPersonalId) {
-      where.tipoPersonalId = tipoPersonalId;
+      query.andWhere('personal.tipoPersonalId = :tipoPersonalId', { tipoPersonalId });
     }
 
-    return await this.personalRepository.find({
-      where,
-      relations: ['tipoPersonal'],
-      order: { nombre: 'ASC', apellido: 'ASC' },
-    });
+    return await query
+      .orderBy('personal.nombre', 'ASC')
+      .addOrderBy('personal.apellido', 'ASC')
+      .getMany();
   }
 
   async update(id: string, updateDto: UpdatePersonalDto): Promise<Personal> {
@@ -166,25 +172,36 @@ export class PersonalService {
   async updateEstadoPorNombre(
     id: string,
     nombreEstado: string,
-    clubId: number,
+    clubId: string | number,
   ): Promise<Personal> {
+    console.log(`📝 Actualizando estado del personal ${id} a "${nombreEstado}" (Club: ${clubId})`);
     const personal = await this.findOne(id);
+    console.log(`✅ Personal encontrado:`, personal.nombre, personal.apellido);
     
-    // Buscar el estado por nombre
+    // Convertir clubId a string si viene como número (para compatibilidad)
+    const clubIdStr = typeof clubId === 'number' ? String(clubId) : clubId;
+    
+    // Buscar el estado por nombre (case-insensitive)
     const estadoObj = await this.estadoPersonalRepository.findOne({
       where: { 
-        clubId,
+        clubId: clubIdStr as any,
         nombre: nombreEstado,
         activo: true,
       },
     });
 
+    console.log(`🔍 Estado buscado: "${nombreEstado}" en club ${clubId}`, estadoObj ? '✅ Encontrado' : '❌ No encontrado');
+
     if (!estadoObj) {
-      throw new NotFoundException(`Estado '${nombreEstado}' no encontrado o no está activo`);
+      // Si no existe el estado, crearlo o actualizar solo el campo deprecado
+      console.warn(`⚠️ Estado '${nombreEstado}' no encontrado en tabla estado_personal. Actualizando solo campo deprecado.`);
+      personal.estado = nombreEstado.toLowerCase(); // Usar campo deprecado
+      return await this.personalRepository.save(personal);
     }
 
     personal.estadoId = estadoObj.id;
-    personal.estado = nombreEstado; // Mantener sincronizado el campo deprecado
+    personal.estado = nombreEstado.toLowerCase(); // Mantener sincronizado el campo deprecado
+    console.log(`✅ Guardando personal con estadoId: ${estadoObj.id}, estado: ${nombreEstado}`);
     return await this.personalRepository.save(personal);
   }
 

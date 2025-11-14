@@ -197,4 +197,48 @@ export class JornadasController {
     this.logger.log(`🔄 POST /jornadas/activar-siguiente - Club: ${clubId}`);
     return await this.jornadasService.activarSiguienteJornada(clubId);
   }
+
+  // ==========================================
+  // 🗑️ SOFT DELETE Y PAPELERA
+  // ==========================================
+
+  @Delete('registro-diario/:id')
+  async eliminarRegistroDiario(
+    @Param('id') id: string,
+    @Request() req: any
+  ) {
+    const userId = req.user?.userId || req.user?.id;
+    this.logger.log(`🗑️ DELETE /jornadas/registro-diario/${id} - Usuario: ${userId}`);
+    return await this.jornadasService.eliminarRegistroDiario(id, userId);
+  }
+
+  @Post('registro-diario/:id/restaurar')
+  async restaurarRegistroDiario(@Param('id') id: string) {
+    this.logger.log(`♻️ POST /jornadas/registro-diario/${id}/restaurar`);
+    return await this.jornadasService.restaurarRegistroDiario(id);
+  }
+
+  @Get('papelera')
+  async obtenerPapelera() {
+    this.logger.log('📋 GET /jornadas/papelera');
+    return await this.jornadasService.obtenerPapelera();
+  }
+
+  @Delete('registro-diario/:id/permanente')
+  async eliminarPermanentemente(@Param('id') id: string) {
+    this.logger.log(`💥 DELETE /jornadas/registro-diario/${id}/permanente`);
+    return await this.jornadasService.eliminarPermanentemente(id);
+  }
+
+  @Post('papelera/vaciar')
+  async vaciarPapelera() {
+    this.logger.log('🗑️💥 POST /jornadas/papelera/vaciar');
+    return await this.jornadasService.vaciarPapelera();
+  }
+
+  @Post('papelera/limpiar-automatica')
+  async limpiarPapeleraAutomatica() {
+    this.logger.log('🧹 POST /jornadas/papelera/limpiar-automatica');
+    return await this.jornadasService.limpiarPapeleraAutomaticamente();
+  }
 }

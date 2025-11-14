@@ -126,6 +126,15 @@ export class RegistroJornadaDiaria {
   @Column({ name: 'total_completados', type: 'integer', default: 0 })
   totalCompletados: number;
 
+  @Column({ type: 'boolean', default: false })
+  eliminado: boolean;
+
+  @Column({ name: 'fecha_eliminacion', type: 'timestamp', nullable: true })
+  fechaEliminacion: Date;
+
+  @Column({ name: 'eliminado_por', type: 'uuid', nullable: true })
+  eliminadoPor: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
@@ -224,6 +233,15 @@ export class RegistroJornada {
 
   @Column({ name: 'fecha_cierre', type: 'timestamp', nullable: true })
   fechaCierre: Date;
+
+  @Column({ type: 'boolean', default: false })
+  eliminado: boolean;
+
+  @Column({ name: 'fecha_eliminacion', type: 'timestamp', nullable: true })
+  fechaEliminacion: Date;
+
+  @Column({ name: 'eliminado_por', type: 'uuid', nullable: true })
+  eliminadoPor: string;
 }
 
 // ==========================================

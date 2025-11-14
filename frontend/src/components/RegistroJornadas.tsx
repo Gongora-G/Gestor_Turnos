@@ -84,6 +84,25 @@ export default function RegistroJornadas() {
   const [jornadasSistemaColapsado, setJornadasSistemaColapsado] = useState(true);
   const [estadisticasJornadas, setEstadisticasJornadas] = useState<{[jornadaId: string]: any}>({});
   const [loadingEstadisticasJornadas, setLoadingEstadisticasJornadas] = useState(false);
+  
+  // Estados para eliminación
+  const [modalConfirmarEliminar, setModalConfirmarEliminar] = useState(false);
+  const [registroAEliminar, setRegistroAEliminar] = useState<any>(null);
+  
+  // Estados para papelera
+  const [modalPapeleraAbierto, setModalPapeleraAbierto] = useState(false);
+  const [registrosPapelera, setRegistrosPapelera] = useState<any[]>([]);
+  const [loadingPapelera, setLoadingPapelera] = useState(false);
+  
+  // Estados para eliminar día completo
+  const [modalEliminarDia, setModalEliminarDia] = useState(false);
+  const [diaAEliminar, setDiaAEliminar] = useState<{fecha: string; registros: any[]} | null>(null);
+  
+  // Estados para eliminación permanente y vaciar papelera
+  const [modalEliminarPermanente, setModalEliminarPermanente] = useState(false);
+  const [registroEliminarPermanente, setRegistroEliminarPermanente] = useState<any | null>(null);
+  const [modalVaciarPapelera, setModalVaciarPapelera] = useState(false);
+  
   const [filtros, setFiltros] = useState({
     fechaInicio: (() => {
       const fecha = new Date();
@@ -233,6 +252,172 @@ export default function RegistroJornadas() {
   const abrirDetallesDia = (fecha: string) => {
     setDiaSeleccionado(fecha);
     setModalDiaAbierto(true);
+  };
+
+  // 🗑️ Funciones de eliminación
+  const confirmarEliminarRegistro = (registro: any) => {
+    console.error('🗑️ DEBUG CONFIRMAR - Registro completo:', registro);
+    console.error('🗑️ DEBUG CONFIRMAR - ID del registro:', registro.id);
+    console.error('🗑️ DEBUG CONFIRMAR - Tipo de ID:', typeof registro.id);
+    console.error('🗑️ DEBUG CONFIRMAR - Todas las propiedades:', Object.keys(registro));
+    setRegistroAEliminar(registro);
+    setModalConfirmarEliminar(true);
+  };
+
+  const eliminarRegistro = async () => {
+    if (!registroAEliminar) return;
+
+    try {
+      setLoading(true);
+      console.error('🗑️ DEBUG - Eliminando registro:', registroAEliminar);
+      console.error('🗑️ DEBUG - ID a eliminar:', registroAEliminar.id);
+      console.error('🗑️ DEBUG - Tipo de ID:', typeof registroAEliminar.id);
+      await JornadasService.eliminarRegistroDiario(registroAEliminar.id);
+      
+      success(
+        '🗑️ Registro movido a papelera',
+        'El registro se eliminará permanentemente en 30 días. Puedes restaurarlo desde la papelera.'
+      );
+
+      // Recargar registros
+      await cargarRegistros();
+      
+      setModalConfirmarEliminar(false);
+      setRegistroAEliminar(null);
+      setModalDiaAbierto(false); // Cerrar el modal de detalles también
+    } catch (err: any) {
+      error('Error', err.response?.data?.message || 'No se pudo eliminar el registro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 📋 Funciones de papelera
+  const cargarPapelera = async () => {
+    try {
+      setLoadingPapelera(true);
+      const registros = await JornadasService.obtenerPapelera();
+      setRegistrosPapelera(registros);
+    } catch (err: any) {
+      error('Error', 'No se pudo cargar la papelera');
+    } finally {
+      setLoadingPapelera(false);
+    }
+  };
+
+  const abrirPapelera = async () => {
+    setModalPapeleraAbierto(true);
+    await cargarPapelera();
+  };
+
+  const restaurarRegistro = async (registroId: string) => {
+    try {
+      setLoading(true);
+      await JornadasService.restaurarRegistroDiario(registroId);
+      
+      success(
+        '♻️ Registro restaurado',
+        'El registro ha sido restaurado correctamente'
+      );
+
+      // Recargar papelera y registros
+      await cargarPapelera();
+      await cargarRegistros();
+    } catch (err: any) {
+      error('Error', err.response?.data?.message || 'No se pudo restaurar el registro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarEliminarPermanente = (registro: any) => {
+    setRegistroEliminarPermanente(registro);
+    setModalEliminarPermanente(true);
+  };
+
+  const eliminarPermanentemente = async () => {
+    if (!registroEliminarPermanente) return;
+
+    try {
+      setLoading(true);
+      await JornadasService.eliminarPermanentemente(registroEliminarPermanente.id);
+      
+      success(
+        '💥 Registro eliminado permanentemente',
+        'El registro ha sido eliminado definitivamente'
+      );
+
+      setModalEliminarPermanente(false);
+      setRegistroEliminarPermanente(null);
+
+      // Recargar papelera
+      await cargarPapelera();
+    } catch (err: any) {
+      error('Error', err.response?.data?.message || 'No se pudo eliminar el registro');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarVaciarPapelera = () => {
+    setModalVaciarPapelera(true);
+  };
+
+  const vaciarPapelera = async () => {
+    try {
+      setLoading(true);
+      const resultado = await JornadasService.vaciarPapelera();
+      
+      success(
+        '🗑️💥 Papelera vaciada',
+        `Se eliminaron permanentemente ${resultado.eliminados} registros`
+      );
+
+      setModalVaciarPapelera(false);
+
+      // Recargar papelera
+      await cargarPapelera();
+    } catch (err: any) {
+      error('Error', err.response?.data?.message || 'No se pudo vaciar la papelera');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Confirmar eliminación de día completo
+  const confirmarEliminarDiaCompleto = (fecha: string, registros: any[]) => {
+    setDiaAEliminar({ fecha, registros });
+    setModalEliminarDia(true);
+  };
+
+  // Eliminar día completo
+  const eliminarDiaCompleto = async () => {
+    if (!diaAEliminar) return;
+
+    try {
+      setLoading(true);
+      
+      // Eliminar cada registro del día
+      for (const registro of diaAEliminar.registros) {
+        await JornadasService.eliminarRegistroDiario(registro.id);
+      }
+
+      success(
+        '🗑️ Día completo movido a papelera',
+        `Se movieron ${diaAEliminar.registros.length} jornadas a la papelera`
+      );
+
+      // Recargar registros y papelera
+      await cargarRegistros();
+      await cargarPapelera();
+      
+      setModalEliminarDia(false);
+      setDiaAEliminar(null);
+    } catch (err: any) {
+      error('Error', err.response?.data?.message || 'No se pudo eliminar el día completo');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Obtener resumen de un día
@@ -395,6 +580,7 @@ export default function RegistroJornadas() {
   useEffect(() => {
     cargarRegistros();
     cargarJornadasSistema(); // Cargar jornadas del sistema al montar el componente
+    cargarPapelera(); // Cargar papelera para mostrar el contador
   }, [filtros.fechaInicio, filtros.fechaFin, filtros.estado]);
 
   // Colores para las jornadas (igual que en ConfiguracionJornadas)
@@ -430,13 +616,27 @@ export default function RegistroJornadas() {
             Gestiona y supervisa los turnos de cada jornada configurada
           </p>
         </div>
-        <button
-          onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={abrirPapelera}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors border border-red-500/30 relative"
+          >
+            <Trash2 className="w-4 h-4" />
+            Papelera
+            {registrosPapelera.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                {registrosPapelera.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {/* Filtros */}
@@ -587,7 +787,7 @@ export default function RegistroJornadas() {
                         const color = coloresJornada[colorIndex % coloresJornada.length] || coloresJornada[0];
 
                         return (
-                          <div key={index} className="flex items-center gap-2 text-sm">
+                          <div key={index} className="flex items-center gap-2 text-sm group/item hover:bg-gray-700/30 rounded px-2 py-1 -mx-2">
                             <div className={`w-2 h-2 ${color.bg} rounded-full`}></div>
                             <span className="text-gray-300 flex-1">
                               {jornadaInfo ? `${jornadaInfo.codigo} - ${jornadaInfo.nombre}` : 'Jornada'}
@@ -597,6 +797,16 @@ export default function RegistroJornadas() {
                                registro.total_turnos || 
                                (registro.turnosRegistrados?.length || 0)} turnos
                             </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmarEliminarRegistro(registro);
+                              }}
+                              className="opacity-0 group-hover/item:opacity-100 p-1 hover:bg-red-600/20 text-red-400 rounded transition-all"
+                              title="Mover a papelera"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
                           </div>
                         );
                       })}
@@ -607,14 +817,26 @@ export default function RegistroJornadas() {
                       )}
                     </div>
 
-                    {/* Botón de acción */}
-                    <button
-                      onClick={() => abrirDetallesDia(fecha)}
-                      className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 group-hover:bg-blue-700"
-                    >
-                      <Eye className="w-4 h-4" />
-                      Ver Detalles del Día
-                    </button>
+                    {/* Botones de acción */}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => abrirDetallesDia(fecha)}
+                        className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver Detalles
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          confirmarEliminarDiaCompleto(fecha, registrosDia);
+                        }}
+                        className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors border border-red-500/30"
+                        title="Eliminar día completo"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1288,13 +1510,26 @@ export default function RegistroJornadas() {
                           )}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-xl font-bold text-green-400">
-                          {registro.estadisticas?.totalTurnos || 
-                           registro.total_turnos || 
-                           (registro.turnosRegistrados?.length || 0)}
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-xl font-bold text-green-400">
+                            {registro.estadisticas?.totalTurnos || 
+                             registro.total_turnos || 
+                             (registro.turnosRegistrados?.length || 0)}
+                          </div>
+                          <div className="text-xs text-gray-400">Turnos</div>
                         </div>
-                        <div className="text-xs text-gray-400">Turnos</div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            console.error('🔴 CLICK EN BOTÓN ELIMINAR - Registro:', registro);
+                            confirmarEliminarRegistro(registro);
+                          }}
+                          className="p-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors group"
+                          title="Mover a papelera"
+                        >
+                          <Trash2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                        </button>
                       </div>
                     </div>
 
@@ -1402,6 +1637,460 @@ export default function RegistroJornadas() {
             <p className="text-gray-500">No se encontraron detalles para este día</p>
           </div>
         )}
+      </Modal>
+
+      {/* Modal de confirmación de eliminación */}
+      <Modal
+        isOpen={modalConfirmarEliminar}
+        onClose={() => {
+          setModalConfirmarEliminar(false);
+          setRegistroAEliminar(null);
+        }}
+        title="🗑️ Confirmar Eliminación"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-semibold mb-2">¿Estás seguro?</h4>
+                <p className="text-gray-300 text-sm mb-3">
+                  Vas a mover este registro a la papelera:
+                </p>
+                
+                {registroAEliminar && (
+                  <div className="bg-gray-800 rounded-lg p-3 mb-3">
+                    <div className="text-sm text-gray-300 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-400" />
+                        <span className="font-semibold">
+                          {new Date(registroAEliminar.fecha).toLocaleDateString('es-ES', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-green-400" />
+                        <span>
+                          {registroAEliminar.estadisticas?.totalTurnos || 
+                           registroAEliminar.total_turnos || 
+                           (registroAEliminar.turnosRegistrados?.length || 0)} turnos registrados
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+                  <p className="text-blue-300 text-xs">
+                    ℹ️ <strong>Nota:</strong> El registro se moverá a la papelera y se eliminará permanentemente 
+                    después de 30 días. Podrás restaurarlo antes de ese tiempo desde la sección de papelera.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => {
+                setModalConfirmarEliminar(false);
+                setRegistroAEliminar(null);
+              }}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={eliminarRegistro}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Mover a Papelera
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de Papelera */}
+      <Modal
+        isOpen={modalPapeleraAbierto}
+        onClose={() => setModalPapeleraAbierto(false)}
+        title="🗑️ Papelera de Registros"
+        size="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 flex-1">
+              <p className="text-blue-300 text-sm">
+                ℹ️ Los registros en la papelera se eliminarán permanentemente después de 30 días. 
+                Puedes restaurarlos antes de ese tiempo.
+              </p>
+            </div>
+            {registrosPapelera.length > 0 && (
+              <button
+                onClick={confirmarVaciarPapelera}
+                className="ml-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                disabled={loading}
+              >
+                <Trash2 className="w-4 h-4" />
+                Vaciar Papelera
+              </button>
+            )}
+          </div>
+
+          {loadingPapelera ? (
+            <div className="text-center py-12">
+              <RefreshCw className="w-12 h-12 text-blue-400 mx-auto mb-4 animate-spin" />
+              <p className="text-gray-400">Cargando papelera...</p>
+            </div>
+          ) : registrosPapelera.length === 0 ? (
+            <div className="text-center py-12">
+              <Trash2 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+              <h4 className="text-lg font-medium text-gray-400 mb-2">Papelera vacía</h4>
+              <p className="text-gray-500">No hay registros eliminados</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {registrosPapelera.map((registro) => {
+                const jornadaId = registro.jornada_config_id || registro.jornadaConfigId;
+                const jornadaInfo = jornadasSistema.find(j => j.id == jornadaId);
+                const diasTranscurridos = registro.fechaEliminacion || registro.fecha_eliminacion
+                  ? Math.floor((new Date().getTime() - new Date(registro.fechaEliminacion || registro.fecha_eliminacion).getTime()) / (1000 * 60 * 60 * 24))
+                  : 0;
+                const diasRestantes = 30 - diasTranscurridos;
+
+                return (
+                  <div key={registro.id} className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-red-500/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <Calendar className="w-5 h-5 text-red-400" />
+                          <div>
+                            <h4 className="text-white font-semibold">
+                              Registro del {new Date(registro.fecha).toLocaleDateString('es-ES', {
+                                weekday: 'long',
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </h4>
+                            <p className="text-sm text-gray-400">
+                              {jornadaInfo ? `${jornadaInfo.codigo} - ${jornadaInfo.nombre}` : 'Jornada'}
+                              {' • '}
+                              {registro.estadisticas?.totalTurnos || registro.total_turnos || 
+                               (registro.turnosRegistrados?.length || 0)} turnos
+                            </p>
+                            {(registro.fechaEliminacion || registro.fecha_eliminacion) && (
+                              <p className="text-xs text-red-400 mt-1">
+                                🗑️ Eliminado el {new Date(registro.fechaEliminacion || registro.fecha_eliminacion).toLocaleDateString('es-ES', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-gray-500">
+                          <span>Eliminado hace {diasTranscurridos} día{diasTranscurridos !== 1 ? 's' : ''}</span>
+                          <span className={diasRestantes <= 7 ? 'text-red-400' : 'text-gray-500'}>
+                            Se eliminará permanentemente en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => confirmarEliminarPermanente(registro)}
+                          className="px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors border border-red-500/30"
+                          disabled={loading}
+                          title="Eliminar permanentemente"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => restaurarRegistro(registro.id)}
+                          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                          disabled={loading}
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Restaurar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Modal Confirmación Eliminar Permanente */}
+      <Modal
+        isOpen={modalEliminarPermanente}
+        onClose={() => {
+          setModalEliminarPermanente(false);
+          setRegistroEliminarPermanente(null);
+        }}
+        title="💥 Eliminar Permanentemente"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-semibold mb-2">⚠️ ¡Esta acción es PERMANENTE!</h4>
+                <p className="text-red-200 text-sm mb-2">
+                  El registro será eliminado definitivamente de la base de datos y <strong>NO se puede deshacer</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {registroEliminarPermanente && (
+            <div className="space-y-2">
+              <h4 className="text-white font-semibold text-sm">Registro a eliminar:</h4>
+              <div className="bg-gray-800 rounded-lg p-3 border border-gray-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <span className="text-white font-medium text-sm">
+                    {new Date(registroEliminarPermanente.fecha).toLocaleDateString('es-ES', {
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-300 space-y-1">
+                  <p>• Jornada: {(() => {
+                    const jornadaId = registroEliminarPermanente.jornada_config_id || registroEliminarPermanente.jornadaConfigId;
+                    const jornadaInfo = jornadasSistema.find(j => j.id == jornadaId);
+                    return jornadaInfo ? `${jornadaInfo.codigo} - ${jornadaInfo.nombre}` : 'Desconocida';
+                  })()}</p>
+                  <p>• Turnos: {registroEliminarPermanente.estadisticas?.totalTurnos || registroEliminarPermanente.total_turnos || (registroEliminarPermanente.turnosRegistrados?.length || 0)}</p>
+                  <p className="text-red-400">• Eliminado el {new Date(registroEliminarPermanente.fecha_eliminacion || registroEliminarPermanente.fechaEliminacion).toLocaleDateString('es-ES')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              onClick={() => {
+                setModalEliminarPermanente(false);
+                setRegistroEliminarPermanente(null);
+              }}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={eliminarPermanentemente}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar Permanentemente
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Confirmación Vaciar Papelera */}
+      <Modal
+        isOpen={modalVaciarPapelera}
+        onClose={() => setModalVaciarPapelera(false)}
+        title="🗑️💥 Vaciar Papelera"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-semibold mb-2">⚠️ ¡Esta acción es PERMANENTE!</h4>
+                <p className="text-red-200 text-sm">
+                  Todos los registros de la papelera serán eliminados definitivamente y <strong>NO se pueden recuperar</strong>.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-white font-semibold text-sm">Resumen de eliminación:</h4>
+            <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-gray-300 text-sm">Total de registros:</span>
+                <span className="text-2xl font-bold text-red-400">{registrosPapelera.length}</span>
+              </div>
+              <div className="text-sm text-gray-400 space-y-1">
+                <p>• Se eliminarán {registrosPapelera.length} registros de jornada</p>
+                <p>• Se perderán {registrosPapelera.reduce((sum, r) => 
+                  sum + (r.estadisticas?.totalTurnos || r.total_turnos || (r.turnosRegistrados?.length || 0)), 0
+                )} turnos asociados</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              onClick={() => setModalVaciarPapelera(false)}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={vaciarPapelera}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Vaciando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Vaciar Papelera ({registrosPapelera.length})
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal de confirmación para eliminar día completo */}
+      <Modal
+        isOpen={modalEliminarDia}
+        onClose={() => {
+          setModalEliminarDia(false);
+          setDiaAEliminar(null);
+        }}
+        title="🗑️ Eliminar Día Completo"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-white font-semibold mb-2">¿Estás seguro?</h4>
+                <p className="text-gray-300 text-sm mb-3">
+                  Vas a mover TODAS las jornadas de este día a la papelera:
+                </p>
+                
+                {diaAEliminar && (
+                  <div className="bg-gray-800 rounded-lg p-3 mb-3">
+                    <div className="text-sm text-gray-300 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-blue-400" />
+                        <span className="font-semibold">
+                          {new Date(diaAEliminar.fecha).toLocaleDateString('es-ES', {
+                            weekday: 'long',
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-green-400" />
+                        <span>
+                          {diaAEliminar.registros.length} jornada{diaAEliminar.registros.length !== 1 ? 's' : ''} 
+                          {' '}({diaAEliminar.registros.reduce((sum, r) => 
+                            sum + (r.estadisticas?.totalTurnos || r.total_turnos || (r.turnosRegistrados?.length || 0)), 0
+                          )} turnos en total)
+                        </span>
+                      </div>
+                      
+                      <div className="mt-3 space-y-1 pl-6">
+                        {diaAEliminar.registros.map((registro, idx) => {
+                          const jornadaId = registro.jornada_config_id || registro.jornadaConfigId;
+                          const jornadaInfo = jornadasSistema.find(j => j.id == jornadaId);
+                          return (
+                            <div key={idx} className="text-xs text-gray-400">
+                              • {jornadaInfo ? `${jornadaInfo.codigo} - ${jornadaInfo.nombre}` : 'Jornada'}
+                              {' '}({registro.estadisticas?.totalTurnos || registro.total_turnos || (registro.turnosRegistrados?.length || 0)} turnos)
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-3">
+                  <p className="text-blue-300 text-xs">
+                    ℹ️ <strong>Nota:</strong> Los registros se moverán a la papelera y se eliminarán permanentemente 
+                    después de 30 días. Podrás restaurarlos antes de ese tiempo.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => {
+                setModalEliminarDia(false);
+                setDiaAEliminar(null);
+              }}
+              className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              disabled={loading}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={eliminarDiaCompleto}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar Día Completo
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
