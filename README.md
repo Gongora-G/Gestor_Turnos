@@ -52,14 +52,26 @@ TennisFlow/
 │  ├─ calidad/                  # Testing y QA
 │  └─ sistemas-distribuidos/    # Arquitectura de microservicios
 ├─ backend/
-│  └─ auth-service/ ✅          # Autenticación y roles
+│  └─ auth-service/ ✅          # Autenticación, roles y configuración
+│     ├─ users/                 # Gestión usuarios y roles
+│     ├─ clubs/                 # Multi-club management
+│     ├─ canchas/               # 🎾 Gestión canchas de tenis
+│     ├─ jornadas/              # 🔄 Configuración jornadas A/B
+│     └─ configuracion/         # ⚙️ Catálogos del sistema
 ├─ services/ (Por implementar)
-│  ├─ auxiliar-service/ 🔄      # Gestión auxiliares/boleadores/jornadas
+│  ├─ auxiliar-service/ 🔄      # Gestión auxiliares/boleadores
 │  ├─ shift-service/ 📅         # Algoritmo turnos y prioridades
 │  ├─ reporting-service/ 📅     # Reportes diarios/semanales
-│  ├─ notifications-service/ 📅 # Alertas tiempo real
-│  └─ club-service/ 📅          # Multi-club configuration
-├─ frontend
+│  └─ notifications-service/ 📅 # Alertas tiempo real
+├─ frontend/ ✅                 # React + TypeScript + Vite
+│  ├─ Dashboard                 # Panel principal coordinador
+│  ├─ Gestión de Turnos         # Registro llegadas y asignaciones
+│  ├─ Personal                  # Auxiliares y boleadores
+│  ├─ Reportes                  # Estadísticas y transparencia
+│  └─ Configuración ✨          # ⚙️ Módulo Canchas (nuevo)
+│     ├─ Gestión de Canchas     # CRUD canchas con toast notifications
+│     ├─ Tipos de Superficie    # Catalogación superficies (arcilla, cemento)
+│     └─ Estados de Cancha      # Estados operativos (disponible, mantenimiento)
 └─ infrastructure
 ```
 
@@ -68,11 +80,68 @@ TennisFlow/
 - `frontend/`: aplicación React responsable de la interfaz de los distintos roles.
 - `infrastructure/`: scripts de despliegue, definición de contenedores, configuración de observabilidad.
 
-## Próximos artefactos clave
+## ✅ **Módulos Implementados**
 
-- Acta de constitución y plan de proyecto (Gestión de Proyectos).
-- Arquitectura detallada de microservicios, diagramas y contratos API (Sistemas Distribuidos).
-- Plan de aseguramiento de la calidad, matriz de trazabilidad y estrategia de pruebas (Calidad de Software).
-- Cronograma de entregas y tablero de seguimiento simulando el trabajo colaborativo del equipo.
+### 🎯 **Módulo de Configuración de Canchas** (Recién completado)
+- **✨ Gestión de Canchas**: CRUD completo con diseño oscuro profesional
+  - Tabla responsiva con información detallada
+  - Validación de campos (superficieId, estadoId con prevención NaN)
+  - Fix backend: cambio a snake_case `precio_hora` para compatibilidad
+  - Campos comentados: `tipo_deporte` y `precio_hora` (sistema enfocado en tenis)
+  
+- **🎨 Tipos de Superficie**: Catalogación de superficies de juego
+  - Cards con gradientes y efectos hover
+  - Campo `velocidad` comentado (no necesario actualmente)
+  - Indicadores visuales de mantenimiento especial
+  - Sistema de colores personalizables
+  
+- **🚦 Estados de Cancha**: Estados operativos del sistema
+  - Diseño de cards profesional con iconos
+  - Selector de iconos interactivo (8 opciones)
+  - Checkboxes mejorados: permite_reservas, visible_en_turnos, predeterminado
+  - Estados activo/inactivo con indicadores visuales
 
-Cada documento especificará el responsable principal dentro del equipo simulado para reflejar la colaboración con los compañeros.
+- **🎉 Toast Notifications**: Sistema de feedback implementado
+  - Notificaciones success/error en todas las operaciones CRUD
+  - 4 tipos: success (verde), error (rojo), warning (amarillo), info (azul)
+  - Auto-dismiss con animaciones suaves
+  - Diseño consistente con tema oscuro del sistema
+
+### 🎨 **Mejoras de Diseño**
+- **Eliminados warnings React DOM**: Migración de Tailwind a inline styles
+- **Border properties**: Cambio de shorthand a propiedades específicas
+- **Tema oscuro consistente**: #1f2937, #111827, #374151
+- **Efectos visuales**: Hover, sombras dinámicas, gradientes
+- **Responsive**: Grid adaptable con minmax(320px, 1fr)
+
+## 🚀 **Próximos Módulos**
+
+### 📅 **Gestión de Jornadas** (En desarrollo)
+- Configuración de jornadas A/B con horarios
+- Rotación automática diaria
+- Visualización de esquemas de trabajo
+
+### 👥 **Gestión de Personal** (Planificado)
+- CRUD auxiliares de cancha
+- CRUD boleadores
+- Asignación a jornadas
+- Estados del personal (activo, inactivo, incapacitado)
+
+### 🔄 **Sistema de Turnos** (Planificado)
+- Registro de llegadas con timestamp
+- Algoritmo de orden transparente
+- Cola de espera en tiempo real
+
+### 📊 **Reportes y Estadísticas** (Planificado)
+- Reportes diarios por jornada
+- Estadísticas de auxiliares/boleadores
+- Gráficos de rendimiento
+- Exportación a Excel/PDF
+
+## 📚 **Documentación Académica**
+
+- ✅ Acta de constitución y plan de proyecto (Gestión de Proyectos)
+- ✅ Arquitectura detallada de microservicios (Sistemas Distribuidos)
+- ✅ Modelo de datos especializado (Bases de Datos)
+- 🔄 Plan de aseguramiento de la calidad (Calidad de Software)
+- 🔄 Cronograma de entregas y seguimiento (Metodologías Ágiles)
