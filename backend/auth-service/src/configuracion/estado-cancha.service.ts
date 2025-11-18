@@ -73,16 +73,27 @@ export class EstadoCanchaService {
   async remove(id: number, clubId: string): Promise<void> {
     const estadoCancha = await this.findOne(id, clubId);
     
-    // Verificar si hay canchas usando este estado
-    const canchasCount = await this.estadoCanchaRepository
-      .createQueryBuilder('estado')
-      .leftJoin('canchas', 'cancha', 'cancha.estado_id = estado.id')
-      .where('estado.id = :id', { id })
-      .andWhere('estado.club_id = :clubId', { clubId })
-      .getCount();
+    // No permitir eliminar estados predeterminados
+    if (estadoCancha.esPredeterminado) {
+      throw new ConflictException('No se puede eliminar el estado predeterminado del sistema');
+    }
+    
+    // Verificar si hay canchas usando este estado y obtener nombres
+    const canchasUsandoEstado = await this.estadoCanchaRepository.query(
+      `SELECT c.nombre 
+       FROM auth.canchas c
+       WHERE c.estado_id = $1 AND c.club_id = $2
+       LIMIT 5`,
+      [id, clubId]
+    );
 
-    if (canchasCount > 0) {
-      throw new ConflictException('No se puede eliminar. Hay canchas usando este estado');
+    if (canchasUsandoEstado.length > 0) {
+      const nombresCanchas = canchasUsandoEstado.map((c: any) => c.nombre).join(', ');
+      const mensaje = canchasUsandoEstado.length === 1
+        ? `No se puede eliminar. La cancha "${nombresCanchas}" está usando este estado. Cámbiala primero desde Gestión de Canchas.`
+        : `No se puede eliminar. ${canchasUsandoEstado.length} canchas están usando este estado: ${nombresCanchas}. Cámbialas primero desde Gestión de Canchas.`;
+      
+      throw new ConflictException(mensaje);
     }
     
     await this.estadoCanchaRepository.remove(estadoCancha);

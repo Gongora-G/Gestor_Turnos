@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { canchasService, type EstadoCancha, type CreateEstadoCanchaDto } from '../../services/canchasService';
 import { useToast } from '../../contexts/ToastContext';
+import DeleteConfirmModal from './DeleteConfirmModal';
 
 const EstadosCanchas: React.FC = () => {
   const { success, error: showError } = useToast();
@@ -8,6 +9,9 @@ const EstadosCanchas: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEstado, setSelectedEstado] = useState<EstadoCancha | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [estadoToDelete, setEstadoToDelete] = useState<EstadoCancha | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -97,16 +101,33 @@ const EstadosCanchas: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este estado? Las canchas que lo usen quedarán sin estado asignado.')) return;
+  const handleDelete = (estado: EstadoCancha) => {
+    if (estado.esPredeterminado) {
+      showError('No se puede eliminar', 'No puedes eliminar el estado predeterminado del sistema');
+      return;
+    }
+    setEstadoToDelete(estado);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!estadoToDelete) return;
 
     try {
-      await canchasService.deleteEstadoCancha(id);
-      success('Estado eliminado', 'El estado de cancha ha sido eliminado exitosamente');
+      setIsDeleting(true);
+      await canchasService.deleteEstadoCancha(estadoToDelete.id);
+      success('Estado eliminado', `El estado "${estadoToDelete.nombre}" ha sido eliminado exitosamente`);
+      setIsDeleteModalOpen(false);
+      setEstadoToDelete(null);
       await loadData();
     } catch (error: any) {
       console.error('Error al eliminar:', error);
-      showError('Error al eliminar', error.response?.data?.message || 'No se puede eliminar este estado');
+      const errorMessage = error.response?.data?.message || 'No se puede eliminar este estado';
+      showError('No se puede eliminar', errorMessage);
+      setIsDeleteModalOpen(false);
+      setEstadoToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -299,7 +320,7 @@ const EstadosCanchas: React.FC = () => {
                 ✏️ Editar
               </button>
               <button
-                onClick={() => handleDelete(estado.id)}
+                onClick={() => handleDelete(estado)}
                 disabled={estado.esPredeterminado}
                 style={{
                   flex: 1,
@@ -695,6 +716,21 @@ const EstadosCanchas: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {isDeleteModalOpen && estadoToDelete && (
+        <DeleteConfirmModal
+          title="¿Eliminar Estado de Cancha?"
+          message="Las canchas que usen este estado quedarán sin estado asignado."
+          itemName={estadoToDelete.nombre}
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            setIsDeleteModalOpen(false);
+            setEstadoToDelete(null);
+          }}
+          loading={isDeleting}
+        />
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { canchasService, type TipoSuperficieCancha, type CreateTipoSuperficieDto } from '../../services/canchasService';
 import { useToast } from '../../contexts/ToastContext';
+import DeleteConfirmModal from './DeleteConfirmModal';
 
 const TiposSuperficie: React.FC = () => {
   const { success, error: showError } = useToast();
@@ -8,6 +9,9 @@ const TiposSuperficie: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTipo, setSelectedTipo] = useState<TipoSuperficieCancha | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [tipoToDelete, setTipoToDelete] = useState<TipoSuperficieCancha | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -89,16 +93,29 @@ const TiposSuperficie: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('¿Eliminar este tipo de superficie? Las canchas que lo usen quedarán sin superficie asignada.')) return;
+  const handleDelete = (tipo: TipoSuperficieCancha) => {
+    setTipoToDelete(tipo);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!tipoToDelete) return;
 
     try {
-      await canchasService.deleteTipoSuperficie(id);
-      success('Tipo eliminado', 'El tipo de superficie ha sido eliminado exitosamente');
+      setIsDeleting(true);
+      await canchasService.deleteTipoSuperficie(tipoToDelete.id);
+      success('Tipo eliminado', `El tipo de superficie "${tipoToDelete.nombre}" ha sido eliminado exitosamente`);
+      setIsDeleteModalOpen(false);
+      setTipoToDelete(null);
       await loadData();
     } catch (error: any) {
       console.error('Error al eliminar:', error);
-      showError('Error al eliminar', error.response?.data?.message || 'No se puede eliminar este tipo de superficie');
+      const errorMessage = error.response?.data?.message || 'No se puede eliminar este tipo de superficie';
+      showError('No se puede eliminar', errorMessage);
+      setIsDeleteModalOpen(false);
+      setTipoToDelete(null);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -255,7 +272,7 @@ const TiposSuperficie: React.FC = () => {
                 ✏️ Editar
               </button>
               <button
-                onClick={() => handleDelete(tipo.id)}
+                onClick={() => handleDelete(tipo)}
                 style={{
                   flex: 1,
                   padding: '10px',
@@ -558,6 +575,21 @@ const TiposSuperficie: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Modal de Confirmación de Eliminación */}
+      {isDeleteModalOpen && tipoToDelete && (
+        <DeleteConfirmModal
+          title="¿Eliminar Tipo de Superficie?"
+          message="Las canchas que usen este tipo quedarán sin superficie asignada."
+          itemName={tipoToDelete.nombre}
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            setIsDeleteModalOpen(false);
+            setTipoToDelete(null);
+          }}
+          loading={isDeleting}
+        />
       )}
     </div>
   );

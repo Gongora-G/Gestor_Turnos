@@ -57,16 +57,22 @@ export class TipoSuperficieCanchaService {
   async remove(id: number, clubId: string): Promise<void> {
     const tipoSuperficie = await this.findOne(id, clubId);
     
-    // Verificar si hay canchas usando este tipo
-    const canchasCount = await this.tipoSuperficieRepository
-      .createQueryBuilder('tipo')
-      .leftJoin('canchas', 'cancha', 'cancha.superficie_id = tipo.id')
-      .where('tipo.id = :id', { id })
-      .andWhere('tipo.club_id = :clubId', { clubId })
-      .getCount();
+    // Verificar si hay canchas usando este tipo y obtener nombres
+    const canchasUsandoTipo = await this.tipoSuperficieRepository.query(
+      `SELECT c.nombre 
+       FROM auth.canchas c
+       WHERE c.superficie_id = $1 AND c.club_id = $2
+       LIMIT 5`,
+      [id, clubId]
+    );
 
-    if (canchasCount > 0) {
-      throw new ConflictException('No se puede eliminar. Hay canchas usando este tipo de superficie');
+    if (canchasUsandoTipo.length > 0) {
+      const nombresCanchas = canchasUsandoTipo.map((c: any) => c.nombre).join(', ');
+      const mensaje = canchasUsandoTipo.length === 1
+        ? `No se puede eliminar. La cancha "${nombresCanchas}" está usando este tipo de superficie. Cámbiala primero desde Gestión de Canchas.`
+        : `No se puede eliminar. ${canchasUsandoTipo.length} canchas están usando este tipo: ${nombresCanchas}. Cámbialas primero desde Gestión de Canchas.`;
+      
+      throw new ConflictException(mensaje);
     }
     
     await this.tipoSuperficieRepository.remove(tipoSuperficie);

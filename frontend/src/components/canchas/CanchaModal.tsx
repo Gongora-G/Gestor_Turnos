@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { canchasService, type CanchaBackend, type TipoSuperficieCancha, type EstadoCancha } from '../../services/canchasService';
+import { canchasService, type CanchaBackend, type TipoSuperficieCancha, type EstadoCancha, type CrearCanchaDto } from '../../services/canchasService';
 import { useToast } from '../../contexts/ToastContext';
 
 interface Props {
