@@ -4,6 +4,8 @@ import { User } from '../users/entities/user.entity';
 import { Club } from '../users/entities/club.entity';
 import { TipoMembresia } from '../configuracion/entities/tipo-membresia.entity';
 import { Cancha } from '../configuracion/entities/cancha.entity';
+import { TipoSuperficieCancha } from '../configuracion/entities/tipo-superficie-cancha.entity';
+import { EstadoCancha } from '../configuracion/entities/estado-cancha.entity';
 import { ConfiguracionClub } from '../configuracion/entities/configuracion-club.entity';
 import { EstadoPersonal } from '../configuracion/entities/estado-personal.entity';
 import { Turno } from '../turnos/entities/turno.entity';
@@ -27,7 +29,9 @@ export const databaseConfig = (
     User, 
     Club, 
     TipoMembresia, 
-    Cancha, 
+    Cancha,
+    TipoSuperficieCancha,
+    EstadoCancha,
     ConfiguracionClub,
     EstadoPersonal,
     Turno,

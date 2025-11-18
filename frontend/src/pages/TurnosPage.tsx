@@ -8,10 +8,9 @@ import {
   EliminarTurnoModal 
 } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
-import { Plus, Filter, Search, Save, History, Clock, Trash2 } from 'lucide-react';
+import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
 import { turnosService, canchasService, type Turno as TurnoService } from '../services';
 import { JornadasService } from '../services/jornadasService';
-import { calcularEstadoAutomatico } from '../utils/turnoStates';
 import { useToast } from '../contexts/ToastContext';
 import { apiService } from '../services/api';
 
@@ -115,7 +114,7 @@ export const TurnosPage: React.FC = () => {
           
           // Filtrar solo turnos de la jornada activa y que estén activos (no guardados)
           const turnosDeJornada = turnosJornada.filter(turno => 
-            turno.jornada_id === jornadaResponse.id && 
+            String(turno.jornada_id) === String(jornadaResponse.id) && 
             (turno.estado_registro === 'ACTIVO' || !turno.estado_registro) // Incluir turnos sin estado o ACTIVO
           );
           setTurnos(turnosDeJornada);
@@ -231,17 +230,17 @@ export const TurnosPage: React.FC = () => {
 
 
   // 🧹 Limpiar plano de trabajo
-  const handleLimpiarPlano = () => {
-    if (turnos.length === 0) {
-      showWarning('Plano vacío', 'No hay turnos en el plano de trabajo');
-      return;
-    }
-    
-    if (window.confirm(`¿Limpiar el plano de trabajo?\n\nEsto eliminará los ${turnos.length} turnos del plano actual. Esta acción no se puede deshacer.`)) {
-      setTurnos([]);
-      showSuccess('✅ Plano limpiado', 'El plano de trabajo ha sido limpiado correctamente');
-    }
-  };
+  // const handleLimpiarPlano = () => {
+  //   if (turnos.length === 0) {
+  //     showWarning('Plano vacío', 'No hay turnos en el plano de trabajo');
+  //     return;
+  //   }
+  //   
+  //   if (window.confirm(`¿Limpiar el plano de trabajo?\n\nEsto eliminará los ${turnos.length} turnos del plano actual. Esta acción no se puede deshacer.`)) {
+  //     setTurnos([]);
+  //     showSuccess('✅ Plano limpiado', 'El plano de trabajo ha sido limpiado correctamente');
+  //   }
+  // };
 
   // Handlers para modales
   const handleVerTurno = (turno: Turno) => {
@@ -363,7 +362,7 @@ export const TurnosPage: React.FC = () => {
 
     // 🔍 VALIDAR ESTADO DE TURNOS ANTES DE GUARDAR
     const turnosEnProgreso = turnos.filter(turno => 
-      turno.estado !== 'completado' && turno.estado !== 'completada'
+      turno.estado !== 'completado'
     );
     
     console.log('🔍 DEBUG VALIDACIÓN:', {
@@ -417,7 +416,7 @@ export const TurnosPage: React.FC = () => {
         const turnosActualizados = turnos.map(turno => {
           if (turnosSeleccionados.includes(turno.id)) {
             console.log(`  🔄 Actualizando estado local del turno ${turno.id}: ${turno.estado} → completado`);
-            return { ...turno, estado: 'completado' };
+            return { ...turno, estado: 'completado' as const };
           }
           return turno;
         });
@@ -430,7 +429,7 @@ export const TurnosPage: React.FC = () => {
         // ⚠️ VERIFICAR USANDO LOS TURNOS ACTUALIZADOS (no el estado de React)
         console.log('🔍 Verificando estado usando turnos actualizados...');
         const turnosAunEnProgreso = turnosActualizados.filter(turno => {
-          const enProgreso = turno.estado !== 'completado' && turno.estado !== 'completada';
+          const enProgreso = turno.estado !== 'completado';
           console.log(`  Turno ${turno.id}: estado=${turno.estado}, enProgreso=${enProgreso}`);
           return enProgreso;
         });
@@ -465,7 +464,7 @@ export const TurnosPage: React.FC = () => {
 
       // 🔐 VALIDACIÓN FINAL: Asegurar que todos los turnos estén completados
       const turnosNoCompletados = turnos.filter(turno => 
-        turno.estado !== 'completado' && turno.estado !== 'completada'
+        turno.estado !== 'completado'
       );
       
       if (turnosNoCompletados.length > 0) {
@@ -513,7 +512,7 @@ export const TurnosPage: React.FC = () => {
       const stats = resultado.registroDiario.estadisticas;
       showSuccess(
         '✅ Jornada guardada exitosamente',
-        `Se registraron ${stats.totalTurnos} turnos (${stats.turnosCompletados} completados). ${resultado.mensaje || 'Los turnos han sido guardados correctamente.'}`
+        `Se registraron ${stats.totalTurnos} turnos (${stats.turnosCompletados} completados). Los turnos han sido guardados correctamente.`
       );
 
       // Limpiar turnos después de guardar la jornada
@@ -1194,8 +1193,8 @@ export const TurnosPage: React.FC = () => {
       <EditarTurnoModal
         isOpen={editarTurnoModal.abierto}
         onClose={() => setEditarTurnoModal({ abierto: false, turno: null })}
-        onSave={handleActualizarTurno}
-        turno={editarTurnoModal.turno}
+        onSave={handleActualizarTurno as any}
+        turno={editarTurnoModal.turno as any}
         canchas={canchas}
       />
 
@@ -1203,7 +1202,7 @@ export const TurnosPage: React.FC = () => {
         isOpen={eliminarTurnoModal.abierto}
         onClose={() => setEliminarTurnoModal({ abierto: false, turno: null })}
         onConfirm={handleConfirmarEliminar}
-        turno={eliminarTurnoModal.turno}
+        turno={eliminarTurnoModal.turno as any}
       />
 
       {/* Modal de Finalización de Jornada */}

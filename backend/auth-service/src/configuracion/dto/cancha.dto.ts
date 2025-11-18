@@ -1,9 +1,13 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, Length, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsNumber, IsInt, Length, IsIn } from 'class-validator';
 
 export class CreateCanchaDto {
   @IsString()
   @Length(1, 100)
   nombre: string;
+
+  @IsOptional()
+  @IsInt()
+  numero?: number;
 
   @IsOptional()
   @IsString()
@@ -31,6 +35,14 @@ export class CreateCanchaDto {
   @IsOptional()
   @IsNumber()
   precio_hora?: number;
+
+  @IsOptional()
+  @IsInt()
+  superficieId?: number;
+
+  @IsOptional()
+  @IsInt()
+  estadoId?: number;
 }
 
 export class UpdateCanchaDto {
@@ -38,6 +50,10 @@ export class UpdateCanchaDto {
   @IsString()
   @Length(1, 100)
   nombre?: string;
+
+  @IsOptional()
+  @IsInt()
+  numero?: number;
 
   @IsOptional()
   @IsString()
@@ -65,4 +81,12 @@ export class UpdateCanchaDto {
   @IsOptional()
   @IsNumber()
   precio_hora?: number;
+
+  @IsOptional()
+  @IsInt()
+  superficieId?: number;
+
+  @IsOptional()
+  @IsInt()
+  estadoId?: number;
 }

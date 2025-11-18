@@ -14,7 +14,7 @@ import { CanchaService } from './cancha.service';
 import { CreateCanchaDto, UpdateCanchaDto } from './dto/cancha.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('canchas')
+@Controller('configuracion/canchas')
 @UseGuards(JwtAuthGuard)
 export class CanchaController {
   constructor(private readonly canchaService: CanchaService) {}

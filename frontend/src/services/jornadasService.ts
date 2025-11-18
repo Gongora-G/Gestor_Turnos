@@ -192,8 +192,9 @@ export class JornadasService {
       
       // Buscar la siguiente jornada del día
       for (const jornada of jornadas) {
-        if (jornada.activa && horaActual < jornada.horaInicio) {
-          const [horaInicio, minutoInicio] = jornada.horaInicio.split(':').map(Number);
+        const jornadaAny = jornada as any;
+        if (jornada.activa && jornadaAny.hora_inicio && horaActual < jornadaAny.hora_inicio) {
+          const [horaInicio, minutoInicio] = jornadaAny.hora_inicio.split(':').map(Number);
           const inicioJornada = new Date();
           inicioJornada.setHours(horaInicio, minutoInicio, 0, 0);
           

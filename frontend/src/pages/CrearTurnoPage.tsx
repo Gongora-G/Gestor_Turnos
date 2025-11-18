@@ -102,21 +102,6 @@ export const CrearTurnoPage: React.FC = () => {
     boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.3)'
   };
 
-  // Datos de ejemplo para selects
-  const socios = [
-    { id: 'SOC001', nombre: 'Juan Carlos Pérez González', email: 'juan.perez@email.com', membresia: 'premium' },
-    { id: 'SOC002', nombre: 'María Isabel García López', email: 'maria.garcia@email.com', membresia: 'vip' },
-    { id: 'SOC003', nombre: 'Carlos Alberto López Martínez', email: 'carlos.lopez@email.com', membresia: 'basica' },
-    { id: 'SOC004', nombre: 'Ana Patricia Rodríguez Silva', email: 'ana.rodriguez@email.com', membresia: 'premium' }
-  ];
-
-  const caddies = [
-    { id: 'CAD001', nombre: 'Roberto Silva', disponible: true },
-    { id: 'CAD002', nombre: 'Miguel Torres', disponible: true },
-    { id: 'CAD003', nombre: 'Luis Fernández', disponible: true },
-    { id: 'CAD004', nombre: 'Diego Morales', disponible: false }
-  ];
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

@@ -44,22 +44,22 @@ class BoleadoresService {
 
   async getAll(clubId?: string): Promise<Boleador[]> {
     const params = clubId ? `?clubId=${clubId}` : '';
-    const response = await api.get(`${this.baseUrl}${params}`);
+    const response = await api.get(`${this.baseUrl}${params}`) as { data: Boleador[] };
     return response.data;
   }
 
   async getById(id: string): Promise<Boleador> {
-    const response = await api.get(`${this.baseUrl}/${id}`);
+    const response = await api.get(`${this.baseUrl}/${id}`) as { data: Boleador };
     return response.data;
   }
 
   async create(data: CreateBoleadorDto): Promise<Boleador> {
-    const response = await api.post(this.baseUrl, data);
+    const response = await api.post(this.baseUrl, data) as { data: Boleador };
     return response.data;
   }
 
   async update(id: string, data: UpdateBoleadorDto): Promise<Boleador> {
-    const response = await api.patch(`${this.baseUrl}/${id}`, data);
+    const response = await api.patch(`${this.baseUrl}/${id}`, data) as { data: Boleador };
     return response.data;
   }
 
@@ -70,19 +70,19 @@ class BoleadoresService {
   async getAvailable(clubId: string, fecha: string, horaInicio: string, horaFin: string): Promise<Boleador[]> {
     const response = await api.get(`${this.baseUrl}/disponibles`, {
       params: { clubId, fecha, horaInicio, horaFin }
-    });
+    }) as { data: Boleador[] };
     return response.data;
   }
 
   async getByNivel(clubId: string, nivel: string): Promise<Boleador[]> {
     const response = await api.get(`${this.baseUrl}/por-nivel`, {
       params: { clubId, nivel }
-    });
+    }) as { data: Boleador[] };
     return response.data;
   }
 
   async updateEstado(id: string, estado: string): Promise<Boleador> {
-    const response = await api.patch(`${this.baseUrl}/${id}/estado`, { estado });
+    const response = await api.patch(`${this.baseUrl}/${id}/estado`, { estado }) as { data: Boleador };
     return response.data;
   }
 }

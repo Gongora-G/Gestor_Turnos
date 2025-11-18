@@ -7,7 +7,6 @@ import {
   FileText, 
   Settings,
   Users,
-  Award,
   ChevronRight 
 } from 'lucide-react';
 

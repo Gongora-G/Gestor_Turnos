@@ -1,21 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Clock, 
   Eye, 
   Search, 
-  Filter,
   FileText,
   Users,
   TrendingUp,
   RefreshCw,
   AlertCircle,
-  X,
   Download,
-  MapPin,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
   BarChart3,
   Timer
@@ -67,7 +62,7 @@ interface TurnoDetalle {
 }
 
 export default function RegistroJornadas() {
-  const { success, error, warning } = useToast();
+  const { success, error } = useToast();
   const [loading, setLoading] = useState(false);
   const [registros, setRegistros] = useState<RegistroJornadaDiaria[]>([]);
   const [jornadasSistema, setJornadasSistema] = useState<any[]>([]);
@@ -421,7 +416,7 @@ export default function RegistroJornadas() {
   };
 
   // Obtener resumen de un día
-  const obtenerResumenDia = (fecha: string, registrosDia: any[]) => {
+  const obtenerResumenDia = (_fecha: string, registrosDia: any[]) => {
     const totalJornadas = registrosDia.length;
     const totalTurnos = registrosDia.reduce((sum, registro) => {
       return sum + (registro.estadisticas?.totalTurnos || 
@@ -541,18 +536,19 @@ export default function RegistroJornadas() {
       
       // Debug cada registro
       registrosData.forEach((registro, index) => {
+        const regAny = registro as any;
         console.log(`📋 Registro ${index + 1}:`, {
           id: registro.id,
           fecha: registro.fecha,
-          jornada_config_id: registro.jornada_config_id,
-          jornadaConfigId: registro.jornadaConfigId,
+          jornada_config_id: regAny.jornada_config_id,
+          jornadaConfigId: regAny.jornadaConfigId,
           estadisticas: registro.estadisticas,
-          total_turnos: registro.total_turnos,
+          total_turnos: regAny.total_turnos,
           estado: registro.estado
         });
       });
       
-      setRegistros(registrosData);
+      setRegistros(registrosData as any);
       
       // Organizar registros por día
       const registrosAgrupados: {[fecha: string]: any[]} = {};
@@ -850,15 +846,16 @@ export default function RegistroJornadas() {
           <div className="space-y-4">
             {registros.map((registro) => {
               // Debug del registro actual
+              const regAny = registro as any;
               console.log('🔍 DEBUG RENDER - Registro:', {
                 id: registro.id,
-                jornada_config_id: registro.jornada_config_id,
-                jornadaConfigId: registro.jornadaConfigId,
+                jornada_config_id: regAny.jornada_config_id,
+                jornadaConfigId: regAny.jornadaConfigId,
                 fecha: registro.fecha
               });
               
               // Buscar información de la jornada asociada
-              const jornadaId = registro.jornada_config_id || registro.jornadaConfigId;
+              const jornadaId = regAny.jornada_config_id || regAny.jornadaConfigId;
               console.log('🔍 DEBUG RENDER - Buscando jornada con ID:', jornadaId);
               console.log('🔍 DEBUG RENDER - Jornadas disponibles:', jornadasSistema.map(j => ({ id: j.id, nombre: j.nombre })));
               
@@ -906,9 +903,9 @@ export default function RegistroJornadas() {
                         {registro.estado === 'activa' ? '🟢 Activa' : '⭕ Cerrada'}
                       </span>
                     </div>
-                    {registro.fecha_creacion && (
+                    {regAny.fecha_creacion && (
                       <div className="text-xs text-gray-400">
-                        Registrada: {new Date(registro.fecha_creacion).toLocaleTimeString('es-ES', { 
+                        Registrada: {new Date(regAny.fecha_creacion).toLocaleTimeString('es-ES', { 
                           hour: '2-digit', 
                           minute: '2-digit' 
                         })}
@@ -920,10 +917,10 @@ export default function RegistroJornadas() {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div className="bg-gray-800 rounded-lg p-3 text-center border border-gray-600">
                       <div className="text-2xl font-bold text-blue-400 mb-1">
-                        {registro.estadisticas?.totalTurnos || 
-                         registro.estadisticas?.total_turnos || 
-                         registro.total_turnos || 
-                         (registro.turnosRegistrados?.length || 0)}
+                        {(registro.estadisticas as any)?.totalTurnos || 
+                         (registro.estadisticas as any)?.total_turnos || 
+                         regAny.total_turnos || 
+                         (regAny.turnosRegistrados?.length || 0)}
                       </div>
                       <div className="text-gray-400 text-xs">Total Turnos</div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -932,26 +929,26 @@ export default function RegistroJornadas() {
                     </div>
                     <div className="bg-gray-800 rounded-lg p-3 text-center border border-gray-600">
                       <div className="text-2xl font-bold text-green-400 mb-1">
-                        {registro.estadisticas?.turnosCompletados || 
-                         registro.estadisticas?.turnos_completados || 
-                         registro.total_completados || 0}
+                        {(registro.estadisticas as any)?.turnosCompletados || 
+                         (registro.estadisticas as any)?.turnos_completados || 
+                         regAny.total_completados || 0}
                       </div>
                       <div className="text-gray-400 text-xs">Completados</div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {((registro.estadisticas?.totalTurnos || registro.turnosRegistrados?.length || 0) > 0) ? 
+                        {(((registro.estadisticas as any)?.totalTurnos || regAny.turnosRegistrados?.length || 0) > 0) ? 
                           Math.round((
-                            (registro.estadisticas?.turnosCompletados || 0) / 
-                            (registro.estadisticas?.totalTurnos || registro.turnosRegistrados?.length || 1)
+                            ((registro.estadisticas as any)?.turnosCompletados || 0) / 
+                            ((registro.estadisticas as any)?.totalTurnos || regAny.turnosRegistrados?.length || 1)
                           ) * 100) 
                           : 0}% del total
                       </div>
                     </div>
                     <div className="bg-gray-800 rounded-lg p-3 text-center border border-gray-600">
                       <div className="text-2xl font-bold text-yellow-400 mb-1">
-                        {registro.estadisticas?.turnosEnProgreso || 
-                         registro.estadisticas?.turnos_en_progreso ||
-                         ((registro.estadisticas?.totalTurnos || registro.turnosRegistrados?.length || 0) - 
-                          (registro.estadisticas?.turnosCompletados || 0))}
+                        {(registro.estadisticas as any)?.turnosEnProgreso || 
+                         (registro.estadisticas as any)?.turnos_en_progreso ||
+                         (((registro.estadisticas as any)?.totalTurnos || regAny.turnosRegistrados?.length || 0) - 
+                          ((registro.estadisticas as any)?.turnosCompletados || 0))}
                       </div>
                       <div className="text-gray-400 text-xs">En Progreso</div>
                       <div className="text-xs text-gray-500 mt-1">
@@ -981,13 +978,13 @@ export default function RegistroJornadas() {
                   </div>
 
                   {/* Detalles de Turnos Registrados */}
-                  {registro.turnosRegistrados && registro.turnosRegistrados.length > 0 && (
+                  {regAny.turnosRegistrados && regAny.turnosRegistrados.length > 0 && (
                     <div className="mt-4 pt-4 border-t border-gray-600">
                       <h5 className="text-sm font-semibold text-gray-300 mb-3 flex items-center gap-2">
-                        📋 Turnos Registrados ({registro.turnosRegistrados.length})
+                        📋 Turnos Registrados ({regAny.turnosRegistrados.length})
                       </h5>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {registro.turnosRegistrados.slice(0, 4).map((turno: any, index: number) => (
+                        {regAny.turnosRegistrados.slice(0, 4).map((turno: any, index: number) => (
                           <div key={index} className="bg-gray-900 rounded-lg p-3 border border-gray-700">
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-sm font-medium text-white">
@@ -1033,9 +1030,9 @@ export default function RegistroJornadas() {
                             </div>
                           </div>
                         ))}
-                        {registro.turnosRegistrados.length > 4 && (
+                        {regAny.turnosRegistrados.length > 4 && (
                           <div className="col-span-full text-center text-xs text-gray-500 mt-2">
-                            ... y {registro.turnosRegistrados.length - 4} turnos más
+                            ... y {regAny.turnosRegistrados.length - 4} turnos más
                           </div>
                         )}
                       </div>
@@ -1050,8 +1047,8 @@ export default function RegistroJornadas() {
                         {jornadaInfo && (
                           <span>🎯 Jornada Config ID: {jornadaInfo.id}</span>
                         )}
-                        {registro.fecha_creacion && (
-                          <span>📅 {new Date(registro.fecha_creacion).toLocaleDateString('es-ES')}</span>
+                        {regAny.fecha_creacion && (
+                          <span>📅 {new Date(regAny.fecha_creacion).toLocaleDateString('es-ES')}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">

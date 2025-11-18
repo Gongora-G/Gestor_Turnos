@@ -40,22 +40,22 @@ class CaddiesService {
 
   async getAll(clubId?: string): Promise<Caddie[]> {
     const params = clubId ? `?clubId=${clubId}` : '';
-    const response = await api.get(`${this.baseUrl}${params}`);
+    const response = await api.get(`${this.baseUrl}${params}`) as { data: Caddie[] };
     return response.data;
   }
 
   async getById(id: string): Promise<Caddie> {
-    const response = await api.get(`${this.baseUrl}/${id}`);
+    const response = await api.get(`${this.baseUrl}/${id}`) as { data: Caddie };
     return response.data;
   }
 
   async create(data: CreateCaddieDto): Promise<Caddie> {
-    const response = await api.post(this.baseUrl, data);
+    const response = await api.post(this.baseUrl, data) as { data: Caddie };
     return response.data;
   }
 
   async update(id: string, data: UpdateCaddieDto): Promise<Caddie> {
-    const response = await api.patch(`${this.baseUrl}/${id}`, data);
+    const response = await api.patch(`${this.baseUrl}/${id}`, data) as { data: Caddie };
     return response.data;
   }
 
@@ -66,12 +66,12 @@ class CaddiesService {
   async getAvailable(clubId: string, fecha: string, horaInicio: string, horaFin: string): Promise<Caddie[]> {
     const response = await api.get(`${this.baseUrl}/disponibles`, {
       params: { clubId, fecha, horaInicio, horaFin }
-    });
+    }) as { data: Caddie[] };
     return response.data;
   }
 
   async updateEstado(id: string, estado: string): Promise<Caddie> {
-    const response = await api.patch(`${this.baseUrl}/${id}/estado`, { estado });
+    const response = await api.patch(`${this.baseUrl}/${id}/estado`, { estado }) as { data: Caddie };
     return response.data;
   }
 }

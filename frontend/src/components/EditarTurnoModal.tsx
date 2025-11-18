@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, MapPin, User, FileText, Users } from 'lucide-react';
-import { formatTo24Hour, formatTo12Hour } from '../utils/dateTime';
+import { X, Calendar, Clock, MapPin, FileText, Users } from 'lucide-react';
+import { formatTo12Hour } from '../utils/dateTime';
 import { useToast } from '../contexts/ToastContext';
 import { apiService } from '../services/api';
 import type { PersonalUnificado } from '../services/personalUnificadoService';

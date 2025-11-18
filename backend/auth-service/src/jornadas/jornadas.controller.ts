@@ -44,9 +44,11 @@ export class JornadasController {
       this.logger.log('🚀 Usuario:', userId, 'Club:', clubId);
 
       const resultado = await this.jornadasService.createConfiguracionCompleta(clubId, userId, dto);
+      this.logger.log('✅ Resultado generado exitosamente');
       return resultado;
     } catch (error) {
       this.logger.error('❌ Error en POST /jornadas/configuracion-completa:', error);
+      this.logger.error('❌ Stack:', error.stack);
       throw error;
     }
   }

@@ -15,11 +15,15 @@ import { GlobalNavigation, TiposPersonalConfig } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
 import ConfiguracionJornadasSimple from '../components/ConfiguracionJornadasSimple';
 import { SociosPage } from './SociosPage';
+import GestionCanchas from '../components/canchas/GestionCanchas';
+import TiposSuperficie from '../components/canchas/TiposSuperficie';
+import EstadosCanchas from '../components/canchas/EstadosCanchas';
 
 type CategoriaConfig = 'general' | 'membresias' | 'canchas' | 'configuracion-jornadas' | 'registro-jornadas' | 'socios' | 'tipos-personal' | 'sistema';
 
 const ConfiguracionPage: React.FC = () => {
   const [categoriaActiva, setCategoriaActiva] = useState<CategoriaConfig>('general');
+  const [tabCanchasActiva, setTabCanchasActiva] = useState<'gestion' | 'superficies' | 'estados'>('gestion');
   const navigate = useNavigate();
 
   const categorias = [
@@ -135,14 +139,160 @@ const ConfiguracionPage: React.FC = () => {
   );
 
   const renderCanchas = () => (
-    <div style={cardStyles}>
-      <h3 style={{ color: '#f9fafb', fontSize: '20px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <Building size={24} style={{ color: '#10b981' }} />
-        Gestión de Canchas
-      </h3>
-      <p style={{ color: '#9ca3af', textAlign: 'center', padding: '32px' }}>
-        Gestión de canchas disponibles - Próximamente
-      </p>
+    <div style={{ backgroundColor: 'transparent', padding: 0, margin: 0 }}>
+      {/* Header con título e icono */}
+      <div style={{ 
+        marginBottom: '32px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px'
+      }}>
+        <div style={{
+          padding: '12px',
+          background: 'linear-gradient(135deg, #10b98120 0%, #10b98110 100%)',
+          borderRadius: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <Building size={32} style={{ color: '#10b981' }} />
+        </div>
+        <div>
+          <h2 style={{ 
+            color: '#f9fafb', 
+            fontSize: '28px', 
+            fontWeight: '700', 
+            margin: 0,
+            marginBottom: '4px'
+          }}>
+            Gestión de Canchas
+          </h2>
+          <p style={{ 
+            color: '#9ca3af', 
+            fontSize: '14px', 
+            margin: 0,
+            lineHeight: '1.5'
+          }}>
+            Administra las canchas del club, sus tipos de superficie y estados operativos
+          </p>
+        </div>
+      </div>
+
+      {/* Tabs de navegación con diseño mejorado */}
+      <div style={{ 
+        borderBottom: '2px solid #374151',
+        marginBottom: '32px',
+        display: 'flex',
+        gap: '8px'
+      }}>
+        <button
+          onClick={() => setTabCanchasActiva('gestion')}
+          style={{
+            padding: '14px 20px',
+            borderBottom: tabCanchasActiva === 'gestion' ? '3px solid #10b981' : '3px solid transparent',
+            color: tabCanchasActiva === 'gestion' ? '#10b981' : '#9ca3af',
+            fontSize: '15px',
+            fontWeight: '600',
+            background: tabCanchasActiva === 'gestion' ? 'rgba(16, 185, 129, 0.1)' : 'transparent',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px'
+          }}
+          onMouseEnter={(e) => {
+            if (tabCanchasActiva !== 'gestion') {
+              e.currentTarget.style.backgroundColor = 'rgba(16, 185, 129, 0.05)';
+              e.currentTarget.style.color = '#34d399';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (tabCanchasActiva !== 'gestion') {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#9ca3af';
+            }
+          }}
+        >
+          <Building size={18} />
+          Gestión de Canchas
+        </button>
+        <button
+          onClick={() => setTabCanchasActiva('superficies')}
+          style={{
+            padding: '14px 20px',
+            borderBottom: tabCanchasActiva === 'superficies' ? '3px solid #8b5cf6' : '3px solid transparent',
+            color: tabCanchasActiva === 'superficies' ? '#8b5cf6' : '#9ca3af',
+            fontSize: '15px',
+            fontWeight: '600',
+            background: tabCanchasActiva === 'superficies' ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px'
+          }}
+          onMouseEnter={(e) => {
+            if (tabCanchasActiva !== 'superficies') {
+              e.currentTarget.style.backgroundColor = 'rgba(139, 92, 246, 0.05)';
+              e.currentTarget.style.color = '#a78bfa';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (tabCanchasActiva !== 'superficies') {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#9ca3af';
+            }
+          }}
+        >
+          <Activity size={18} />
+          Tipos de Superficie
+        </button>
+        <button
+          onClick={() => setTabCanchasActiva('estados')}
+          style={{
+            padding: '14px 20px',
+            borderBottom: tabCanchasActiva === 'estados' ? '3px solid #3b82f6' : '3px solid transparent',
+            color: tabCanchasActiva === 'estados' ? '#3b82f6' : '#9ca3af',
+            fontSize: '15px',
+            fontWeight: '600',
+            background: tabCanchasActiva === 'estados' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+            border: 'none',
+            borderRadius: '8px 8px 0 0',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px'
+          }}
+          onMouseEnter={(e) => {
+            if (tabCanchasActiva !== 'estados') {
+              e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.05)';
+              e.currentTarget.style.color = '#60a5fa';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (tabCanchasActiva !== 'estados') {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = '#9ca3af';
+            }
+          }}
+        >
+          <Shield size={18} />
+          Estados de Cancha
+        </button>
+      </div>
+
+      {/* Contenido dinámico */}
+      {tabCanchasActiva === 'gestion' && <GestionCanchas />}
+      {tabCanchasActiva === 'superficies' && <TiposSuperficie />}
+      {tabCanchasActiva === 'estados' && <EstadosCanchas />}
     </div>
   );
 

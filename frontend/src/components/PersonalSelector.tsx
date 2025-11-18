@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, User, Star, Clock, DollarSign } from 'lucide-react';
-import { caddiesService, Caddie } from '../services/caddiesService';
-import { boleadoresService, Boleador } from '../services/boleadoresService';
+import { Search, User, Star, DollarSign } from 'lucide-react';
+import { caddiesService, type Caddie } from '../services/caddiesService';
+import { boleadoresService, type Boleador } from '../services/boleadoresService';
 
 interface PersonalSelectorProps {
   tipo: 'caddie' | 'boleador';
@@ -75,14 +75,6 @@ export const PersonalSelector: React.FC<PersonalSelectorProps> = ({
     onSelect(persona);
     setShowDropdown(false);
     setSearchTerm('');
-  };
-
-  const getRanking = (persona: Caddie | Boleador) => {
-    if (tipo === 'caddie') {
-      return (persona as Caddie).nivel_experiencia;
-    } else {
-      return (persona as Boleador).ranking_habilidad;
-    }
   };
 
   const getNivelInfo = (persona: Caddie | Boleador) => {

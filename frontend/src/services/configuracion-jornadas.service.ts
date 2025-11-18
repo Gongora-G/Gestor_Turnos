@@ -29,12 +29,15 @@ export class ConfiguracionJornadasService {
    * Crear una nueva configuración completa de jornadas
    */
   static async crearConfiguracion(data: {
-    nombre?: string;
+    nombre: string;
     descripcion?: string;
+    esquema_tipo: string;
+    activa?: boolean;
     dias_aplicables?: string[];
     jornadas: any[];
   }): Promise<ConfiguracionJornadas> {
     try {
+      console.log('📤 Enviando configuración al backend:', JSON.stringify(data, null, 2));
       const response = await apiService.post<ConfiguracionJornadas>('/jornadas/configuracion-completa', data);
       return response;
     } catch (error) {
@@ -47,12 +50,15 @@ export class ConfiguracionJornadasService {
    * Actualizar una configuración existente
    */
   static async actualizarConfiguracion(id: number, data: {
-    nombre?: string;
+    nombre: string;
     descripcion?: string;
+    esquema_tipo: string;
+    activa?: boolean;
     dias_aplicables?: string[];
     jornadas: any[];
   }): Promise<ConfiguracionJornadas> {
     try {
+      console.log('📤 Actualizando configuración en backend:', JSON.stringify(data, null, 2));
       const response = await apiService.put<ConfiguracionJornadas>('/jornadas/configuracion-completa', data);
       return response;
     } catch (error) {

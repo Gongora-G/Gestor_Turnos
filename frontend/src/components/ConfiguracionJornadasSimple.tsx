@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Save, Trash2, RefreshCw, AlertTriangle } from 'lucide-react';
 import configuracionJornadasService from '../services/configuracionJornadasService';
-import type { ConfiguracionJornadas, JornadaConfig } from '../types/jornadas-config';
+import type { ConfiguracionJornadas, JornadaConfig, DiaSemana } from '../types/jornadas-config';
 import { useToast } from '../contexts/ToastContext';
 
 // Modal de confirmación de eliminación
@@ -36,11 +36,11 @@ function ConfirmDeleteModal({ isOpen, jornada, onConfirm, onCancel }: ConfirmDel
                 className="w-3 h-3 rounded-full" 
                 style={{ backgroundColor: jornada.color || '#3B82F6' }}
               />
-              <span className="text-white font-semibold">{jornada.nombre} ({jornada.codigo || 'Sin código'})</span>
+              <span className="text-white font-semibold">{jornada.nombre} ({(jornada as any).codigo || 'Sin código'})</span>
             </div>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <Clock className="w-4 h-4" />
-              <span>{jornada.horaInicio} - {jornada.horaFin}</span>
+              <span>{(jornada as any).horaInicio} - {(jornada as any).horaFin}</span>
             </div>
           </div>
           
@@ -99,27 +99,33 @@ export default function ConfiguracionJornadasSimple() {
     activa: true,
     jornadas: [
       {
+        id: `temp-${Date.now()}-1`,
         nombre: 'Jornada A',
+        codigo: 'A',
         descripcion: 'Primera jornada del día',
         horaInicio: '07:00 AM',
         horaFin: '12:00 PM',
+        horario: { horaInicio: '07:00 AM', horaFin: '12:00 PM' },
         orden: 1,
         activa: true,
         diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
         color: '#3B82F6'
-      },
+      } as any,
       {
+        id: `temp-${Date.now()}-2`,
         nombre: 'Jornada B',
+        codigo: 'B',
         descripcion: 'Segunda jornada del día',
         horaInicio: '03:00 PM',
         horaFin: '09:00 PM',
+        horario: { horaInicio: '03:00 PM', horaFin: '09:00 PM' },
         orden: 2,
         activa: true,
         diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
         color: '#10B981'
-      }
+      } as any
     ]
-  });
+  } as any);
 
   const [loading, setLoading] = useState(false);
   const [loadingInicial, setLoadingInicial] = useState(true);
@@ -256,9 +262,9 @@ export default function ConfiguracionJornadasSimple() {
           
           setConfiguracion({
             ...configuracionActiva,
-            esquema_tipo: configuracionActiva.esquema_tipo || 'personalizado', // Asegurar que siempre tenga un valor
+            esquemaTipo: (configuracionActiva as any).esquema_tipo || 'personalizado', // Asegurar que siempre tenga un valor
             jornadas: jornadasConvertidas
-          });
+          } as ConfiguracionJornadas);
           
           console.log('✅ Configuración establecida en el estado');
         } else {
@@ -309,7 +315,7 @@ export default function ConfiguracionJornadasSimple() {
 
   // Función para validar conflictos de horario
   const validarConflictosHorario = (): boolean => {
-    const jornadas = configuracion.jornadas;
+    const jornadas = configuracion.jornadas as any[];
     
     // Verificar cada jornada contra las demás
     for (let i = 0; i < jornadas.length; i++) {
@@ -355,7 +361,7 @@ export default function ConfiguracionJornadasSimple() {
   };
 
   // Función para calcular espacios disponibles
-  const calcularEspaciosDisponibles = (jornadas: JornadaConfig[], indexExcluir: number): string[] => {
+  const calcularEspaciosDisponibles = (jornadas: any[], indexExcluir: number): string[] => {
     // Ordenar jornadas por hora de inicio (excluyendo la jornada actual)
     const jornadasOrdenadas = jornadas
       .map((j, idx) => ({ ...j, originalIndex: idx }))
@@ -407,24 +413,33 @@ export default function ConfiguracionJornadasSimple() {
   };
 
   // Manejadores de eventos
-  const handleConfiguracionChange = (field: keyof ConfiguracionJornadas, value: any) => {
+  const handleConfiguracionChange = (field: any, value: any) => {
     setConfiguracion((prev: ConfiguracionJornadas) => {
-      const nueva = { ...prev, [field]: value };
+      const prevAny = prev as any;
+      const nueva = { 
+        ...prevAny, 
+        [field]: value,
+        // Mantener campos importantes
+        nombre: field === 'nombre' ? value : prevAny.nombre,
+        descripcion: field === 'descripcion' ? value : prevAny.descripcion,
+        esquema_tipo: field === 'esquema_tipo' || field === 'esquemaTipo' ? value : prevAny.esquema_tipo,
+        activa: field === 'activa' ? value : prevAny.activa
+      };
       
-      if (field === 'esquema_tipo') {
+      if (field === 'esquemaTipo' || field === 'esquema_tipo') {
         aplicarEsquemaPredefinido(value);
       }
       
-      return nueva;
+      return nueva as ConfiguracionJornadas;
     });
   };
 
-  const handleJornadaChange = (index: number, field: keyof JornadaConfig, value: any) => {
+  const handleJornadaChange = (index: number, field: any, value: any) => {
     setConfiguracion((prev: ConfiguracionJornadas) => {
-      const nuevasJornadas = [...prev.jornadas];
+      const nuevasJornadas = [...prev.jornadas] as any[];
       nuevasJornadas[index] = { ...nuevasJornadas[index], [field]: value };
       
-      return { ...prev, jornadas: nuevasJornadas };
+      return { ...prev, jornadas: nuevasJornadas as any };
     });
   };
 
@@ -444,6 +459,7 @@ export default function ConfiguracionJornadasSimple() {
     setConfiguracion((prev: ConfiguracionJornadas) => ({
       ...prev,
       jornadas: [...prev.jornadas, {
+        id: `temp-${Date.now()}`,
         codigo: letraAlfabeto,
         nombre: `Jornada ${letraAlfabeto}`,
         descripcion: `Descripción de la jornada ${letraAlfabeto}`,
@@ -452,9 +468,13 @@ export default function ConfiguracionJornadasSimple() {
         orden: prev.jornadas.length + 1,
         activa: true,
         diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-        color: colorJornada
-      }]
-    }));
+        color: colorJornada,
+        horario: {
+          horaInicio: '00:00',
+          horaFin: '08:00'
+        }
+      } as any]
+    } as ConfiguracionJornadas));
   };
 
   const eliminarJornada = (index: number) => {
@@ -495,11 +515,12 @@ export default function ConfiguracionJornadasSimple() {
   };
 
   const aplicarEsquemaPredefinido = (tipo: string) => {
-    let nuevasJornadas: JornadaConfig[] = [];
+    let nuevasJornadas: any[] = [];
     
     switch (tipo) {
       case 'una':
         nuevasJornadas = [{
+          id: `temp-${Date.now()}-1`,
           nombre: 'Jornada A',
           descripcion: 'Jornada completa de 24 horas',
           horaInicio: '12:00 AM',
@@ -507,13 +528,15 @@ export default function ConfiguracionJornadasSimple() {
           orden: 1,
           activa: true,
           diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-          color: '#3B82F6'
+          color: '#3B82F6',
+          horario: { horaInicio: '00:00', horaFin: '23:45' }
         }];
         break;
         
       case 'dos':
         nuevasJornadas = [
           {
+            id: `temp-${Date.now()}-1`,
             nombre: 'Jornada A',
             descripcion: 'Primera jornada del día',
             horaInicio: '07:00 AM',
@@ -521,9 +544,11 @@ export default function ConfiguracionJornadasSimple() {
             orden: 1,
             activa: true,
             diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-            color: '#3B82F6'
+            color: '#3B82F6',
+            horario: { horaInicio: '07:00', horaFin: '12:00' }
           },
           {
+            id: `temp-${Date.now()}-2`,
             nombre: 'Jornada B',
             descripcion: 'Segunda jornada del día',
             horaInicio: '03:00 PM',
@@ -531,7 +556,8 @@ export default function ConfiguracionJornadasSimple() {
             orden: 2,
             activa: true,
             diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-            color: '#10B981'
+            color: '#10B981',
+            horario: { horaInicio: '15:00', horaFin: '21:00' }
           }
         ];
         break;
@@ -539,6 +565,7 @@ export default function ConfiguracionJornadasSimple() {
       case 'tres':
         nuevasJornadas = [
           {
+            id: `temp-${Date.now()}-1`,
             nombre: 'Jornada A',
             descripcion: 'Primera jornada del día',
             horaInicio: '07:00 AM',
@@ -546,9 +573,11 @@ export default function ConfiguracionJornadasSimple() {
             orden: 1,
             activa: true,
             diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-            color: '#3B82F6'
+            color: '#3B82F6',
+            horario: { horaInicio: '07:00', horaFin: '12:00' }
           },
           {
+            id: `temp-${Date.now()}-2`,
             nombre: 'Jornada B',
             descripcion: 'Segunda jornada del día',
             horaInicio: '03:00 PM',
@@ -556,7 +585,8 @@ export default function ConfiguracionJornadasSimple() {
             orden: 2,
             activa: true,
             diasSemana: ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
-            color: '#10B981'
+            color: '#10B981',
+            horario: { horaInicio: '15:00', horaFin: '21:00' }
           }
         ];
         break;
@@ -569,7 +599,7 @@ export default function ConfiguracionJornadasSimple() {
 
   // Función para guardar configuración
   const guardarConfiguracion = async () => {
-    if (!configuracion.nombre.trim()) {
+    if (!(configuracion as any).nombre?.trim()) {
       error('Nombre requerido', 'Debes proporcionar un nombre para la configuración');
       return;
     }
@@ -583,45 +613,48 @@ export default function ConfiguracionJornadasSimple() {
     setLoading(true);
     try {
       // Preparar jornadas para el backend (convertir a formato 24h)
-      const jornadasParaBackend = configuracion.jornadas.map((j) => ({
+      const jornadasParaBackend = configuracion.jornadas.map((j: any) => ({
         codigo: j.codigo || '',
         nombre: j.nombre,
         descripcion: j.descripcion || '',
-        horaInicio: convertirA24Horas(j.horaInicio),
-        horaFin: convertirA24Horas(j.horaFin),
+        horaInicio: convertirA24Horas(j.horaInicio || j.horario?.horaInicio || ''),
+        horaFin: convertirA24Horas(j.horaFin || j.horario?.horaFin || ''),
         activa: j.activa !== undefined ? j.activa : true,
         diasSemana: j.diasSemana || ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as DiaSemana[],
         color: j.color || '#3B82F6'
       }));
 
       console.log('Enviando jornadas al backend (24h format):', jornadasParaBackend);
+      console.log('Configuración completa:', configuracion);
+      console.log('esquema_tipo:', (configuracion as any).esquema_tipo);
 
       let resultado: ConfiguracionJornadas | undefined;
       
       if (configuracion.id) {
-        resultado = await configuracionJornadasService.actualizarConfiguracion(configuracion.id, {
-          nombre: configuracion.nombre,
-          descripcion: configuracion.descripcion,
-          esquema_tipo: configuracion.esquema_tipo,
-          activa: configuracion.activa,
+        resultado = await configuracionJornadasService.actualizarConfiguracion(Number((configuracion as any).id), {
+          nombre: (configuracion as any).nombre || '',
+          descripcion: (configuracion as any).descripcion || '',
+          esquema_tipo: (configuracion as any).esquema_tipo || 'dos',
+          activa: (configuracion as any).activa !== undefined ? (configuracion as any).activa : true,
           jornadas: jornadasParaBackend
         });
         success('Configuración actualizada', 'Los cambios se han guardado correctamente');
       } else {
         resultado = await configuracionJornadasService.crearConfiguracion({
-          nombre: configuracion.nombre,
-          descripcion: configuracion.descripcion,
-          esquema_tipo: configuracion.esquema_tipo,
-          activa: configuracion.activa || true,
+          nombre: (configuracion as any).nombre || '',
+          descripcion: (configuracion as any).descripcion || '',
+          esquema_tipo: (configuracion as any).esquema_tipo || 'dos',
+          activa: (configuracion as any).activa !== undefined ? (configuracion as any).activa : true,
           jornadas: jornadasParaBackend
         });
         success('Configuración creada', 'La nueva configuración se ha guardado correctamente');
         
         // Actualizar el ID de la configuración creada
         if (resultado?.id) {
-          setConfiguracion(prev => ({ ...prev, id: resultado!.id }));
+          setConfiguracion(prev => ({ ...prev, id: resultado!.id } as any));
         }
       }
+      
     } catch (err: any) {
       console.error('❌ Error completo al guardar configuración:', err);
       console.error('❌ Error response:', err.response);
@@ -702,8 +735,8 @@ export default function ConfiguracionJornadasSimple() {
             </label>
             <input
               type="text"
-              value={configuracion.nombre}
-              onChange={(e) => handleConfiguracionChange('nombre', e.target.value)}
+              value={(configuracion as any).nombre || ''}
+              onChange={(e) => handleConfiguracionChange('nombre' as any, e.target.value)}
               className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
               placeholder="Configuración Tennis Club"
             />
@@ -714,9 +747,9 @@ export default function ConfiguracionJornadasSimple() {
               Tipo de esquema
             </label>
             <select
-              value={configuracion.esquema_tipo}
+              value={(configuracion as any).esquema_tipo || ''}
               onChange={(e) => {
-                handleConfiguracionChange('esquema_tipo', e.target.value);
+                handleConfiguracionChange('esquema_tipo' as any, e.target.value);
                 aplicarEsquemaPredefinido(e.target.value);
               }}
               className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
@@ -735,8 +768,8 @@ export default function ConfiguracionJornadasSimple() {
             Descripción
           </label>
           <textarea
-            value={configuracion.descripcion}
-            onChange={(e) => handleConfiguracionChange('descripcion', e.target.value)}
+            value={(configuracion as any).descripcion || ''}
+            onChange={(e) => handleConfiguracionChange('descripcion' as any, e.target.value)}
             rows={2}
             className="w-full px-4 py-2.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
             placeholder="Esquema de dos jornadas: Jornada A y Jornada B"
@@ -788,8 +821,8 @@ export default function ConfiguracionJornadasSimple() {
                   <label className="block text-xs font-medium text-gray-400 mb-1.5">Código</label>
                   <input
                     type="text"
-                    value={jornada.codigo || ''}
-                    onChange={(e) => handleJornadaChange(index, 'codigo', e.target.value)}
+                    value={(jornada as any).codigo || ''}
+                    onChange={(e) => handleJornadaChange(index, 'codigo' as any, e.target.value)}
                     className="w-full px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     placeholder="A"
                     maxLength={3}
@@ -808,13 +841,13 @@ export default function ConfiguracionJornadasSimple() {
                 </div>
                 
                 <TimeSelector12h
-                  value={jornada.horaInicio}
+                  value={(jornada as any).horaInicio || ''}
                   onChange={(time) => handleJornadaChange(index, 'horaInicio', time)}
                   label="Hora Inicio"
                 />
                 
                 <TimeSelector12h
-                  value={jornada.horaFin}
+                  value={(jornada as any).horaFin || ''}
                   onChange={(time) => handleJornadaChange(index, 'horaFin', time)}
                   label="Hora Fin"
                 />
@@ -823,7 +856,7 @@ export default function ConfiguracionJornadasSimple() {
               <div className="mt-3 pt-3 border-t border-gray-600">
                 <div className="text-xs text-gray-400 flex items-center gap-2">
                   <Clock className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Duración: {jornada.horaInicio} - {jornada.horaFin}</span>
+                  <span>Duración: {(jornada as any).horaInicio || ''} - {(jornada as any).horaFin || ''}</span>
                 </div>
               </div>
             </div>

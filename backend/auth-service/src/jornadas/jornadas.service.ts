@@ -72,57 +72,139 @@ export class JornadasService {
         this.logger.log(`✅ Configuración actualizada ID: ${configuracion.id}`);
       }
 
-      // 2. Eliminar jornadas existentes de esta configuración
-      const jornadasExistentes = await this.jornadasConfigRepository.find({
-        where: { configuracionId: configuracion.id }
+      // 2. Obtener TODAS las jornadas existentes de esta configuración
+      let jornadasExistentes = await this.jornadasConfigRepository.find({
+        where: { configuracionId: configuracion.id },
+        order: { orden: 'ASC' }
       });
       
-      if (jornadasExistentes.length > 0) {
-        this.logger.log(`🗑️ Eliminando ${jornadasExistentes.length} jornadas existentes`);
-        await this.jornadasConfigRepository.remove(jornadasExistentes);
+      this.logger.log(`🔄 Total jornadas existentes: ${jornadasExistentes.length}`);
+      this.logger.log(`🔍 DETALLE DE JORNADAS EN BD:`);
+      jornadasExistentes.forEach(j => {
+        this.logger.log(`   - ID: ${j.id}, Código: ${j.codigo}, Nombre: ${j.nombre}, ConfigID: ${j.configuracionId}`);
+      });
+
+      // 3. IMPORTANTE: Si hay más jornadas existentes que las enviadas, eliminar duplicados
+      if (jornadasExistentes.length > dto.jornadas.length) {
+        this.logger.log(`⚠️ HAY DUPLICADOS! Limpiando ${jornadasExistentes.length - dto.jornadas.length} jornadas extras`);
+        
+        // Agrupar por código y mantener solo la primera de cada una
+        const jornadasPorCodigo = new Map<string, JornadaConfig[]>();
+        for (const jornada of jornadasExistentes) {
+          if (!jornadasPorCodigo.has(jornada.codigo)) {
+            jornadasPorCodigo.set(jornada.codigo, []);
+          }
+          jornadasPorCodigo.get(jornada.codigo)!.push(jornada);
+        }
+        
+        // Eliminar duplicados de cada código (mantener solo la primera)
+        const jornadasAMantener: JornadaConfig[] = [];
+        for (const [codigo, jornadas] of jornadasPorCodigo) {
+          // Siempre mantener la primera
+          jornadasAMantener.push(jornadas[0]);
+          
+          // Eliminar el resto si hay duplicados
+          if (jornadas.length > 1) {
+            this.logger.log(`🗑️ Código ${codigo} tiene ${jornadas.length} duplicados, eliminando ${jornadas.length - 1}`);
+            for (let i = 1; i < jornadas.length; i++) {
+              try {
+                await this.jornadasConfigRepository.delete(jornadas[i].id);
+                this.logger.log(`✅ Duplicado ${codigo} (ID: ${jornadas[i].id}) eliminado`);
+              } catch (error) {
+                this.logger.warn(`⚠️ No se pudo eliminar duplicado ${codigo}: ${error.message}`);
+              }
+            }
+          }
+        }
+        
+        // Actualizar el array con solo las jornadas que quedaron (SIN recargar de BD)
+        jornadasExistentes = jornadasAMantener;
+        this.logger.log(`✅ Jornadas después de limpieza: ${jornadasExistentes.length} (${jornadasAMantener.map(j => j.codigo).join(', ')})`);
       }
 
-      // 3. Crear las nuevas jornadas
-      const jornadasCreadas: JornadaConfig[] = [];
+      // 4. SOLO ACTUALIZAR las jornadas existentes (NUNCA crear nuevas si ya existen)
+      const jornadasProcesadas: JornadaConfig[] = [];
       
       for (let i = 0; i < dto.jornadas.length; i++) {
         const jornadaData = dto.jornadas[i];
-        this.logger.log(`📝 Creando jornada ${i + 1}:`, jornadaData.nombre);
-
-        // Generar código si no viene
         const codigo = jornadaData.codigo || `J${i + 1}`;
-
-        // Normalizar formato de hora (agregar segundos si no los tiene)
         const horaInicio = this.normalizarHora(jornadaData.horaInicio);
         const horaFin = this.normalizarHora(jornadaData.horaFin);
 
-        const jornada = this.jornadasConfigRepository.create({
-          configuracionId: configuracion.id,
-          codigo,
-          nombre: jornadaData.nombre,
-          descripcion: jornadaData.descripcion,
-          horaInicio,
-          horaFin,
-          color: jornadaData.color || '#3b82f6',
-          orden: jornadaData.orden || (i + 1),
-          activa: jornadaData.activa !== false,
-          clubId,
-          configuradoPor: userId,
+        // BUSCAR DIRECTAMENTE EN LA BASE DE DATOS (no en el array en memoria)
+        let jornadaExistente = await this.jornadasConfigRepository.findOne({
+          where: { 
+            configuracionId: configuracion.id,
+            codigo: codigo 
+          }
         });
 
-        const jornadaGuardada = await this.jornadasConfigRepository.save(jornada);
-        jornadasCreadas.push(jornadaGuardada);
-        this.logger.log(`✅ Jornada ${i + 1} creada con ID:`, jornadaGuardada.id);
+        this.logger.log(`🔎 Procesando jornada enviada: Código=${codigo}, Nombre=${jornadaData.nombre}`);
+        this.logger.log(`🔎 Buscando en BD configuracionId=${configuracion.id}, codigo=${codigo}...`);
+        
+        if (jornadaExistente) {
+          // SOLO ACTUALIZAR - NUNCA CREAR
+          this.logger.log(`✅ ENCONTRADA! Actualizando jornada ID ${jornadaExistente.id} - Código: ${codigo}`);
+          jornadaExistente.nombre = jornadaData.nombre;
+          jornadaExistente.descripcion = jornadaData.descripcion || '';
+          jornadaExistente.horaInicio = horaInicio;
+          jornadaExistente.horaFin = horaFin;
+          jornadaExistente.color = jornadaData.color || '#3b82f6';
+          jornadaExistente.orden = jornadaData.orden || (i + 1);
+          jornadaExistente.activa = jornadaData.activa !== false;
+          
+          const jornadaGuardada = await this.jornadasConfigRepository.save(jornadaExistente);
+          jornadasProcesadas.push(jornadaGuardada);
+          this.logger.log(`✅ Jornada ${codigo} actualizada correctamente con ID ${jornadaGuardada.id}`);
+        } else {
+          // Solo crear si realmente no existe ninguna con ese código
+          this.logger.error(`❌ NO ENCONTRADA! CREANDO NUEVA jornada: ${codigo} - ESTO NO DEBERÍA PASAR!`);
+          this.logger.error(`❌ Códigos disponibles en jornadasExistentes: ${jornadasExistentes.map(j => j.codigo).join(', ')}`);
+          
+          const nuevaJornada = this.jornadasConfigRepository.create({
+            configuracionId: configuracion.id,
+            codigo,
+            nombre: jornadaData.nombre,
+            descripcion: jornadaData.descripcion,
+            horaInicio,
+            horaFin,
+            color: jornadaData.color || '#3b82f6',
+            orden: jornadaData.orden || (i + 1),
+            activa: jornadaData.activa !== false,
+            clubId,
+            configuradoPor: userId,
+          });
+
+          const jornadaGuardada = await this.jornadasConfigRepository.save(nuevaJornada);
+          jornadasProcesadas.push(jornadaGuardada);
+          this.logger.error(`❌ Jornada ${codigo} CREADA NUEVA con ID: ${jornadaGuardada.id}`);
+        }
       }
 
-      this.logger.log('🎉 Configuración completa creada exitosamente');
+      this.logger.log('🎉 Configuración completa guardada exitosamente');
 
+      // Devolver un objeto simple sin relaciones complejas
       return {
-        configuracion: await this.getConfiguracionById(configuracion.id),
-        jornadas: jornadasCreadas,
+        id: configuracion.id,
+        nombre: configuracion.nombre,
+        descripcion: configuracion.descripcion,
+        esquemaTipo: configuracion.esquemaTipo,
+        esquema_tipo: configuracion.esquemaTipo,
+        activa: configuracion.activa,
+        jornadas: jornadasProcesadas.map(j => ({
+          id: j.id,
+          codigo: j.codigo,
+          nombre: j.nombre,
+          horaInicio: j.horaInicio,
+          horaFin: j.horaFin,
+          color: j.color,
+          orden: j.orden,
+          activa: j.activa
+        }))
       };
     } catch (error) {
       this.logger.error('❌ Error al crear configuración completa:', error);
+      this.logger.error('❌ Stack trace:', error.stack);
       throw error;
     }
   }
@@ -145,13 +227,28 @@ export class JornadasService {
     }
 
     // Cargar jornadas asociadas
-    const jornadas = await this.jornadasConfigRepository.find({
+    let jornadas = await this.jornadasConfigRepository.find({
       where: { configuracionId: id },
       order: { orden: 'ASC' }
     });
 
+    this.logger.log(`📊 GET - Total jornadas encontradas: ${jornadas.length}`);
+
+    // 🎯 FILTRAR DUPLICADOS: Si hay múltiples jornadas con el mismo código, devolver solo la primera
+    if (jornadas.length > 3) {
+      const jornadasUnicas = new Map<string, JornadaConfig>();
+      for (const jornada of jornadas) {
+        if (!jornadasUnicas.has(jornada.codigo)) {
+          jornadasUnicas.set(jornada.codigo, jornada);
+        }
+      }
+      jornadas = Array.from(jornadasUnicas.values());
+      this.logger.log(`✅ GET - Jornadas filtradas (sin duplicados): ${jornadas.length}`);
+    }
+
     return {
       ...configuracion,
+      esquema_tipo: configuracion.esquemaTipo, // Añadir alias snake_case
       jornadas,
     };
   }
@@ -186,12 +283,24 @@ export class JornadasService {
 
     this.logger.log(`✅ Configuración encontrada: ID=${configuracion.id}, nombre=${configuracion.nombre}`);
 
-    const jornadas = await this.jornadasConfigRepository.find({
+    let jornadas = await this.jornadasConfigRepository.find({
       where: { configuracionId: configuracion.id },
       order: { orden: 'ASC' }
     });
 
-    this.logger.log(`✅ Jornadas encontradas: ${jornadas.length}`);
+    this.logger.log(`📊 GET ACTIVA - Total jornadas encontradas: ${jornadas.length}`);
+
+    // 🎯 FILTRAR DUPLICADOS: Si hay múltiples jornadas con el mismo código, devolver solo la primera
+    if (jornadas.length > 3) {
+      const jornadasUnicas = new Map<string, JornadaConfig>();
+      for (const jornada of jornadas) {
+        if (!jornadasUnicas.has(jornada.codigo)) {
+          jornadasUnicas.set(jornada.codigo, jornada);
+        }
+      }
+      jornadas = Array.from(jornadasUnicas.values());
+      this.logger.log(`✅ GET ACTIVA - Jornadas filtradas (sin duplicados): ${jornadas.length}`);
+    }
 
     return {
       ...configuracion,
@@ -724,31 +833,40 @@ export class JornadasService {
     try {
       this.logger.log(`🔍 DEBUG - getJornadasConfiguradas para club: ${clubId}`);
       
-      // TEMPORAL: Obtener jornadas que realmente tienen registros
-      const registrosUnicos = await this.registrosJornadaRepository
-        .createQueryBuilder('registro')
-        .select('DISTINCT registro.jornadaConfigId', 'jornadaConfigId')
-        .getRawMany();
-      
-      this.logger.log(`🔍 DEBUG - Jornadas con registros:`, registrosUnicos.map(r => r.jornadaConfigId));
-      
-      if (registrosUnicos.length === 0) {
-        this.logger.warn(`No hay registros de jornadas para el club ${clubId}`);
+      // Obtener la configuración activa del club
+      const configuracion = await this.configuracionRepository.findOne({
+        where: { clubId, activa: true }
+      });
+
+      if (!configuracion) {
+        this.logger.warn(`No hay configuración activa para el club ${clubId}`);
         return [];
       }
+
+      // Obtener TODAS las jornadas de la configuración activa (tengan o no registros)
+      let jornadas = await this.jornadasConfigRepository.find({
+        where: { 
+          configuracionId: configuracion.id,
+          activa: true 
+        },
+        order: { orden: 'ASC' }
+      });
+
+      // Filtrar duplicados por código (devolver solo la primera de cada código)
+      if (jornadas.length > 3) {
+        const jornadasUnicas = new Map<string, JornadaConfig>();
+        for (const jornada of jornadas) {
+          if (!jornadasUnicas.has(jornada.codigo)) {
+            jornadasUnicas.set(jornada.codigo, jornada);
+          }
+        }
+        jornadas = Array.from(jornadasUnicas.values());
+      }
       
-      // Obtener las jornadas que realmente tienen datos
-      const idsConDatos = registrosUnicos.map(r => parseInt(r.jornadaConfigId));
-      const jornadasConDatos = await this.jornadasConfigRepository
-        .createQueryBuilder('jornada')
-        .where('jornada.id IN (:...ids)', { ids: idsConDatos })
-        .orderBy('jornada.orden', 'ASC')
-        .getMany();
+      this.logger.log(`✅ Encontradas ${jornadas.length} jornadas CONFIGURADAS para el club ${clubId}`);
+      this.logger.log(`🔍 DEBUG - Jornadas:`, jornadas.map(j => ({ id: j.id, codigo: j.codigo, nombre: j.nombre })));
       
-      this.logger.log(`✅ Encontradas ${jornadasConDatos.length} jornadas CON DATOS para el club ${clubId}`);
-      this.logger.log(`🔍 DEBUG - IDs de jornadas CON DATOS:`, jornadasConDatos.map(j => ({ id: j.id, nombre: j.nombre, configuracionId: j.configuracionId })));
-      
-      return jornadasConDatos;
+      return jornadas;
     } catch (error) {
       this.logger.error('❌ Error al obtener jornadas configuradas:', error);
       

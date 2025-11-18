@@ -6,6 +6,7 @@ import { ToastContainer } from './components/Toast';
 import { ProtectedRoute, PublicRoute } from './components';
 import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, PersonalPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
 import ConfiguracionEstadosPage from './pages/ConfiguracionEstadosPage';
+import Canchas from './pages/Canchas';
 
 function App() {
   return (
@@ -99,6 +100,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ConfiguracionEstadosPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/configuracion/canchas"
+                element={
+                  <ProtectedRoute>
+                    <Canchas />
                   </ProtectedRoute>
                 }
               />
