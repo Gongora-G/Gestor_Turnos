@@ -80,39 +80,76 @@ TennisFlow/
 - `frontend/`: aplicación React responsable de la interfaz de los distintos roles.
 - `infrastructure/`: scripts de despliegue, definición de contenedores, configuración de observabilidad.
 
-## ✅ **Módulos Implementados**
+## ✅ **Módulos Implementados** (Actualizado: 18/Nov/2025)
 
-### 🎯 **Módulo de Configuración de Canchas** (Recién completado)
-- **✨ Gestión de Canchas**: CRUD completo con diseño oscuro profesional
-  - Tabla responsiva con información detallada
-  - Validación de campos (superficieId, estadoId con prevención NaN)
-  - Fix backend: cambio a snake_case `precio_hora` para compatibilidad
-  - Campos comentados: `tipo_deporte` y `precio_hora` (sistema enfocado en tenis)
-  
-- **🎨 Tipos de Superficie**: Catalogación de superficies de juego
-  - Cards con gradientes y efectos hover
-  - Campo `velocidad` comentado (no necesario actualmente)
-  - Indicadores visuales de mantenimiento especial
-  - Sistema de colores personalizables
-  
-- **🚦 Estados de Cancha**: Estados operativos del sistema
-  - Diseño de cards profesional con iconos
-  - Selector de iconos interactivo (8 opciones)
-  - Checkboxes mejorados: permite_reservas, visible_en_turnos, predeterminado
-  - Estados activo/inactivo con indicadores visuales
+### 🎯 **Módulo de Configuración de Canchas** ✅ COMPLETO
+**Componentes:**
 
-- **🎉 Toast Notifications**: Sistema de feedback implementado
-  - Notificaciones success/error en todas las operaciones CRUD
-  - 4 tipos: success (verde), error (rojo), warning (amarillo), info (azul)
-  - Auto-dismiss con animaciones suaves
-  - Diseño consistente con tema oscuro del sistema
+1. **✨ Gestión de Canchas (GestionCanchas.tsx)**
+   - Tabla responsiva con CRUD completo
+   - Validación robusta (prevención de NaN en superficieId/estadoId)
+   - Toast notifications en todas las operaciones
+   - Toggle activo/inactivo con feedback visual
+   - Backend con snake_case (`precio_hora`)
+   - Campos comentados: `tipo_deporte`, `precio_hora` (opcional)
 
-### 🎨 **Mejoras de Diseño**
-- **Eliminados warnings React DOM**: Migración de Tailwind a inline styles
-- **Border properties**: Cambio de shorthand a propiedades específicas
-- **Tema oscuro consistente**: #1f2937, #111827, #374151
-- **Efectos visuales**: Hover, sombras dinámicas, gradientes
-- **Responsive**: Grid adaptable con minmax(320px, 1fr)
+2. **🎨 Tipos de Superficie (TiposSuperficie.tsx)**
+   - Cards con gradientes y efectos hover profesionales
+   - Sistema de colores personalizables (color picker HTML5)
+   - Checkbox: `requiere_mantenimiento_especial`
+   - DeleteConfirmModal con validación de dependencias
+   - Backend: muestra nombres de canchas que bloquean eliminación
+   - Sistema de orden para listado
+
+3. **🚦 Estados de Cancha (EstadosCanchas.tsx)**
+   - Diseño de cards profesional con selector de iconos
+   - 8 iconos disponibles: ✓, ✗, 🔧, ⚠, 🕐, ⏸, 🔒, ⭐
+   - Checkboxes: `permite_reservas`, `visible_en_turnos`, `es_predeterminado`
+   - Validación: no permite eliminar estados predeterminados
+   - Backend: muestra canchas dependientes antes de eliminar
+   - Sistema de colores con indicadores visuales
+
+4. **🎉 Sistema de Notificaciones (ToastContext)**
+   - 4 tipos: success (✓ verde), error (✗ rojo), warning (⚠ amarillo), info (ℹ azul)
+   - Auto-dismiss configurable (3 segundos default)
+   - Stack de notificaciones múltiples simultáneas
+   - Animaciones suaves de entrada/salida
+   - Diseño consistente con tema oscuro
+
+5. **🗑️ Modal de Confirmación (DeleteConfirmModal)**
+   - Componente reutilizable para todas las eliminaciones
+   - Props: isOpen, title, message, onConfirm, onCancel
+   - Estado de loading con spinner durante eliminación
+   - Diseño responsive y accesible
+
+### 🎨 **Mejoras de Diseño y Calidad**
+- ✅ **TypeScript:** Imports corregidos (`CrearCanchaDto`, `CreateTipoSuperficieDto`)
+- ✅ **React DOM:** Warnings eliminados (border properties inline)
+- ✅ **Tema oscuro:** Paleta consistente #1f2937, #111827, #374151
+- ✅ **Efectos visuales:** Hover states, sombras dinámicas, gradientes
+- ✅ **Responsive:** Grid adaptable con `minmax(320px, 1fr)`
+- ✅ **Backend:** Validaciones mejoradas con mensajes descriptivos
+- ✅ **UX:** Feedback inmediato en todas las acciones del usuario
+
+### 🔄 **Sistema de Jornadas** ✅ FUNCIONAL
+- Configuración de esquemas de jornadas (A/B/C personalizables)
+- Jornada activa con rotación automática
+- Registros diarios con turnos asociados
+- Timeline de horarios configurables
+- Estados: abierta, en_progreso, cerrada
+- Papelera de registros eliminados (soft delete)
+
+### 👥 **Gestión de Personal** ✅ BASE IMPLEMENTADA
+- Tipos de personal configurables (Caddie, Boleador, etc.)
+- Estados del personal (activo, incapacitado, retirado)
+- Campos personalizados por tipo
+- Integración con sistema de jornadas
+
+### 🏆 **Gestión de Socios** ✅ BASE IMPLEMENTADA
+- Tipos de membresía con precios
+- CRUD de socios con datos completos
+- Estados de membresía (activa, vencida, suspendida)
+- Fechas de vencimiento y renovación
 
 ## 🚀 **Próximos Módulos**
 
