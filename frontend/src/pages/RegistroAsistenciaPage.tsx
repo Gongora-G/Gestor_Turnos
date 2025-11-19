@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardCheck, Calendar, Calculator, Users, CheckCircle, ClipboardList } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, CheckCircle } from 'lucide-react';
 import { GlobalNavigation, GlobalFooter } from '../components';
 import GestionTareas from '../components/GestionTareas';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,7 +18,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
   // Estados
   const [jornadaActual, setJornadaActual] = useState<JornadaConfig | null>(null);
   const [jornadas, setJornadas] = useState<JornadaConfig[]>([]);
-  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<number | null>(null);
+  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<string | null>(null);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -60,8 +60,8 @@ export const RegistroAsistenciaPage: React.FC = () => {
       // Seleccionar automáticamente la jornada actual basada en la hora
       const horaActual = new Date().getHours();
       const jornadaAuto = data.find(j => {
-        const horaInicio = parseInt(j.horaInicio.split(':')[0]);
-        const horaFin = parseInt(j.horaFin.split(':')[0]);
+        const horaInicio = parseInt(j.horario.horaInicio.split(':')[0]);
+        const horaFin = parseInt(j.horario.horaFin.split(':')[0]);
         
         // Manejar jornadas que cruzan medianoche (ej: 22:00 - 06:00)
         if (horaFin < horaInicio) {
@@ -85,7 +85,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
         setJornadaSeleccionada(data[0].id);
       }
     } catch (error) {
-      addToast('Error al cargar jornadas', 'error');
+      addToast({ type: 'error', title: 'Error', message: 'Error al cargar jornadas' });
     }
   };
 
@@ -94,10 +94,10 @@ export const RegistroAsistenciaPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const data = await asistenciaService.obtenerPersonalDisponible(jornadaSeleccionada);
+      const data = await asistenciaService.obtenerPersonalDisponible(Number(jornadaSeleccionada));
       setPersonalDisponible(data);
     } catch (error) {
-      addToast('Error al cargar personal disponible', 'error');
+      addToast({ type: 'error', title: 'Error', message: 'Error al cargar personal disponible' });
     } finally {
       setLoading(false);
     }
@@ -108,10 +108,10 @@ export const RegistroAsistenciaPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const data = await asistenciaService.obtenerAsistencias(fechaSeleccionada, jornadaSeleccionada);
+      const data = await asistenciaService.obtenerAsistencias(fechaSeleccionada, Number(jornadaSeleccionada));
       setAsistencias(data);
     } catch (error) {
-      addToast('Error al cargar asistencias', 'error');
+      addToast({ type: 'error', title: 'Error', message: 'Error al cargar asistencias' });
     } finally {
       setLoading(false);
     }
@@ -119,7 +119,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
 
   const abrirModalRegistro = (personal: PersonalDisponible) => {
     if (!jornadaSeleccionada) {
-      addToast('Por favor selecciona una jornada primero', 'error');
+      addToast({ type: 'error', title: 'Error', message: 'Por favor selecciona una jornada primero' });
       return;
     }
     
@@ -145,7 +145,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
       tareasCompletadas,
       turnosRealizadosAyer: turnosAyerValido,
       clubId: user.clubId,
-      registradoPor: user.userId,
+      registradoPor: user.id,
     };
 
     // Solo agregar campos opcionales si tienen valor
@@ -223,7 +223,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
 
     try {
       setLoading(true);
-      await asistenciaService.calcularOrden(fechaSeleccionada, jornadaSeleccionada);
+      await asistenciaService.calcularOrden(fechaSeleccionada, Number(jornadaSeleccionada));
       addToast({
         type: 'success',
         title: 'Orden calculado',
@@ -328,7 +328,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
           </label>
           <select
             value={jornadaSeleccionada || ''}
-            onChange={(e) => setJornadaSeleccionada(Number(e.target.value))}
+            onChange={(e) => setJornadaSeleccionada(e.target.value)}
             style={{
               width: '100%',
               padding: '0.75rem',
@@ -342,7 +342,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
             <option value="">Seleccionar jornada</option>
             {jornadas.map(j => (
               <option key={j.id} value={j.id}>
-                {j.nombre} ({j.horaInicio} - {j.horaFin})
+                {j.nombre} ({j.horario.horaInicio} - {j.horario.horaFin})
                 {jornadaActual?.id === j.id ? ' 🔴 ACTIVA' : ''}
               </option>
             ))}
@@ -609,7 +609,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
                 </div>
               </div>
             ) : (
-              asistencias.map((asistencia, index) => (
+              asistencias.map((asistencia) => (
                 <div
                   key={asistencia.id}
                   style={{

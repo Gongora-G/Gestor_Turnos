@@ -44,7 +44,7 @@ export const SociosPage: React.FC<SociosPageProps> = ({ isSubModule = false }) =
   const [modalVer, setModalVer] = useState(false);
   const [modalEditar, setModalEditar] = useState(false);
   const [modalEliminar, setModalEliminar] = useState(false);
-  const [cargando, setCargando] = useState(false);
+  const [_cargando, setCargando] = useState(false);
 
   // Cargar socios y categorías del backend
   useEffect(() => {

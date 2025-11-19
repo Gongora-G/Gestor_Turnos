@@ -30,13 +30,4 @@ export interface Turno {
   updated_at: string;
 }
 
-export interface CanchaBackend {
-  id: string;
-  nombre: string;
-  ubicacion?: string;
-  tipo?: string;
-  precio_por_hora: number;
-  disponible: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// CanchaBackend se importa desde services/canchasService

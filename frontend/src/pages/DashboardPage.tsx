@@ -1,24 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../contexts';
+// import { useAuth } from '../contexts';
 import { useSearchParams } from 'react-router-dom';
-import { formatDateTime, getInitials } from '../utils';
-import type { UserRole } from '../types';
 import { AppLayout, GlobalFooter } from '../components';
 import { 
   Calendar, 
   Clock, 
   Users, 
-  BarChart3, 
-  TrendingUp,
+  BarChart3,
   DollarSign,
-  Activity,
-  CheckCircle,
-  XCircle,
-  AlertCircle
+  Activity
 } from 'lucide-react';
 
 const DashboardPage: React.FC = () => {
-  const { user } = useAuth();
+  // const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [successMessage, setSuccessMessage] = useState<string>('');
 
@@ -56,14 +50,14 @@ const DashboardPage: React.FC = () => {
     { id: '4', socio: 'Ana Martín', cancha: 5, hora: '16:00', estado: 'activo' }
   ];
 
-  const getEstadoColor = (estado: string) => {
-    switch (estado) {
-      case 'activo': return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
-      case 'completado': return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-      case 'cancelado': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-      default: return 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-    }
-  };
+  // const getEstadoColor = (estado: string) => {
+  //   switch (estado) {
+  //     case 'activo': return 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+  //     case 'completado': return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+  //     case 'cancelado': return 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+  //     default: return 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+  //   }
+  // };
 
   return (
     <AppLayout>

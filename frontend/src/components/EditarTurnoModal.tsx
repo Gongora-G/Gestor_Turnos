@@ -4,6 +4,7 @@ import { formatTo12Hour } from '../utils/dateTime';
 import { useToast } from '../contexts/ToastContext';
 import { apiService } from '../services/api';
 import type { PersonalUnificado } from '../services/personalUnificadoService';
+import type { CanchaBackend } from '../services/canchasService';
 
 // Tipos locales para evitar problemas de importación
 interface Turno {
@@ -38,16 +39,7 @@ interface Turno {
   updated_at: string;
 }
 
-interface CanchaBackend {
-  id: string;
-  nombre: string;
-  ubicacion?: string;
-  tipo?: string;
-  precio_por_hora: number;
-  disponible: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// CanchaBackend se importa desde services
 
 interface EditarTurnoModalProps {
   isOpen: boolean;

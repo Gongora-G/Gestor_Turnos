@@ -10,7 +10,7 @@ import {
 } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
 import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
-import { turnosService, canchasService, type Turno as TurnoService } from '../services';
+import { turnosService, canchasService, type Turno as TurnoService, type CanchaBackend } from '../services';
 import { JornadasService } from '../services/jornadasService';
 import { useToast } from '../contexts/ToastContext';
 import { apiService } from '../services/api';
@@ -25,16 +25,7 @@ interface TurnoBackend extends Turno {}
 
 
   console.log('� Recargando turnos del día desde backend...');
-interface CanchaBackend {
-  id: string;
-  nombre: string;
-  ubicacion?: string;
-  tipo?: string;
-  precio_por_hora: number;
-  disponible: boolean;
-  created_at: string;
-  updated_at: string;
-}
+// CanchaBackend ahora se importa desde canchasService
 
 interface PersonalInfo {
   id: string;

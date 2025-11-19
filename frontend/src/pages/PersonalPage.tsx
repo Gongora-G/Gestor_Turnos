@@ -42,7 +42,7 @@ export const PersonalPage: React.FC = () => {
   const [tipoSeleccionado, setTipoSeleccionado] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<PersonalUnificado | null>(null);
-  const [vistaActual, setVistaActual] = useState<'personal' | 'estados'>('personal');
+  // const [vistaActual, setVistaActual] = useState<'personal' | 'estados'>('personal');
   const toast = useToast();
 
   // Obtener el clubId del usuario actual (ajustar según tu implementación)
