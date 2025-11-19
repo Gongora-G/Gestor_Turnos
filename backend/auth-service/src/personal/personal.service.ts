@@ -151,21 +151,22 @@ export class PersonalService {
   ): Promise<Personal> {
     const personal = await this.findOne(id);
     
-    // Buscar el estado por nombre
+    // Buscar el estado por nombre (case-insensitive) - sin filtrar por clubId por ahora
     const estadoObj = await this.estadoPersonalRepository.findOne({
       where: { 
-        clubId: parseInt(personal.clubId),
-        nombre: estado,
+        nombre: estado.toLowerCase(),
         activo: true,
       },
     });
 
     if (!estadoObj) {
-      throw new NotFoundException(`Estado '${estado}' no encontrado o no está activo`);
+      console.warn(`⚠️ Estado '${estado}' no encontrado en tabla estado_personal. Actualizando solo campo deprecado.`);
+      personal.estado = estado.toLowerCase();
+      return await this.personalRepository.save(personal);
     }
 
     personal.estadoId = estadoObj.id;
-    personal.estado = estado; // Mantener sincronizado el campo deprecado
+    personal.estado = estado.toLowerCase(); // Mantener sincronizado el campo deprecado
     return await this.personalRepository.save(personal);
   }
 

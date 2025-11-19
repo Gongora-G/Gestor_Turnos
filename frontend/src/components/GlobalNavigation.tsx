@@ -7,6 +7,7 @@ import {
   FileText, 
   Settings,
   Users,
+  ClipboardCheck,
   ChevronRight 
 } from 'lucide-react';
 
@@ -39,6 +40,12 @@ const GlobalNavigation: React.FC = () => {
       label: 'Personal',
       icon: Users,
       description: 'Gestión de personal del club'
+    },
+    {
+      path: '/asistencia',
+      label: 'Asistencia',
+      icon: ClipboardCheck,
+      description: 'Registro de llegadas'
     },
     {
       path: '/reportes',

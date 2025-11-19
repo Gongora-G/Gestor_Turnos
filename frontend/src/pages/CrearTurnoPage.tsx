@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { GlobalNavigation } from '../components';
+import { GlobalNavigation, GlobalFooter } from '../components';
 import { Calendar, Users, Save, ArrowLeft, AlertCircle } from 'lucide-react';
 import { turnosService, canchasService } from '../services';
 import TimeInput12h from '../components/TimeInput12h';
@@ -665,6 +665,7 @@ export const CrearTurnoPage: React.FC = () => {
           </form>
         </div>
       </div>
+      <GlobalFooter />
     </div>
   );
 };

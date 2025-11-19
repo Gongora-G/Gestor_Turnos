@@ -11,7 +11,7 @@ import {
   Users,
   Activity
 } from 'lucide-react';
-import { GlobalNavigation, TiposPersonalConfig } from '../components';
+import { GlobalNavigation, TiposPersonalConfig, GlobalFooter } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
 import ConfiguracionJornadasSimple from '../components/ConfiguracionJornadasSimple';
 import { SociosPage } from './SociosPage';
@@ -478,6 +478,7 @@ const ConfiguracionPage: React.FC = () => {
           {renderContenido()}
         </div>
       </div>
+      <GlobalFooter />
     </div>
   );
 };

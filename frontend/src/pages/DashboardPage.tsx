@@ -3,7 +3,7 @@ import { useAuth } from '../contexts';
 import { useSearchParams } from 'react-router-dom';
 import { formatDateTime, getInitials } from '../utils';
 import type { UserRole } from '../types';
-import { AppLayout } from '../components';
+import { AppLayout, GlobalFooter } from '../components';
 import { 
   Calendar, 
   Clock, 
@@ -252,6 +252,7 @@ const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+      <GlobalFooter />
     </AppLayout>
   );
 };

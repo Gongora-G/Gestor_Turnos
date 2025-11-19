@@ -42,6 +42,10 @@ export class CreatePersonalDto {
   @IsOptional()
   activo?: boolean;
 
+  @IsNumber()
+  @IsOptional()
+  jornadaAsignadaId?: number;
+
   @IsString()
   clubId: string;
 }
@@ -90,4 +94,8 @@ export class UpdatePersonalDto {
   @IsBoolean()
   @IsOptional()
   activo?: boolean;
+
+  @IsNumber()
+  @IsOptional()
+  jornadaAsignadaId?: number;
 }

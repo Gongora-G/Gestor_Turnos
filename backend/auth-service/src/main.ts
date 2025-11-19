@@ -2,18 +2,36 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
+import * as express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // 📦 IMPORTANT: Configure JSON body parser BEFORE other middlewares
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  
   // 🍪 Configure cookie parser
   app.use(cookieParser());
+  
+  // 🔍 DEBUG: Log todas las peticiones (DESPUÉS del body parser de NestJS)
+  app.use((req, res, next) => {
+    if (req.method === 'POST' && req.url.includes('/asistencia/registrar')) {
+      console.log('🔥🔥🔥 PETICIÓN RECIBIDA /asistencia/registrar');
+      console.log('Body:', JSON.stringify(req.body, null, 2));
+      console.log('Headers Authorization:', req.headers.authorization ? 'PRESENTE' : 'AUSENTE');
+    }
+    next();
+  });
   
   // 🔧 Global validation pipe
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
-    forbidNonWhitelisted: true,
+    forbidNonWhitelisted: false, // Temporalmente deshabilitado para debug
     transform: true,
+    transformOptions: {
+      enableImplicitConversion: true, // Conversión automática de tipos
+    },
   }));
 
   // 🚀 CORS configuration for frontend integration

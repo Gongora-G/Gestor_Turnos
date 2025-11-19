@@ -4,7 +4,7 @@ import { AuthProvider } from './contexts';
 import { ToastProvider } from './contexts/ToastContext';
 import { ToastContainer } from './components/Toast';
 import { ProtectedRoute, PublicRoute } from './components';
-import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, PersonalPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
+import { LoginPage, RegisterPage, DashboardPage, AuthCallbackPage, TermsOfServicePage, PrivacyPolicyPage, TurnosPage, CrearTurnoPage, PersonalPage, RegistroAsistenciaPage, ConfiguracionPage, ConfiguracionPerfilPage } from './pages';
 import ConfiguracionEstadosPage from './pages/ConfiguracionEstadosPage';
 import Canchas from './pages/Canchas';
 
@@ -82,6 +82,16 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <PersonalPage />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Asistencia Routes */}
+              <Route
+                path="/asistencia"
+                element={
+                  <ProtectedRoute>
+                    <RegistroAsistenciaPage />
                   </ProtectedRoute>
                 }
               />

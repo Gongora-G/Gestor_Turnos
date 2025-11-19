@@ -127,8 +127,25 @@ export const ToastContainer: React.FC = () => {
   const { toasts } = useToast();
 
   return (
-    <div className="fixed inset-0 flex items-end justify-end px-4 py-6 pointer-events-none sm:p-6 z-50">
-      <div className="w-full flex flex-col items-end space-y-4 sm:items-end">
+    <div 
+      style={{ 
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'flex-end',
+        padding: '24px',
+        pointerEvents: 'none',
+        zIndex: 99999
+      }}
+    >
+      <div style={{
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: '16px'
+      }}>
         {toasts.map((toast) => (
           <ToastComponent key={toast.id} toast={toast} />
         ))}

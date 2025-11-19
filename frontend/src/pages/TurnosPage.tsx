@@ -5,7 +5,8 @@ import {
   TurnoCard, 
   VerTurnoModal, 
   EditarTurnoModal, 
-  EliminarTurnoModal 
+  EliminarTurnoModal,
+  GlobalFooter 
 } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
 import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
@@ -1469,6 +1470,7 @@ export const TurnosPage: React.FC = () => {
           }
         `}
       </style>
+      <GlobalFooter />
     </AppLayout>
   );
 };

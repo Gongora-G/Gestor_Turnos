@@ -11,39 +11,54 @@ export class SociosService {
     private sociosRepository: Repository<Socio>,
   ) {}
 
-  private convertirFecha(fecha: string): string {
+  private convertirFecha(fecha: string | undefined): string | null | undefined {
+    // Si es string vacío o null/undefined, retornar null para campos opcionales
+    if (!fecha || fecha.trim() === '') {
+      return null;
+    }
+    
     // Si la fecha está en formato DD/MM/YYYY, convertir a YYYY-MM-DD
-    if (fecha && fecha.includes('/')) {
+    if (fecha.includes('/')) {
       const [dia, mes, año] = fecha.split('/');
       return `${año}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
     }
+    
     // Si ya está en formato correcto o es ISO, devolverla como está
-    return fecha ? fecha.split('T')[0] : fecha;
+    return fecha.split('T')[0];
   }
 
   async create(createSocioDto: CreateSocioDto, clubId: string): Promise<Socio> {
-    // Verificar que el email y documento no estén en uso
+    // Verificar que el email y documento no estén en uso (globalmente, no solo por club)
+    // porque la constraint en la BD es UNIQUE sin incluir club_id
     const existeEmail = await this.sociosRepository.findOne({
-      where: { email: createSocioDto.email, club_id: clubId },
+      where: { email: createSocioDto.email },
     });
 
     if (existeEmail) {
-      throw new ConflictException('Ya existe un socio con este email');
+      throw new ConflictException('Ya existe un socio con este email en el sistema');
     }
 
     const existeDocumento = await this.sociosRepository.findOne({
-      where: { documento: createSocioDto.documento, club_id: clubId },
+      where: { documento: createSocioDto.documento },
     });
 
     if (existeDocumento) {
-      throw new ConflictException('Ya existe un socio con este documento');
+      throw new ConflictException('Ya existe un socio con este documento en el sistema');
     }
 
     // Convertir fechas al formato correcto
+    const fechaNacimiento = this.convertirFecha(createSocioDto.fecha_nacimiento);
+    const fechaInicio = this.convertirFecha(createSocioDto.fecha_inicio_membresia);
+    
+    // fecha_inicio_membresia es requerida, debe tener un valor
+    if (!fechaInicio) {
+      throw new ConflictException('La fecha de inicio de membresía es requerida');
+    }
+    
     const datosConFechasConvertidas = {
       ...createSocioDto,
-      fecha_nacimiento: createSocioDto.fecha_nacimiento ? this.convertirFecha(createSocioDto.fecha_nacimiento) : undefined,
-      fecha_inicio_membresia: this.convertirFecha(createSocioDto.fecha_inicio_membresia),
+      fecha_nacimiento: fechaNacimiento || undefined,
+      fecha_inicio_membresia: fechaInicio,
       club_id: clubId,
     };
 
@@ -115,9 +130,11 @@ export class SociosService {
     // Verificar email único si se está actualizando
     if (updateSocioDto.email && updateSocioDto.email !== socio.email) {
       console.log('🔍 Verificando email único:', updateSocioDto.email);
-      const existeEmail = await this.sociosRepository.findOne({
-        where: { email: updateSocioDto.email, club_id: clubId },
-      });
+      const existeEmail = await this.sociosRepository.createQueryBuilder('socio')
+        .where('socio.email = :email', { email: updateSocioDto.email })
+        .andWhere('socio.club_id = :clubId', { clubId })
+        .andWhere('socio.id != :id', { id })
+        .getOne();
 
       if (existeEmail) {
         console.error('❌ Email ya existe:', updateSocioDto.email);
@@ -128,9 +145,11 @@ export class SociosService {
     // Verificar documento único si se está actualizando
     if (updateSocioDto.documento && updateSocioDto.documento !== socio.documento) {
       console.log('🔍 Verificando documento único:', updateSocioDto.documento);
-      const existeDocumento = await this.sociosRepository.findOne({
-        where: { documento: updateSocioDto.documento, club_id: clubId },
-      });
+      const existeDocumento = await this.sociosRepository.createQueryBuilder('socio')
+        .where('socio.documento = :documento', { documento: updateSocioDto.documento })
+        .andWhere('socio.club_id = :clubId', { clubId })
+        .andWhere('socio.id != :id', { id })
+        .getOne();
 
       if (existeDocumento) {
         console.error('❌ Documento ya existe:', updateSocioDto.documento);
@@ -140,15 +159,33 @@ export class SociosService {
 
     console.log('🔄 Aplicando cambios...');
     
-    // Convertir fechas al formato correcto antes de aplicar cambios
-    const datosConFechasConvertidas = {
-      ...updateSocioDto,
-      fecha_nacimiento: updateSocioDto.fecha_nacimiento ? this.convertirFecha(updateSocioDto.fecha_nacimiento) : updateSocioDto.fecha_nacimiento,
-      fecha_inicio_membresia: updateSocioDto.fecha_inicio_membresia ? this.convertirFecha(updateSocioDto.fecha_inicio_membresia) : updateSocioDto.fecha_inicio_membresia,
-    };
+    // Convertir fechas y tipos al formato correcto antes de aplicar cambios
+    const fechaNacimientoConvertida = this.convertirFecha(updateSocioDto.fecha_nacimiento);
+    const fechaInicioConvertida = this.convertirFecha(updateSocioDto.fecha_inicio_membresia);
     
-    console.log('🔄 Datos con fechas convertidas:', JSON.stringify(datosConFechasConvertidas, null, 2));
-    Object.assign(socio, datosConFechasConvertidas);
+    // Aplicar solo los campos que vienen en el DTO
+    if (updateSocioDto.nombre !== undefined) socio.nombre = updateSocioDto.nombre;
+    if (updateSocioDto.apellido !== undefined) socio.apellido = updateSocioDto.apellido;
+    if (updateSocioDto.email !== undefined) socio.email = updateSocioDto.email;
+    if (updateSocioDto.telefono !== undefined) socio.telefono = updateSocioDto.telefono;
+    if (updateSocioDto.documento !== undefined) socio.documento = updateSocioDto.documento;
+    if (updateSocioDto.tipo_documento !== undefined) socio.tipo_documento = updateSocioDto.tipo_documento;
+    if (updateSocioDto.direccion !== undefined) socio.direccion = updateSocioDto.direccion || '';
+    if (updateSocioDto.observaciones !== undefined) socio.observaciones = updateSocioDto.observaciones || '';
+    if (updateSocioDto.estado !== undefined) socio.estado = updateSocioDto.estado as any;
+    if (updateSocioDto.tipo_membresia_id !== undefined) socio.tipo_membresia_id = String(updateSocioDto.tipo_membresia_id);
+    
+    // Fechas: fecha_nacimiento es nullable, fecha_inicio_membresia no lo es
+    if (updateSocioDto.fecha_nacimiento !== undefined) {
+      // fecha_nacimiento es nullable, podemos asignar undefined
+      socio.fecha_nacimiento = (fechaNacimientoConvertida === null ? undefined : fechaNacimientoConvertida) as any;
+    }
+    if (updateSocioDto.fecha_inicio_membresia !== undefined && fechaInicioConvertida) {
+      // fecha_inicio_membresia NO es nullable, debe tener un valor válido
+      socio.fecha_inicio_membresia = fechaInicioConvertida;
+    }
+    
+    console.log('🔄 Datos aplicados al socio');
     
     console.log('💾 Guardando socio actualizado...');
     const socioActualizado = await this.sociosRepository.save(socio);

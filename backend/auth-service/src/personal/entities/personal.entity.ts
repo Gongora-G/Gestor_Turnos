@@ -60,6 +60,10 @@ export class Personal {
   @Column({ type: 'boolean', default: true })
   activo: boolean;
 
+  // 🔄 ASIGNACIÓN A JORNADA (Opcional - algunos tienen horario libre)
+  @Column({ type: 'integer', nullable: true, name: 'jornada_asignada_id' })
+  jornadaAsignadaId: number;
+
   @Column({ type: 'uuid', name: 'club_id' })
   clubId: string;
 

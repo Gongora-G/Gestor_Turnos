@@ -11,6 +11,7 @@ import { TurnosModule } from './turnos/turnos.module';
 import { SociosModule } from './socios/socios.module';
 import { JornadasModule } from './jornadas/jornadas.module';
 import { PersonalModule } from './personal/personal.module';
+import { AsistenciaModule } from './asistencia/asistencia.module';
 
 @Module({
   imports: [
@@ -39,6 +40,8 @@ import { PersonalModule } from './personal/personal.module';
     JornadasModule,
     // 👨‍💼 Personal module (Caddies y Boleadores)
     PersonalModule,
+    // ✅ Asistencia module (Registro de llegadas)
+    AsistenciaModule,
   ],
   controllers: [AppController],
   providers: [AppService],

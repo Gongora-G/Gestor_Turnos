@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { CrearSocioModal, EditarSocioModal, GestionCategorias, Modal } from '../components';
 import { useToast } from '../contexts/ToastContext';
-import { GlobalNavigation } from '../components';
+import { GlobalNavigation, GlobalFooter } from '../components';
 import { tiposMembresiaService, type TipoMembresia } from '../services/tiposMembresiaService';
 import { sociosService, type Socio, type CrearSocioDto, type ActualizarSocioDto } from '../services/sociosService';
 
@@ -1426,6 +1426,7 @@ export const SociosPage: React.FC<SociosPageProps> = ({ isSubModule = false }) =
         </>
       )}
       </div>
+      {!isSubModule && <GlobalFooter />}
     </div>
   );
 };

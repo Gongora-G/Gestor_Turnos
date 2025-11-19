@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppLayout } from '../components';
+import { AppLayout, GlobalFooter } from '../components';
 import GestionCanchas from '../components/canchas/GestionCanchas';
 import TiposSuperficie from '../components/canchas/TiposSuperficie';
 import EstadosCanchas from '../components/canchas/EstadosCanchas';
@@ -85,6 +85,7 @@ const Canchas: React.FC = () => {
           {activeTab === 'estados' && <EstadosCanchas />}
         </div>
       </div>
+      <GlobalFooter />
     </AppLayout>
   );
 };

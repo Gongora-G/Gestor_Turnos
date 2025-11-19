@@ -74,8 +74,7 @@ export class UpdateSocioDto {
   direccion?: string;
 
   @IsOptional()
-  @IsString()
-  tipo_membresia_id?: string;
+  tipo_membresia_id?: string | number;
 
   @IsOptional()
   @IsString()

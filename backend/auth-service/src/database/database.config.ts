@@ -15,6 +15,9 @@ import { Socio } from '../socios/entities/socio.entity';
 import { JornadaConfig, ConfiguracionJornadas, RegistroJornada } from '../jornadas/entities/jornada.entity';
 import { TipoPersonal } from '../personal/entities/tipo-personal.entity';
 import { Personal } from '../personal/entities/personal.entity';
+import { RegistroAsistencia } from '../asistencia/entities/registro-asistencia.entity';
+import { Tarea } from '../asistencia/entities/tarea.entity';
+import { TareaAsignada } from '../asistencia/entities/tarea-asignada.entity';
 
 export const databaseConfig = (
   configService: ConfigService,
@@ -42,9 +45,12 @@ export const databaseConfig = (
     ConfiguracionJornadas,
     RegistroJornada,
     TipoPersonal,
-    Personal
+    Personal,
+    RegistroAsistencia,
+    Tarea,
+    TareaAsignada
   ],
-  synchronize: true, // Habilitado temporalmente para crear tablas tipos_personal y personal
+  synchronize: true, // Habilitado temporalmente para crear tablas (desarrollo)
   logging: configService.get<string>('NODE_ENV') === 'development',
   migrations: ['dist/database/migrations/*.js'],
   migrationsTableName: 'migrations',

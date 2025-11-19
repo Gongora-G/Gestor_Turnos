@@ -17,7 +17,7 @@ export class JornadasService {
   }
 
   static async getJornadas(): Promise<JornadaConfig[]> {
-    const response = await apiService.get<JornadaConfig[]>('/jornadas/config');
+    const response = await apiService.get<JornadaConfig[]>('/jornadas/configuradas');
     return response;
   }
 

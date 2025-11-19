@@ -33,12 +33,56 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   if (!isOpen) return null;
+
+  const validateField = (name: string, value: string): string => {
+    switch (name) {
+      case 'nombre':
+        if (!value.trim()) return 'El nombre es requerido';
+        if (value.length < 2) return 'El nombre debe tener al menos 2 caracteres';
+        return '';
+      case 'apellido':
+        if (!value.trim()) return 'El apellido es requerido';
+        if (value.length < 2) return 'El apellido debe tener al menos 2 caracteres';
+        return '';
+      case 'email':
+        if (!value.trim()) return 'El email es requerido';
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return 'Email inválido';
+        return '';
+      case 'documento':
+        if (!value.trim()) return 'El documento es requerido';
+        if (!/^\d{6,15}$/.test(value)) return 'El documento debe tener entre 6 y 15 dígitos';
+        return '';
+      case 'telefono':
+        if (value && !/^\d{7,15}$/.test(value)) return 'El teléfono debe tener entre 7 y 15 dígitos';
+        return '';
+      case 'tipo_membresia_id':
+        if (!value) return 'Debes seleccionar una categoría';
+        return '';
+      case 'fecha_inicio_membresia':
+        if (!value) return 'La fecha de inicio es requerida';
+        return '';
+      default:
+        return '';
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    
+    // Validar campo en tiempo real
+    const errorMsg = validateField(name, value);
+    setFieldErrors(prev => ({
+      ...prev,
+      [name]: errorMsg
+    }));
+    
+    // Limpiar error general si existe
+    if (error) setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -47,9 +91,18 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
     setError('');
 
     try {
-      // Validación básica
-      if (!formData.nombre || !formData.apellido || !formData.email || !formData.documento || !formData.tipo_membresia_id) {
-        throw new Error('Por favor completa todos los campos obligatorios');
+      // Validar todos los campos
+      const errors: Record<string, string> = {};
+      ['nombre', 'apellido', 'email', 'documento', 'tipo_membresia_id', 'fecha_inicio_membresia'].forEach(field => {
+        const errorMsg = validateField(field, formData[field as keyof CrearSocioDto] as string);
+        if (errorMsg) errors[field] = errorMsg;
+      });
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        setError('Por favor corrige los errores en el formulario');
+        setLoading(false);
+        return;
       }
 
       await onSave(formData);
@@ -70,8 +123,27 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
       });
       
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear socio');
+    } catch (err: any) {
+      console.error('Error al crear socio:', err);
+      
+      // Extraer mensaje específico del backend
+      let errorMessage = 'Error al crear socio';
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+        
+        // Identificar qué campo causó el error
+        if (errorMessage.includes('email')) {
+          setFieldErrors(prev => ({ ...prev, email: 'Este email ya está registrado en el sistema' }));
+        }
+        if (errorMessage.includes('documento')) {
+          setFieldErrors(prev => ({ ...prev, documento: 'Este documento ya está registrado en el sistema' }));
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -111,24 +183,29 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
       <form onSubmit={handleSubmit}>
         {error && (
           <div style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '10px',
-            padding: '12px 16px',
+            backgroundColor: 'rgba(239, 68, 68, 0.15)',
+            border: '2px solid #ef4444',
+            borderRadius: '12px',
+            padding: '16px 20px',
             marginBottom: '24px',
-            color: '#ef4444',
+            color: '#fecaca',
             fontSize: '14px',
+            fontWeight: '600',
             display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
+            alignItems: 'flex-start',
+            gap: '12px',
+            boxShadow: '0 4px 6px rgba(239, 68, 68, 0.1)'
           }}>
             <div style={{
-              width: '4px',
-              height: '16px',
+              width: '6px',
+              minHeight: '20px',
               backgroundColor: '#ef4444',
-              borderRadius: '2px'
+              borderRadius: '3px'
             }} />
-            {error}
+            <div>
+              <div style={{ fontWeight: '700', marginBottom: '4px' }}>⚠️ Error</div>
+              {error}
+            </div>
           </div>
         )}
 
@@ -177,16 +254,33 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
                 onChange={handleChange}
                 required
                 placeholder="Ingresa el nombre"
-                style={inputStyles}
+                style={{
+                  ...inputStyles,
+                  borderColor: fieldErrors.nombre ? '#ef4444' : 'rgba(255, 255, 255, 0.2)'
+                }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.borderColor = fieldErrors.nombre ? '#ef4444' : '#3b82f6';
                   e.target.style.background = 'rgba(59, 130, 246, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.borderColor = fieldErrors.nombre ? '#ef4444' : 'rgba(255, 255, 255, 0.2)';
                   e.target.style.background = 'rgba(255, 255, 255, 0.05)';
                 }}
               />
+              {fieldErrors.nombre && (
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#fca5a5', 
+                  fontSize: '13px', 
+                  marginTop: '6px',
+                  fontWeight: '500'
+                }}>
+                  <span style={{ fontSize: '14px' }}>⚠️</span>
+                  {fieldErrors.nombre}
+                </div>
+              )}
             </div>
 
             {/* Apellido */}
@@ -207,16 +301,33 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
                 onChange={handleChange}
                 required
                 placeholder="Ingresa el apellido"
-                style={inputStyles}
+                style={{
+                  ...inputStyles,
+                  borderColor: fieldErrors.apellido ? '#ef4444' : 'rgba(255, 255, 255, 0.2)'
+                }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.borderColor = fieldErrors.apellido ? '#ef4444' : '#3b82f6';
                   e.target.style.background = 'rgba(59, 130, 246, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.borderColor = fieldErrors.apellido ? '#ef4444' : 'rgba(255, 255, 255, 0.2)';
                   e.target.style.background = 'rgba(255, 255, 255, 0.05)';
                 }}
               />
+              {fieldErrors.apellido && (
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#fca5a5', 
+                  fontSize: '13px', 
+                  marginTop: '6px',
+                  fontWeight: '500'
+                }}>
+                  <span style={{ fontSize: '14px' }}>⚠️</span>
+                  {fieldErrors.apellido}
+                </div>
+              )}
             </div>
           </div>
 
@@ -242,16 +353,33 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
                 onChange={handleChange}
                 required
                 placeholder="Número de documento"
-                style={inputStyles}
+                style={{
+                  ...inputStyles,
+                  borderColor: fieldErrors.documento ? '#ef4444' : 'rgba(255, 255, 255, 0.2)'
+                }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.borderColor = fieldErrors.documento ? '#ef4444' : '#3b82f6';
                   e.target.style.background = 'rgba(59, 130, 246, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.borderColor = fieldErrors.documento ? '#ef4444' : 'rgba(255, 255, 255, 0.2)';
                   e.target.style.background = 'rgba(255, 255, 255, 0.05)';
                 }}
               />
+              {fieldErrors.documento && (
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#fca5a5', 
+                  fontSize: '13px', 
+                  marginTop: '6px',
+                  fontWeight: '500'
+                }}>
+                  <span style={{ fontSize: '14px' }}>⚠️</span>
+                  {fieldErrors.documento}
+                </div>
+              )}
             </div>
 
             {/* Tipo Documento */}
@@ -404,16 +532,37 @@ export const CrearSocioModal: React.FC<CrearSocioModalProps> = ({
                 onChange={handleChange}
                 required
                 placeholder="correo@ejemplo.com"
-                style={inputStyles}
+                style={{
+                  ...inputStyles,
+                  borderColor: fieldErrors.email ? '#ef4444' : 'rgba(255, 255, 255, 0.2)'
+                }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#3b82f6';
+                  e.target.style.borderColor = fieldErrors.email ? '#ef4444' : '#3b82f6';
                   e.target.style.background = 'rgba(59, 130, 246, 0.1)';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  e.target.style.borderColor = fieldErrors.email ? '#ef4444' : 'rgba(255, 255, 255, 0.2)';
                   e.target.style.background = 'rgba(255, 255, 255, 0.05)';
                 }}
               />
+              {fieldErrors.email && (
+                <div style={{ 
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  color: '#fca5a5', 
+                  fontSize: '13px', 
+                  marginTop: '6px',
+                  fontWeight: '500',
+                  backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                  padding: '8px 10px',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(239, 68, 68, 0.3)'
+                }}>
+                  <span style={{ fontSize: '14px' }}>⚠️</span>
+                  {fieldErrors.email}
+                </div>
+              )}
             </div>
 
             {/* Dirección */}

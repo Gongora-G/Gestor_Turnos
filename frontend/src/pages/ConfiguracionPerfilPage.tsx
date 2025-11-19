@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppLayout } from '../components';
+import { AppLayout, GlobalFooter } from '../components';
 import { useAuth } from '../contexts';
 import { 
   User, 
@@ -598,6 +598,7 @@ const ConfiguracionPerfilPage: React.FC = () => {
           </div>
         </div>
       </div>
+      <GlobalFooter />
     </AppLayout>
   );
 };

@@ -8,5 +8,6 @@ export { TurnosPage } from './TurnosPage';
 export { CrearTurnoPage } from './CrearTurnoPage';
 export { SociosPage } from './SociosPage';
 export { PersonalPage } from './PersonalPage';
+export { RegistroAsistenciaPage } from './RegistroAsistenciaPage';
 export { default as ConfiguracionPage } from './ConfiguracionPage';
 export { default as ConfiguracionPerfilPage } from './ConfiguracionPerfilPage';
