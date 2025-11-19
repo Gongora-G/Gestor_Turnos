@@ -590,7 +590,14 @@ export class JornadasService {
           codigo: jornada.codigo,
           configuracionId: jornada.configuracionId
         });
-        return jornada;
+        // Transformar la estructura para que coincida con el frontend
+        return {
+          ...jornada,
+          horario: {
+            horaInicio: jornada.horaInicio,
+            horaFin: jornada.horaFin
+          }
+        } as any;
       }
     }
 
@@ -866,7 +873,14 @@ export class JornadasService {
       this.logger.log(`✅ Encontradas ${jornadas.length} jornadas CONFIGURADAS para el club ${clubId}`);
       this.logger.log(`🔍 DEBUG - Jornadas:`, jornadas.map(j => ({ id: j.id, codigo: j.codigo, nombre: j.nombre })));
       
-      return jornadas;
+      // Transformar la estructura para que coincida con el frontend (horario anidado)
+      return jornadas.map(j => ({
+        ...j,
+        horario: {
+          horaInicio: j.horaInicio,
+          horaFin: j.horaFin
+        }
+      })) as any;
     } catch (error) {
       this.logger.error('❌ Error al obtener jornadas configuradas:', error);
       
@@ -887,7 +901,15 @@ export class JornadasService {
         });
 
         this.logger.log(`✅ FALLBACK - Encontradas ${jornadas.length} jornadas configuradas`);
-        return jornadas;
+        
+        // Transformar la estructura para que coincida con el frontend (horario anidado)
+        return jornadas.map(j => ({
+          ...j,
+          horario: {
+            horaInicio: j.horaInicio,
+            horaFin: j.horaFin
+          }
+        })) as any;
       } catch (fallbackError) {
         this.logger.error('❌ Error en fallback:', fallbackError);
         throw error;
