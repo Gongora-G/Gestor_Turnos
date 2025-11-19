@@ -56,3 +56,5 @@ jobs:
           args: >
             -Dsonar.projectKey=Gongora-G_Gestor_Turnos
             -Dsonar.organization=gongora-g
+            -Dsonar.typescript.skipTypeCheck=true
+            -Dsonar.verbose=false
