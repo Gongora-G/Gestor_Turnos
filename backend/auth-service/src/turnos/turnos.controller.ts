@@ -49,6 +49,37 @@ export class TurnosController {
     return this.turnosService.obtenerDisponibilidad(fecha, canchaId, user?.clubId);
   }
 
+  // 🗑️ ENDPOINTS DE PAPELERA (DEBEN IR ANTES DE LAS RUTAS CON :id)
+
+  @Get('papelera/listar')
+  obtenerPapelera(@GetUser() user: User) {
+    console.log('📋 GET /turnos/papelera/listar');
+    if (!user.clubId) {
+      throw new Error('Usuario no tiene club asignado');
+    }
+    return this.turnosService.obtenerPapelera(user.clubId);
+  }
+
+  @Post('papelera/vaciar')
+  vaciarPapelera(@GetUser() user: User) {
+    console.log('🗑️💥 POST /turnos/papelera/vaciar');
+    if (!user.clubId) {
+      throw new Error('Usuario no tiene club asignado');
+    }
+    return this.turnosService.vaciarPapelera(user.clubId);
+  }
+
+  @Post('papelera/limpiar-automatica')
+  limpiarPapeleraAutomatica(@GetUser() user: User) {
+    console.log('🧹 POST /turnos/papelera/limpiar-automatica');
+    if (!user.clubId) {
+      throw new Error('Usuario no tiene club asignado');
+    }
+    return this.turnosService.limpiarPapeleraAutomaticamente(user.clubId);
+  }
+
+  // RUTAS CON PARÁMETROS DINÁMICOS (DEBEN IR AL FINAL)
+
   @Get(':id')
   findOne(@Param('id') id: string, @GetUser() user: User) {
     if (!user.clubId) {
@@ -74,7 +105,7 @@ export class TurnosController {
     if (!user.clubId) {
       throw new Error('Usuario no tiene club asignado');
     }
-    return this.turnosService.remove(id, user.clubId);
+    return this.turnosService.remove(id, user.clubId, user.id);
   }
 
   @Patch(':id/estado')
@@ -87,5 +118,23 @@ export class TurnosController {
       throw new Error('Usuario no tiene club asignado');
     }
     return this.turnosService.cambiarEstado(id, estado, user.clubId);
+  }
+
+  @Post(':id/restaurar')
+  restaurarTurno(@Param('id') id: string, @GetUser() user: User) {
+    console.log(`♻️ POST /turnos/${id}/restaurar`);
+    if (!user.clubId) {
+      throw new Error('Usuario no tiene club asignado');
+    }
+    return this.turnosService.restaurarTurno(id, user.clubId);
+  }
+
+  @Delete(':id/permanente')
+  eliminarPermanentemente(@Param('id') id: string, @GetUser() user: User) {
+    console.log(`💥 DELETE /turnos/${id}/permanente`);
+    if (!user.clubId) {
+      throw new Error('Usuario no tiene club asignado');
+    }
+    return this.turnosService.eliminarPermanentemente(id, user.clubId);
   }
 }

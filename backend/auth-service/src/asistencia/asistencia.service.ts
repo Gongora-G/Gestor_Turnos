@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, HttpException, HttpStatus, Logger } from
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { RegistroAsistencia } from './entities/registro-asistencia.entity';
+import { TareaAsignada } from './entities/tarea-asignada.entity';
 import { RegistrarAsistenciaDto, ActualizarAsistenciaDto, ObtenerAsistenciaDto } from './dto/asistencia.dto';
 
 @Injectable()
@@ -11,6 +12,8 @@ export class AsistenciaService {
   constructor(
     @InjectRepository(RegistroAsistencia)
     private readonly asistenciaRepository: Repository<RegistroAsistencia>,
+    @InjectRepository(TareaAsignada)
+    private readonly tareasAsignadasRepository: Repository<TareaAsignada>,
   ) {}
 
   /**
@@ -48,7 +51,7 @@ export class AsistenciaService {
       ...dto,
       fecha: fechaDate, // Convertir string a Date
       horaLlegada: new Date(), // Timestamp automático
-      presente: true,
+      presente: dto.presente ?? true, // Usar valor del DTO o true por defecto
       tareasCompletadas: dto.tareasCompletadas ?? false,
       turnosRealizadosAyer: dto.turnosRealizadosAyer ?? 0,
     });
@@ -173,7 +176,12 @@ export class AsistenciaService {
         CASE 
           WHEN ra.id IS NOT NULL THEN true 
           ELSE false 
-        END as ya_registro_hoy
+        END as ya_registro_hoy,
+        CASE 
+          WHEN ra.id IS NOT NULL AND ra.presente = true THEN 'presente'
+          WHEN ra.id IS NOT NULL AND ra.presente = false THEN 'ausente'
+          ELSE NULL
+        END as estado_asistencia
       FROM auth.personal p
       LEFT JOIN auth.tipos_personal tp ON p.tipo_personal_id = tp.id
       LEFT JOIN auth.registro_asistencia ra ON ra.personal_id = p.id 
@@ -203,6 +211,17 @@ export class AsistenciaService {
       throw new NotFoundException('Registro de asistencia no encontrado');
     }
 
+    // Primero eliminar las tareas asignadas a este registro
+    const tareasAsignadas = await this.tareasAsignadasRepository.find({
+      where: { registroAsistenciaId: id }
+    });
+
+    if (tareasAsignadas.length > 0) {
+      this.logger.log(`🗑️ Eliminando ${tareasAsignadas.length} tarea(s) asignada(s)`);
+      await this.tareasAsignadasRepository.remove(tareasAsignadas);
+    }
+
+    // Ahora eliminar el registro de asistencia
     await this.asistenciaRepository.remove(registro);
 
     this.logger.log(`✅ Asistencia eliminada: ${id}`);

@@ -23,6 +23,10 @@ export class RegistrarAsistenciaDto {
   @IsOptional()
   turnosRealizadosAyer?: number;
 
+  @IsBoolean()
+  @IsOptional()
+  presente?: boolean;
+
   @IsString()
   @IsOptional()
   observaciones?: string;

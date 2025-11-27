@@ -162,6 +162,15 @@ const tareasService = {
     return response.data;
   },
 
+  // Obtener categorías únicas
+  obtenerCategorias: async (): Promise<string[]> => {
+    const token = localStorage.getItem('auth_token');
+    const response = await axios.get(`${API_URL}/tareas/categorias`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data;
+  },
+
   // Obtener estadísticas de tareas
   obtenerEstadisticas: async (fechaInicio?: string, fechaFin?: string): Promise<EstadisticasTareas> => {
     const token = localStorage.getItem('auth_token');

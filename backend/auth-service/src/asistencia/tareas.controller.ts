@@ -40,6 +40,12 @@ export class TareasController {
     return await this.tareasService.obtenerTareasActivas(clubId);
   }
 
+  @Get('categorias')
+  async obtenerCategorias(@Request() req) {
+    const clubId = req.user.clubId;
+    return await this.tareasService.obtenerCategorias(clubId);
+  }
+
   @Get('estadisticas')
   async obtenerEstadisticas(@Request() req, @Query('fecha') fecha?: string) {
     const clubId = req.user.clubId;

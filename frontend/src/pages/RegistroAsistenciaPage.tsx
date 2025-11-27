@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { asistenciaService, type RegistroAsistencia, type PersonalDisponible } from '../services/asistenciaService';
 import JornadasService from '../services/jornadasService';
+import tareasService, { type Tarea, type TareaAsignada } from '../services/tareasService';
 import type { JornadaConfig } from '../types/jornadas-config';
 
 export const RegistroAsistenciaPage: React.FC = () => {
@@ -18,7 +19,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
   // Estados
   const [jornadaActual, setJornadaActual] = useState<JornadaConfig | null>(null);
   const [jornadas, setJornadas] = useState<JornadaConfig[]>([]);
-  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<string | null>(null);
+  const [jornadaSeleccionada, setJornadaSeleccionada] = useState<number | null>(null);
   const [fechaSeleccionada, setFechaSeleccionada] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -34,10 +35,17 @@ export const RegistroAsistenciaPage: React.FC = () => {
   const [tareasPendientes, setTareasPendientes] = useState('');
   const [turnosAyer, setTurnosAyer] = useState(0);
   const [observaciones, setObservaciones] = useState('');
+  const [tareasDisponibles, setTareasDisponibles] = useState<Tarea[]>([]);
+  const [tareasSeleccionadas, setTareasSeleccionadas] = useState<number[]>([]);
+  const [tareasAsignadas, setTareasAsignadas] = useState<Record<string, TareaAsignada[]>>({});
   
   // Modal de eliminación
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [asistenciaAEliminar, setAsistenciaAEliminar] = useState<RegistroAsistencia | null>(null);
+  
+  // Modal de confirmación de inasistencia
+  const [showInasistenciaModal, setShowInasistenciaModal] = useState(false);
+  const [personalInasistencia, setPersonalInasistencia] = useState<PersonalDisponible | null>(null);
 
   // Cargar jornadas configuradas al montar
   useEffect(() => {
@@ -79,10 +87,10 @@ export const RegistroAsistenciaPage: React.FC = () => {
       if (jornadaAuto) {
         console.log('✅ Jornada auto-detectada:', jornadaAuto);
         setJornadaActual(jornadaAuto);
-        setJornadaSeleccionada(jornadaAuto.id);
+        setJornadaSeleccionada(Number(jornadaAuto.id));
       } else if (data.length > 0) {
         console.log('⚠️ No se detectó jornada activa, seleccionando la primera');
-        setJornadaSeleccionada(data[0].id);
+        setJornadaSeleccionada(Number(data[0].id));
       }
     } catch (error) {
       addToast({ type: 'error', title: 'Error', message: 'Error al cargar jornadas' });
@@ -94,7 +102,7 @@ export const RegistroAsistenciaPage: React.FC = () => {
     
     try {
       setLoading(true);
-      const data = await asistenciaService.obtenerPersonalDisponible(Number(jornadaSeleccionada));
+      const data = await asistenciaService.obtenerPersonalDisponible(jornadaSeleccionada!);
       setPersonalDisponible(data);
     } catch (error) {
       addToast({ type: 'error', title: 'Error', message: 'Error al cargar personal disponible' });
@@ -110,6 +118,24 @@ export const RegistroAsistenciaPage: React.FC = () => {
       setLoading(true);
       const data = await asistenciaService.obtenerAsistencias(fechaSeleccionada, Number(jornadaSeleccionada));
       setAsistencias(data);
+      
+      // Cargar tareas asignadas para cada registro
+      const tareasPromises = data.map(async (asistencia) => {
+        try {
+          const tareas = await tareasService.obtenerTareasDeRegistro(asistencia.id);
+          return { registroId: asistencia.id, tareas };
+        } catch (error) {
+          console.error(`Error al cargar tareas del registro ${asistencia.id}:`, error);
+          return { registroId: asistencia.id, tareas: [] };
+        }
+      });
+      
+      const tareasResults = await Promise.all(tareasPromises);
+      const tareasMap: Record<string, TareaAsignada[]> = {};
+      tareasResults.forEach(({ registroId, tareas }) => {
+        tareasMap[registroId] = tareas;
+      });
+      setTareasAsignadas(tareasMap);
     } catch (error) {
       addToast({ type: 'error', title: 'Error', message: 'Error al cargar asistencias' });
     } finally {
@@ -117,7 +143,33 @@ export const RegistroAsistenciaPage: React.FC = () => {
     }
   };
 
-  const abrirModalRegistro = (personal: PersonalDisponible) => {
+  const toggleCompletadaTarea = async (tareaAsignadaId: string, registroId: string, completada: boolean) => {
+    try {
+      await tareasService.completarTarea(tareaAsignadaId, { completada });
+      
+      // Actualizar estado local
+      setTareasAsignadas(prev => ({
+        ...prev,
+        [registroId]: prev[registroId].map(t => 
+          t.id === tareaAsignadaId ? { ...t, completada } : t
+        )
+      }));
+      
+      addToast({
+        type: 'success',
+        title: completada ? 'Tarea completada' : 'Tarea marcada como pendiente',
+        message: completada ? '✅ Tarea marcada como completada' : '⏳ Tarea marcada como pendiente'
+      });
+    } catch (error) {
+      addToast({ 
+        type: 'error', 
+        title: 'Error', 
+        message: 'No se pudo actualizar el estado de la tarea' 
+      });
+    }
+  };
+
+  const abrirModalRegistro = async (personal: PersonalDisponible) => {
     if (!jornadaSeleccionada) {
       addToast({ type: 'error', title: 'Error', message: 'Por favor selecciona una jornada primero' });
       return;
@@ -128,6 +180,17 @@ export const RegistroAsistenciaPage: React.FC = () => {
     setTareasPendientes('');
     setTurnosAyer(0);
     setObservaciones('');
+    setTareasSeleccionadas([]);
+    
+    // Cargar tareas activas
+    try {
+      const tareas = await tareasService.obtenerTareasActivas();
+      setTareasDisponibles(tareas);
+    } catch (error) {
+      console.error('Error al cargar tareas:', error);
+      setTareasDisponibles([]);
+    }
+    
     setShowModal(true);
   };
 
@@ -163,6 +226,21 @@ export const RegistroAsistenciaPage: React.FC = () => {
       
       const resultado = await asistenciaService.registrarLlegada(datos);
 
+      // Asignar tareas si hay alguna seleccionada
+      if (tareasSeleccionadas.length > 0) {
+        try {
+          await tareasService.asignarTareas(resultado.id, tareasSeleccionadas);
+          console.log(`✅ ${tareasSeleccionadas.length} tarea(s) asignada(s) al registro ${resultado.id}`);
+        } catch (error) {
+          console.error('Error al asignar tareas:', error);
+          addToast({
+            type: 'warning',
+            title: 'Advertencia',
+            message: 'Registro exitoso pero hubo un error al asignar algunas tareas'
+          });
+        }
+      }
+
       addToast({
         type: 'success',
         title: 'Llegada registrada',
@@ -179,6 +257,59 @@ export const RegistroAsistenciaPage: React.FC = () => {
         type: 'error',
         title: 'Error al registrar',
         message: error.response?.data?.message || 'No se pudo registrar la llegada'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const registrarInasistencia = async (personal: PersonalDisponible) => {
+    if (!jornadaSeleccionada || !user) {
+      addToast({ type: 'error', title: 'Error', message: 'Por favor selecciona una jornada primero' });
+      return;
+    }
+
+    // Abrir modal de confirmación
+    setPersonalInasistencia(personal);
+    setShowInasistenciaModal(true);
+  };
+
+  const confirmarInasistencia = async () => {
+    if (!personalInasistencia || !jornadaSeleccionada || !user) return;
+
+    const datos = {
+      personalId: personalInasistencia.id,
+      jornadaConfigId: jornadaSeleccionada!,
+      fecha: fechaSeleccionada,
+      presente: false, // Marcamos como ausente
+      tareasCompletadas: false,
+      turnosRealizadosAyer: 0,
+      clubId: user.clubId!,
+      registradoPor: user.id,
+      observaciones: 'Inasistencia registrada'
+    };
+
+    try {
+      setLoading(true);
+      await asistenciaService.registrarLlegada(datos);
+
+      addToast({
+        type: 'warning',
+        title: 'Inasistencia registrada',
+        message: `${personalInasistencia.nombre} ${personalInasistencia.apellido} marcado como ausente`
+      });
+      
+      setShowInasistenciaModal(false);
+      setPersonalInasistencia(null);
+      
+      // Recargar datos
+      await cargarPersonalDisponible();
+      await cargarAsistencias();
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Error al registrar',
+        message: error.response?.data?.message || 'No se pudo registrar la inasistencia'
       });
     } finally {
       setLoading(false);
@@ -327,8 +458,8 @@ export const RegistroAsistenciaPage: React.FC = () => {
             Jornada
           </label>
           <select
-            value={jornadaSeleccionada || ''}
-            onChange={(e) => setJornadaSeleccionada(e.target.value)}
+            value={jornadaSeleccionada?.toString() || ''}
+            onChange={(e) => setJornadaSeleccionada(e.target.value ? Number(e.target.value) : null)}
             style={{
               width: '100%',
               padding: '0.75rem',
@@ -450,28 +581,36 @@ export const RegistroAsistenciaPage: React.FC = () => {
                 No hay personal disponible
               </div>
             ) : (
-              personalDisponible.map(personal => (
+              personalDisponible.map(personal => {
+                const esAusente = personal.ya_registro_hoy && personal.estado_asistencia === 'ausente';
+                const esPresente = personal.ya_registro_hoy && personal.estado_asistencia === 'presente';
+                // const sinRegistrar = !personal.ya_registro_hoy; // Variable para uso futuro
+                
+                return (
                 <div
                   key={personal.id}
                   style={{
                     padding: '1.25rem',
-                    background: personal.ya_registro_hoy 
+                    background: esPresente
                       ? 'linear-gradient(135deg, #065f46 0%, #047857 100%)'
+                      : esAusente
+                      ? 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)'
                       : 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
                     borderRadius: '12px',
                     borderWidth: '2px',
                     borderStyle: 'solid',
-                    borderColor: personal.ya_registro_hoy ? '#10b981' : '#374151',
+                    borderColor: esPresente ? '#10b981' : esAusente ? '#dc2626' : '#374151',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     transition: 'all 0.3s',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    opacity: esAusente ? 0.85 : 1
                   }}
                 >
-                  {/* Badge de "Ya Registrado" */}
-                  {personal.ya_registro_hoy && (
+                  {/* Badge de estado */}
+                  {esPresente && (
                     <div style={{
                       position: 'absolute',
                       top: '8px',
@@ -487,7 +626,26 @@ export const RegistroAsistenciaPage: React.FC = () => {
                       gap: '0.25rem',
                       boxShadow: '0 2px 4px rgba(16, 185, 129, 0.3)'
                     }}>
-                      ✓ Registrado Hoy
+                      ✓ Presente
+                    </div>
+                  )}
+                  {esAusente && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: '#dc2626',
+                      color: '#fff',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)'
+                    }}>
+                      ❌ Ausente
                     </div>
                   )}
                   
@@ -512,40 +670,72 @@ export const RegistroAsistenciaPage: React.FC = () => {
                   </div>
                   
                   {!personal.ya_registro_hoy ? (
-                    <button
-                      onClick={() => abrirModalRegistro(personal)}
-                      style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        fontWeight: '700',
-                        fontSize: '0.875rem',
-                        boxShadow: '0 4px 6px rgba(16, 185, 129, 0.3)',
-                        transition: 'all 0.2s',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 6px 12px rgba(16, 185, 129, 0.4)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 6px rgba(16, 185, 129, 0.3)';
-                      }}
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      Registrar
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => abrirModalRegistro(personal)}
+                        style={{
+                          padding: '0.75rem 1.25rem',
+                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '700',
+                          fontSize: '0.875rem',
+                          boxShadow: '0 4px 6px rgba(16, 185, 129, 0.3)',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 12px rgba(16, 185, 129, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px rgba(16, 185, 129, 0.3)';
+                        }}
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Asistencia
+                      </button>
+                      <button
+                        onClick={() => registrarInasistencia(personal)}
+                        style={{
+                          padding: '0.75rem 1.25rem',
+                          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '700',
+                          fontSize: '0.875rem',
+                          boxShadow: '0 4px 6px rgba(239, 68, 68, 0.3)',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 12px rgba(239, 68, 68, 0.4)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 6px rgba(239, 68, 68, 0.3)';
+                        }}
+                      >
+                        ❌ Inasistencia
+                      </button>
+                    </div>
                   ) : (
                     <div style={{
                       padding: '0.75rem 1.5rem',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: '#d1fae5',
+                      background: personal.estado_asistencia === 'presente' 
+                        ? 'rgba(255, 255, 255, 0.1)' 
+                        : 'rgba(239, 68, 68, 0.2)',
+                      color: personal.estado_asistencia === 'presente' ? '#d1fae5' : '#fca5a5',
                       borderRadius: '8px',
                       fontWeight: '600',
                       fontSize: '0.875rem',
@@ -553,11 +743,12 @@ export const RegistroAsistenciaPage: React.FC = () => {
                       alignItems: 'center',
                       gap: '0.5rem'
                     }}>
-                      ✓ Completado
+                      {personal.estado_asistencia === 'presente' ? '✓ Registrado' : '❌ Ausente'}
                     </div>
                   )}
                 </div>
-              ))
+              );
+              })
             )}
           </div>
         </div>
@@ -576,17 +767,31 @@ export const RegistroAsistenciaPage: React.FC = () => {
               color: '#fff',
               margin: 0
             }}>
-              ✅ Asistencias Registradas
+              📊 Registros del Día
             </h2>
-            <div style={{
-              fontSize: '0.875rem',
-              color: '#fff',
-              background: asistencias.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : '#374151',
-              padding: '0.5rem 1rem',
-              borderRadius: '6px',
-              fontWeight: '600'
-            }}>
-              {asistencias.length} {asistencias.length === 1 ? 'registro' : 'registros'}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{
+                fontSize: '0.875rem',
+                color: '#fff',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                padding: '0.5rem 1rem',
+                borderRadius: '6px',
+                fontWeight: '600'
+              }}>
+                ✅ {asistencias.filter(a => a.presente).length} Presentes
+              </div>
+              {asistencias.filter(a => !a.presente).length > 0 && (
+                <div style={{
+                  fontSize: '0.875rem',
+                  color: '#fff',
+                  background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  fontWeight: '600'
+                }}>
+                  ❌ {asistencias.filter(a => !a.presente).length} Ausentes
+                </div>
+              )}
             </div>
           </div>
 
@@ -614,17 +819,43 @@ export const RegistroAsistenciaPage: React.FC = () => {
                   key={asistencia.id}
                   style={{
                     padding: '1.25rem',
-                    background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+                    background: asistencia.presente 
+                      ? 'linear-gradient(135deg, #1f2937 0%, #111827 100%)'
+                      : 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)',
                     borderRadius: '12px',
                     borderWidth: '2px',
                     borderStyle: 'solid',
-                    borderColor: asistencia.ordenCalculado ? '#3b82f6' : '#374151',
+                    borderColor: asistencia.presente 
+                      ? (asistencia.ordenCalculado ? '#3b82f6' : '#374151')
+                      : '#dc2626',
                     position: 'relative',
-                    transition: 'all 0.3s'
+                    transition: 'all 0.3s',
+                    opacity: asistencia.presente ? 1 : 0.85
                   }}
                 >
-                  {/* Número de Orden */}
-                  {asistencia.ordenCalculado && (
+                  {/* Badge de INASISTENCIA */}
+                  {!asistencia.presente && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '8px',
+                      right: '8px',
+                      background: '#dc2626',
+                      color: '#fff',
+                      padding: '0.25rem 0.75rem',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                      boxShadow: '0 2px 4px rgba(220, 38, 38, 0.3)'
+                    }}>
+                      ❌ AUSENTE
+                    </div>
+                  )}
+
+                  {/* Número de Orden (solo para presentes) */}
+                  {asistencia.presente && asistencia.ordenCalculado && (
                     <div style={{
                       position: 'absolute',
                       top: '-12px',
@@ -723,6 +954,107 @@ export const RegistroAsistenciaPage: React.FC = () => {
                         }}>
                           <span>💬</span>
                           <span>{asistencia.observaciones}</span>
+                        </div>
+                      )}
+
+                      {/* Tareas Asignadas */}
+                      {tareasAsignadas[asistencia.id] && tareasAsignadas[asistencia.id].length > 0 && (
+                        <div style={{ marginTop: '0.75rem' }}>
+                          <div style={{
+                            color: '#9ca3af',
+                            fontSize: '0.75rem',
+                            fontWeight: '600',
+                            marginBottom: '0.5rem',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em'
+                          }}>
+                            📋 Tareas Asignadas ({tareasAsignadas[asistencia.id].filter(t => t.completada).length}/{tareasAsignadas[asistencia.id].length})
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {tareasAsignadas[asistencia.id].map(tareaAsignada => (
+                              <div
+                                key={tareaAsignada.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.75rem',
+                                  padding: '0.75rem',
+                                  background: tareaAsignada.completada 
+                                    ? 'rgba(16, 185, 129, 0.1)' 
+                                    : 'rgba(245, 158, 11, 0.1)',
+                                  border: `1px solid ${tareaAsignada.completada ? '#10b981' : '#f59e0b'}`,
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s'
+                                }}
+                                onClick={() => toggleCompletadaTarea(
+                                  tareaAsignada.id, 
+                                  asistencia.id, 
+                                  !tareaAsignada.completada
+                                )}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.transform = 'translateX(4px)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.transform = 'translateX(0)';
+                                }}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={tareaAsignada.completada}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    toggleCompletadaTarea(
+                                      tareaAsignada.id, 
+                                      asistencia.id, 
+                                      e.target.checked
+                                    );
+                                  }}
+                                  style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    cursor: 'pointer',
+                                    flexShrink: 0
+                                  }}
+                                />
+                                <div style={{ flex: 1 }}>
+                                  <div style={{
+                                    color: '#fff',
+                                    fontWeight: '600',
+                                    fontSize: '0.875rem',
+                                    textDecoration: tareaAsignada.completada ? 'line-through' : 'none',
+                                    opacity: tareaAsignada.completada ? 0.7 : 1
+                                  }}>
+                                    {tareaAsignada.tarea?.nombre}
+                                  </div>
+                                  {tareaAsignada.tarea?.descripcion && (
+                                    <div style={{
+                                      color: '#9ca3af',
+                                      fontSize: '0.75rem',
+                                      marginTop: '0.125rem'
+                                    }}>
+                                      {tareaAsignada.tarea.descripcion}
+                                    </div>
+                                  )}
+                                </div>
+                                {tareaAsignada.tarea?.categoria && (
+                                  <span style={{
+                                    padding: '0.25rem 0.5rem',
+                                    background: '#4b5563',
+                                    borderRadius: '4px',
+                                    fontSize: '0.75rem',
+                                    color: '#9ca3af',
+                                    flexShrink: 0
+                                  }}>
+                                    {tareaAsignada.tarea.categoria}
+                                  </span>
+                                )}
+                                <span style={{ fontSize: '1.25rem', flexShrink: 0 }}>
+                                  {tareaAsignada.completada ? '✅' : '⏳'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -873,6 +1205,122 @@ export const RegistroAsistenciaPage: React.FC = () => {
                     fontSize: '1rem'
                   }}
                 />
+              </div>
+            )}
+
+            {/* Asignar Tareas */}
+            {tareasDisponibles.length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ 
+                  display: 'block', 
+                  color: '#9ca3af', 
+                  fontSize: '0.875rem',
+                  marginBottom: '0.5rem',
+                  fontWeight: '600'
+                }}>
+                  📋 Asignar Tareas
+                </label>
+                <div style={{
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  background: '#374151',
+                  border: '1px solid #4b5563',
+                  borderRadius: '8px',
+                  padding: '0.5rem'
+                }}>
+                  {tareasDisponibles.map(tarea => (
+                    <label
+                      key={tarea.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        background: tareasSeleccionadas.includes(tarea.id) 
+                          ? 'rgba(16, 185, 129, 0.1)' 
+                          : 'transparent',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        marginBottom: '0.5rem',
+                        border: tareasSeleccionadas.includes(tarea.id)
+                          ? '1px solid #10b981'
+                          : '1px solid transparent',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!tareasSeleccionadas.includes(tarea.id)) {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!tareasSeleccionadas.includes(tarea.id)) {
+                          e.currentTarget.style.background = 'transparent';
+                        }
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={tareasSeleccionadas.includes(tarea.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setTareasSeleccionadas([...tareasSeleccionadas, tarea.id]);
+                          } else {
+                            setTareasSeleccionadas(tareasSeleccionadas.filter(id => id !== tarea.id));
+                          }
+                        }}
+                        style={{ 
+                          width: '18px', 
+                          height: '18px', 
+                          cursor: 'pointer',
+                          flexShrink: 0
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ 
+                          color: '#fff', 
+                          fontWeight: '600',
+                          fontSize: '0.875rem'
+                        }}>
+                          {tarea.nombre}
+                        </div>
+                        {tarea.descripcion && (
+                          <div style={{ 
+                            color: '#9ca3af', 
+                            fontSize: '0.75rem',
+                            marginTop: '0.25rem'
+                          }}>
+                            {tarea.descripcion}
+                          </div>
+                        )}
+                      </div>
+                      {tarea.categoria && (
+                        <span style={{
+                          padding: '0.25rem 0.5rem',
+                          background: '#4b5563',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          color: '#9ca3af',
+                          flexShrink: 0
+                        }}>
+                          {tarea.categoria}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+                {tareasSeleccionadas.length > 0 && (
+                  <div style={{
+                    marginTop: '0.5rem',
+                    padding: '0.5rem',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    borderRadius: '6px',
+                    color: '#10b981',
+                    fontSize: '0.875rem',
+                    textAlign: 'center'
+                  }}>
+                    ✓ {tareasSeleccionadas.length} tarea(s) seleccionada(s)
+                  </div>
+                )}
               </div>
             )}
 
@@ -1065,6 +1513,211 @@ export const RegistroAsistenciaPage: React.FC = () => {
               >
                 {loading ? 'Eliminando...' : '🗑️ Eliminar'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación de Inasistencia */}
+      {showInasistenciaModal && personalInasistencia && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+            borderRadius: '16px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            border: '2px solid #ef4444'
+          }}>
+            <div style={{ padding: '2rem' }}>
+              {/* Header con ícono */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'start',
+                gap: '1rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{
+                  padding: '0.75rem',
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  borderRadius: '12px',
+                  border: '2px solid rgba(239, 68, 68, 0.3)',
+                  flexShrink: 0
+                }}>
+                  <span style={{ fontSize: '2rem' }}>❌</span>
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{
+                    fontSize: '1.5rem',
+                    fontWeight: '700',
+                    color: '#fff',
+                    marginBottom: '0.5rem'
+                  }}>
+                    Registrar Inasistencia
+                  </h3>
+                  <p style={{
+                    fontSize: '0.875rem',
+                    color: '#9ca3af',
+                    margin: 0
+                  }}>
+                    Confirma que esta persona no asistió a trabajar
+                  </p>
+                </div>
+              </div>
+
+              {/* Información del personal */}
+              <div style={{
+                background: 'rgba(31, 41, 55, 0.5)',
+                border: '1px solid #374151',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{
+                  fontSize: '1.25rem',
+                  fontWeight: '700',
+                  color: '#fff',
+                  marginBottom: '0.75rem'
+                }}>
+                  {personalInasistencia.nombre} {personalInasistencia.apellido}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  color: '#9ca3af',
+                  fontSize: '0.875rem'
+                }}>
+                  <span>🎾</span>
+                  <span>{personalInasistencia.tipo_personal}</span>
+                </div>
+              </div>
+
+              {/* Advertencias con viñetas */}
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '2px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                padding: '1.25rem',
+                marginBottom: '1.5rem'
+              }}>
+                <div style={{
+                  color: '#fca5a5',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  marginBottom: '0.75rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <span style={{ fontSize: '1.25rem' }}>⚠️</span>
+                  <span>Esta acción registrará que:</span>
+                </div>
+                <ul style={{
+                  margin: 0,
+                  paddingLeft: '1.5rem',
+                  color: '#fca5a5',
+                  fontSize: '0.875rem',
+                  listStyle: 'disc',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem'
+                }}>
+                  <li>Esta persona <strong>NO asistió</strong> a trabajar hoy</li>
+                  <li>Quedará marcada como <strong>AUSENTE</strong> en los reportes</li>
+                  <li>No se le asignará ningún turno</li>
+                  <li>Se registrará la fecha y hora de la inasistencia</li>
+                </ul>
+              </div>
+
+              {/* Botones */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  onClick={() => {
+                    setShowInasistenciaModal(false);
+                    setPersonalInasistencia(null);
+                  }}
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    background: '#374151',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontWeight: '600',
+                    fontSize: '1rem',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) e.currentTarget.style.background = '#4b5563';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#374151';
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarInasistencia}
+                  disabled={loading}
+                  style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    background: loading 
+                      ? '#374151' 
+                      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontWeight: '700',
+                    fontSize: '1rem',
+                    boxShadow: loading ? 'none' : '0 4px 12px rgba(239, 68, 68, 0.4)',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.5)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <span>⏳</span>
+                      <span>Registrando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>❌</span>
+                      <span>Registrar Inasistencia</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

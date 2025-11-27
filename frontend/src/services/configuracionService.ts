@@ -13,7 +13,7 @@ const API_BASE_URL = 'http://localhost:3002'; // Puerto del auth-service
 
 class ConfiguracionService {
   private async getAuthHeaders() {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('auth_token');
     if (!token) {
       throw new Error('No hay token de autenticación');
     }
@@ -158,6 +158,16 @@ class ConfiguracionService {
 
   async isMantenimientoActivo(): Promise<boolean> {
     const response = await fetch(`${API_BASE_URL}/configuracion/mantenimiento`, {
+      headers: await this.getAuthHeaders(),
+    });
+    return this.handleResponse(response);
+  }
+
+  // ===== ESTADOS DEL PERSONAL =====
+  
+  async inicializarEstadosPersonal(): Promise<any> {
+    const response = await fetch(`${API_BASE_URL}/estados-personal/inicializar`, {
+      method: 'POST',
       headers: await this.getAuthHeaders(),
     });
     return this.handleResponse(response);

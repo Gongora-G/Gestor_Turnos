@@ -8,9 +8,11 @@ import {
   Phone,
   Mail,
   Clock,
-  UserCheck
+  UserCheck,
+  Activity
 } from 'lucide-react';
 import { GlobalNavigation, GlobalFooter } from '../components';
+import GestionEstadosPersonal from '../components/GestionEstadosPersonal';
 import { apiService } from '../services/api';
 import type { PersonalUnificado } from '../services/personalUnificadoService';
 import { tiposPersonalService } from '../services/tiposPersonalService';
@@ -42,7 +44,7 @@ export const PersonalPage: React.FC = () => {
   const [tipoSeleccionado, setTipoSeleccionado] = useState<number | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<PersonalUnificado | null>(null);
-  // const [vistaActual, setVistaActual] = useState<'personal' | 'estados'>('personal');
+  const [tabActual, setTabActual] = useState<'personal' | 'estados'>('personal');
   const toast = useToast();
 
   // Obtener el clubId del usuario actual (ajustar según tu implementación)
@@ -283,19 +285,52 @@ export const PersonalPage: React.FC = () => {
                   Administra caddies, boleadores y personal del club
                 </p>
               </div>
-              <button
-                onClick={handleCreatePersonal}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
-              >
-                <Plus className="w-4 h-4" />
-                Agregar Personal
-              </button>
+              {tabActual === 'personal' && (
+                <button
+                  onClick={handleCreatePersonal}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg flex items-center gap-2 transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-blue-500/25"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar Personal
+                </button>
+              )}
             </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 border-t border-gray-700 pt-4 pb-2">
+            <button
+              onClick={() => setTabActual('personal')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                tabActual === 'personal'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <Users className="w-5 h-5" />
+              Personal
+            </button>
+            <button
+              onClick={() => setTabActual('estados')}
+              className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all ${
+                tabActual === 'estados'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-white'
+              }`}
+            >
+              <Activity className="w-5 h-5" />
+              Estados
+            </button>
           </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Contenido según tab activo */}
+        {tabActual === 'estados' ? (
+          <GestionEstadosPersonal />
+        ) : (
+          <div>
         {/* Filtros */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
@@ -443,9 +478,9 @@ export const PersonalPage: React.FC = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                       Contacto
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                       Ranking
-                    </th>
+                    </th> */}
                     {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
                       Tarifa/Hora
                     </th> */}
@@ -517,11 +552,11 @@ export const PersonalPage: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                         <div className="text-xs text-gray-400">
                           {Object.keys(item.datosEspecificos || {}).length} campos
                         </div>
-                      </td>
+                      </td> */}
                       {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                         <span className="text-gray-400">
                           {item.tarifaPorHora ? `$${item.tarifaPorHora.toLocaleString()}` : 'N/A'}
@@ -564,10 +599,9 @@ export const PersonalPage: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
 
-      {/* Modal para crear/editar personal */}
-      {showModal && (
+        {/* Modal para crear/editar personal */}
+        {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
             <div className="p-6">
@@ -800,10 +834,10 @@ export const PersonalPage: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        )}
 
-      {/* Modal de confirmación de eliminación */}
-      {showDeleteModal && itemToDelete && (
+        {/* Modal de confirmación de eliminación */}
+        {showDeleteModal && itemToDelete && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-gray-800 border border-gray-700 rounded-lg max-w-md w-full shadow-2xl">
             <div className="p-6">
@@ -860,7 +894,10 @@ export const PersonalPage: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
+      </div>
       )}
+      </div>
 
       <GlobalFooter />
     </div>

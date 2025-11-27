@@ -12,6 +12,7 @@ import { SociosModule } from './socios/socios.module';
 import { JornadasModule } from './jornadas/jornadas.module';
 import { PersonalModule } from './personal/personal.module';
 import { AsistenciaModule } from './asistencia/asistencia.module';
+import { ReportesModule } from './reportes/reportes.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { AsistenciaModule } from './asistencia/asistencia.module';
     PersonalModule,
     // ✅ Asistencia module (Registro de llegadas)
     AsistenciaModule,
+    ReportesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

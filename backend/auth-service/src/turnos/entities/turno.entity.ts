@@ -114,6 +114,16 @@ export class Turno {
   // @Column({ type: 'integer', nullable: true, comment: 'ID de la jornada activa actual' })
   // jornada_id: number;
 
+  // Soft delete para papelera
+  @Column({ type: 'boolean', default: false, comment: 'Indica si el turno está en la papelera' })
+  eliminado: boolean;
+
+  @Column({ type: 'timestamp', nullable: true, comment: 'Fecha en que se movió a la papelera' })
+  fechaEliminacion: Date | null;
+
+  @Column({ type: 'uuid', nullable: true, comment: 'ID del usuario que eliminó el turno' })
+  eliminadoPor: string | null;
+
   @CreateDateColumn()
   created_at: Date;
 

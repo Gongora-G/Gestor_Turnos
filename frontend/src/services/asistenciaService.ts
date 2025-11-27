@@ -47,6 +47,7 @@ export interface RegistrarAsistenciaDto {
   personalId: string;
   jornadaConfigId: number;
   fecha: string;
+  presente?: boolean;
   tareasCompletadas?: boolean;
   tareasPendientes?: string;
   turnosRealizadosAyer?: number;
@@ -72,6 +73,7 @@ export interface PersonalDisponible {
   tipo_personal: string;
   jornada_asignada_id?: number;
   ya_registro_hoy: boolean;
+  estado_asistencia?: 'presente' | 'ausente'; // Nuevo campo para diferenciar
 }
 
 export interface EstadisticasAsistencia {

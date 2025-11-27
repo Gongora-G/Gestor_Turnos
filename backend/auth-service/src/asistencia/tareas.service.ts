@@ -38,6 +38,17 @@ export class TareasService {
     });
   }
 
+  async obtenerCategorias(clubId: string): Promise<string[]> {
+    const tareas = await this.tareasRepository.find({
+      where: { clubId },
+      select: ['categoria'],
+    });
+
+    // Obtener categorías únicas y filtrar nulls/undefined
+    const categorias = [...new Set(tareas.map(t => t.categoria).filter(c => c && c.trim() !== ''))];
+    return categorias.sort();
+  }
+
   async obtenerTarea(id: number, clubId: string): Promise<Tarea> {
     const tarea = await this.tareasRepository.findOne({
       where: { id, clubId },

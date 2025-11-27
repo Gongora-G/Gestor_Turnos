@@ -5,11 +5,10 @@ import {
   TurnoCard, 
   VerTurnoModal, 
   EditarTurnoModal, 
-  EliminarTurnoModal,
-  GlobalFooter 
+  EliminarTurnoModal
 } from '../components';
 import RegistroJornadas from '../components/RegistroJornadas';
-import { Plus, Filter, Search, Save, History, Clock } from 'lucide-react';
+import { Plus, Filter, Search, Save, History, Clock, Trash2, RotateCcw, X } from 'lucide-react';
 import { turnosService, canchasService, type Turno as TurnoService, type CanchaBackend } from '../services';
 import { JornadasService } from '../services/jornadasService';
 import { useToast } from '../contexts/ToastContext';
@@ -47,8 +46,22 @@ export const TurnosPage: React.FC = () => {
   const [filtroEstado, setFiltroEstado] = useState<string>('todos');
   const [busqueda, setBusqueda] = useState('');
   const [guardandoJornada, setGuardandoJornada] = useState(false);
-  const [tabActivo, setTabActivo] = useState<'turnos' | 'historial'>('turnos');
+  const [tabActivo, setTabActivo] = useState<'turnos' | 'historial' | 'todos'>('turnos');
   const [jornadaActual, setJornadaActual] = useState<any>(null);
+  const [todosLosTurnos, setTodosLosTurnos] = useState<Turno[]>([]);
+  const [loadingTodosTurnos, setLoadingTodosTurnos] = useState(false);
+  const [filtroFecha, setFiltroFecha] = useState<string>('');
+  const [filtroCancha, setFiltroCancha] = useState<string>('todos');
+  const [filtroEstadoTodos, setFiltroEstadoTodos] = useState<string>('todos');
+  const [paginaActual, setPaginaActual] = useState(1);
+  const turnosPorPagina = 15;
+  // Estados para papelera
+  const [modalPapeleraAbierto, setModalPapeleraAbierto] = useState(false);
+  const [turnosPapelera, setTurnosPapelera] = useState<Turno[]>([]);
+  const [loadingPapelera, setLoadingPapelera] = useState(false);
+  const [modalVaciarPapelera, setModalVaciarPapelera] = useState(false);
+  const [modalEliminarPermanente, setModalEliminarPermanente] = useState(false);
+  const [turnoAEliminarPermanente, setTurnoAEliminarPermanente] = useState<Turno | null>(null);
   const [siguienteJornada, setSiguienteJornada] = useState<{ jornada: any; tiempoRestante: string } | null>(null);
   
   // Estados para modales de finalización
@@ -87,6 +100,9 @@ export const TurnosPage: React.FC = () => {
         JornadasService.getJornadaActual(),
         apiService.get<PersonalInfo[]>('/personal/activos')
       ]);
+      
+      // Cargar contador de papelera
+      cargarPapelera();
       
       setPersonalData(personalResponse);
       console.log('👥 Personal cargado:', personalResponse.length);
@@ -219,6 +235,105 @@ export const TurnosPage: React.FC = () => {
     }
   };
 
+  // Cargar todos los turnos para la pestaña de historial
+  const cargarTodosLosTurnos = async () => {
+    try {
+      setLoadingTodosTurnos(true);
+      console.log('📋 Cargando todos los turnos del historial...');
+      // Hacer petición directa para obtener TODOS los turnos (incluidos los GUARDADOS)
+      const response = await apiService.get<Turno[]>('/turnos?incluir_guardados=true');
+      setTodosLosTurnos(response);
+      console.log('✅ Todos los turnos cargados:', response.length);
+    } catch (error) {
+      console.error('❌ Error al cargar todos los turnos:', error);
+      showError('Error al cargar turnos', 'No se pudieron cargar los turnos del historial');
+    } finally {
+      setLoadingTodosTurnos(false);
+    }
+  };
+
+  // Cargar papelera
+  const cargarPapelera = async () => {
+    try {
+      setLoadingPapelera(true);
+      console.log('🗑️ Cargando papelera de turnos...');
+      const response = await apiService.get<Turno[]>('/turnos/papelera/listar');
+      setTurnosPapelera(response);
+      console.log('✅ Papelera cargada:', response.length, 'turnos');
+    } catch (error) {
+      console.error('❌ Error al cargar papelera:', error);
+      showError('Error al cargar papelera', 'No se pudo cargar la papelera de turnos');
+    } finally {
+      setLoadingPapelera(false);
+    }
+  };
+
+  const abrirPapelera = async () => {
+    setModalPapeleraAbierto(true);
+    await cargarPapelera();
+  };
+
+  // Restaurar turno desde papelera
+  const handleRestaurarTurno = async (turnoId: string) => {
+    try {
+      await apiService.post(`/turnos/${turnoId}/restaurar`, {});
+      showSuccess('♻️ Turno restaurado', 'El turno ha sido restaurado correctamente');
+      cargarPapelera(); // Recargar papelera
+      if (tabActivo === 'todos') {
+        cargarTodosLosTurnos(); // Recargar lista completa si estamos en esa pestaña
+      }
+    } catch (error) {
+      console.error('❌ Error al restaurar turno:', error);
+      showError('Error al restaurar', 'No se pudo restaurar el turno');
+    }
+  };
+
+  // Eliminar turno permanentemente
+  const handleEliminarPermanente = async (turno: Turno) => {
+    setTurnoAEliminarPermanente(turno);
+    setModalEliminarPermanente(true);
+  };
+
+  const confirmarEliminarPermanente = async () => {
+    if (!turnoAEliminarPermanente) return;
+
+    try {
+      await apiService.delete(`/turnos/${turnoAEliminarPermanente.id}/permanente`);
+      showSuccess('💥 Eliminado permanentemente', 'El turno ha sido eliminado de la base de datos');
+      setModalEliminarPermanente(false);
+      setTurnoAEliminarPermanente(null);
+      cargarPapelera(); // Recargar papelera
+    } catch (error) {
+      console.error('❌ Error al eliminar permanentemente:', error);
+      showError('Error al eliminar', 'No se pudo eliminar el turno permanentemente');
+    }
+  };
+
+  // Vaciar toda la papelera
+  const handleVaciarPapelera = async () => {
+    try {
+      await apiService.post('/turnos/papelera/vaciar', {});
+      showSuccess('🗑️💥 Papelera vaciada', 'Todos los turnos han sido eliminados permanentemente');
+      setModalVaciarPapelera(false);
+      cargarPapelera(); // Recargar papelera
+    } catch (error) {
+      console.error('❌ Error al vaciar papelera:', error);
+      showError('Error al vaciar papelera', 'No se pudo vaciar la papelera');
+    }
+  };
+
+  // Cargar todos los turnos cuando se activa la pestaña
+  useEffect(() => {
+    if (tabActivo === 'todos') {
+      cargarTodosLosTurnos();
+    }
+  }, [tabActivo]);
+
+  // Resetear página cuando cambien los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtroFecha, filtroCancha, filtroEstadoTodos, busqueda]);
+
 
 
   // 🧹 Limpiar plano de trabajo
@@ -267,6 +382,10 @@ export const TurnosPage: React.FC = () => {
       await turnosService.actualizarTurno(editarTurnoModal.turno.id, turnoData);
       // Recargar turnos de la jornada activa
       await recargarTurnosJornadaActiva();
+      // Si estamos en la pestaña "todos", también recargar todos los turnos
+      if (tabActivo === 'todos') {
+        await cargarTodosLosTurnos();
+      }
     } catch (error) {
       console.error('Error al actualizar turno:', error);
       throw error;
@@ -339,6 +458,10 @@ export const TurnosPage: React.FC = () => {
       await turnosService.eliminarTurno(turnoId);
       // Recargar turnos de la jornada activa
       await recargarTurnosJornadaActiva();
+      // Si estamos en la pestaña "todos", también recargar todos los turnos
+      if (tabActivo === 'todos') {
+        await cargarTodosLosTurnos();
+      }
     } catch (error) {
       console.error('Error al eliminar turno:', error);
       throw error;
@@ -659,6 +782,14 @@ export const TurnosPage: React.FC = () => {
 
   return (
     <AppLayout>
+      <style>
+        {`
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+        `}
+      </style>
       {/* Header con controles */}
       <div style={{
         background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
@@ -750,6 +881,28 @@ export const TurnosPage: React.FC = () => {
                     Turnos Actuales
                   </button>
                   <button
+                    onClick={() => setTabActivo('todos')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '8px 16px',
+                      background: tabActivo === 'todos' 
+                        ? 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)' 
+                        : 'rgba(55, 65, 81, 0.5)',
+                      color: tabActivo === 'todos' ? 'white' : '#9ca3af',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <Filter size={16} />
+                    Todos los Turnos
+                  </button>
+                  <button
                     onClick={() => setTabActivo('historial')}
                     style={{
                       display: 'flex',
@@ -785,6 +938,8 @@ export const TurnosPage: React.FC = () => {
                         ` (${turnosFiltrados.length} ${turnosFiltrados.length === 1 ? 'mostrado' : 'mostrados'})`
                       }
                     </>
+                  ) : tabActivo === 'todos' ? (
+                    `${todosLosTurnos.length} ${todosLosTurnos.length === 1 ? 'turno' : 'turnos'} en el sistema`
                   ) : (
                     'Registro completo de jornadas diarias con estadísticas detalladas'
                   )}
@@ -1154,7 +1309,7 @@ export const TurnosPage: React.FC = () => {
             </div>
           )}
         </div>
-      ) : (
+      ) : tabActivo === 'historial' ? (
         /* Registro de Jornadas */
         <div style={{
           maxWidth: '1400px',
@@ -1163,7 +1318,635 @@ export const TurnosPage: React.FC = () => {
         }}>
           <RegistroJornadas />
         </div>
-      )}
+      ) : tabActivo === 'todos' ? (
+        /* Todos los Turnos */
+        <div style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '32px 24px'
+        }}>
+          {/* Encabezado con Papelera */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+            gap: '16px',
+            flexWrap: 'wrap'
+          }}>
+            <h2 style={{
+              fontSize: '24px',
+              fontWeight: '700',
+              color: '#f9fafb',
+              margin: 0
+            }}>
+              Todos los Turnos del Sistema
+            </h2>
+            
+            {/* Botón Papelera con contador */}
+            <button
+              onClick={abrirPapelera}
+              style={{
+                position: 'relative',
+                padding: '10px 20px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                color: '#f87171',
+                fontSize: '14px',
+                fontWeight: '600',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+              }}
+            >
+              <Trash2 size={16} />
+              Papelera
+              {turnosPapelera.length > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-8px',
+                    right: '-8px',
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    color: 'white',
+                    borderRadius: '12px',
+                    padding: '2px 8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+                    border: '2px solid rgba(17, 24, 39, 0.8)'
+                  }}
+                >
+                  {turnosPapelera.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Filtros */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(31, 41, 55, 0.8), rgba(17, 24, 39, 0.9))',
+            border: '1px solid rgba(75, 85, 99, 0.5)',
+            borderRadius: '12px',
+            padding: '20px',
+            marginBottom: '20px',
+            boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+          }}>
+            <h3 style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: '#f9fafb',
+              marginBottom: '16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <Filter size={18} style={{ color: '#3b82f6' }} />
+              Filtros de Búsqueda
+            </h3>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+              gap: '16px'
+            }}>
+              {/* Filtro por Fecha */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#9ca3af',
+                  marginBottom: '8px'
+                }}>
+                  Fecha
+                </label>
+                <input
+                  type="date"
+                  value={filtroFecha}
+                  onChange={(e) => setFiltroFecha(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'rgba(31, 41, 55, 0.5)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: '#f9fafb',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+
+              {/* Filtro por Cancha */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#9ca3af',
+                  marginBottom: '8px'
+                }}>
+                  Cancha
+                </label>
+                <select
+                  value={filtroCancha}
+                  onChange={(e) => setFiltroCancha(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'rgba(31, 41, 55, 0.5)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: '#f9fafb',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="todos">Todas las canchas</option>
+                  {canchas.map(cancha => (
+                    <option key={cancha.id} value={cancha.id}>
+                      {cancha.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Filtro por Estado */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#9ca3af',
+                  marginBottom: '8px'
+                }}>
+                  Estado
+                </label>
+                <select
+                  value={filtroEstadoTodos}
+                  onChange={(e) => setFiltroEstadoTodos(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'rgba(31, 41, 55, 0.5)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: '#f9fafb',
+                    fontSize: '14px'
+                  }}
+                >
+                  <option value="todos">Todos los estados</option>
+                  <option value="en_progreso">En Progreso</option>
+                  <option value="completado">Completado</option>
+                </select>
+              </div>
+
+              {/* Búsqueda */}
+              <div>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  color: '#9ca3af',
+                  marginBottom: '8px'
+                }}>
+                  Buscar
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Search
+                    size={18}
+                    style={{
+                      position: 'absolute',
+                      left: '12px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#6b7280'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={busqueda}
+                    onChange={(e) => setBusqueda(e.target.value)}
+                    placeholder="Buscar por nombre..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px 10px 38px',
+                      background: 'rgba(31, 41, 55, 0.5)',
+                      border: '1px solid rgba(75, 85, 99, 0.5)',
+                      borderRadius: '8px',
+                      color: '#f9fafb',
+                      fontSize: '14px'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Botón limpiar filtros */}
+            {(filtroFecha || filtroCancha !== 'todos' || filtroEstadoTodos !== 'todos' || busqueda) && (
+              <button
+                onClick={() => {
+                  setFiltroFecha('');
+                  setFiltroCancha('todos');
+                  setFiltroEstadoTodos('todos');
+                  setBusqueda('');
+                }}
+                style={{
+                  marginTop: '16px',
+                  padding: '8px 16px',
+                  background: 'rgba(59, 130, 246, 0.2)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: '8px',
+                  color: '#60a5fa',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+
+          {/* Lista de turnos */}
+          {loadingTodosTurnos ? (
+            <div style={{ 
+              textAlign: 'center', 
+              padding: '80px 24px',
+              background: 'rgba(31, 41, 55, 0.4)',
+              border: '1px solid rgba(75, 85, 99, 0.3)',
+              borderRadius: '16px'
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                margin: '0 auto 16px',
+                border: '4px solid rgba(59, 130, 246, 0.2)',
+                borderTopColor: '#3b82f6',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
+              <p style={{ 
+                color: '#9ca3af',
+                fontSize: '16px',
+                fontWeight: '500'
+              }}>
+                Cargando todos los turnos del sistema...
+              </p>
+            </div>
+          ) : (() => {
+            // Aplicar filtros
+            const turnosFiltrados = todosLosTurnos.filter(turno => {
+              if (filtroFecha && turno.fecha !== filtroFecha) return false;
+              if (filtroCancha !== 'todos' && turno.cancha_id !== filtroCancha) return false;
+              if (filtroEstadoTodos !== 'todos' && turno.estado !== filtroEstadoTodos) return false;
+              if (busqueda && !turno.nombre?.toLowerCase().includes(busqueda.toLowerCase())) return false;
+              return true;
+            });
+
+            // Calcular paginación
+            const totalPaginas = Math.ceil(turnosFiltrados.length / turnosPorPagina);
+            const indiceInicio = (paginaActual - 1) * turnosPorPagina;
+            const indiceFin = indiceInicio + turnosPorPagina;
+            const turnosPaginados = turnosFiltrados.slice(indiceInicio, indiceFin);
+
+            // Componente de controles de paginación
+            const ControlesPaginacion = () => (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '16px 20px',
+                background: 'rgba(31, 41, 55, 0.4)',
+                border: '1px solid rgba(75, 85, 99, 0.3)',
+                borderRadius: '12px',
+                flexWrap: 'wrap'
+              }}>
+                <button
+                  onClick={() => setPaginaActual(1)}
+                  disabled={paginaActual === 1}
+                  style={{
+                    padding: '8px 16px',
+                    background: paginaActual === 1 ? 'rgba(55, 65, 81, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: paginaActual === 1 ? '#6b7280' : '#60a5fa',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: paginaActual === 1 ? 'not-allowed' : 'pointer',
+                    opacity: paginaActual === 1 ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Primera
+                </button>
+
+                <button
+                  onClick={() => setPaginaActual(prev => prev - 1)}
+                  disabled={paginaActual === 1}
+                  style={{
+                    padding: '8px 16px',
+                    background: paginaActual === 1 ? 'rgba(55, 65, 81, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: paginaActual === 1 ? '#6b7280' : '#60a5fa',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: paginaActual === 1 ? 'not-allowed' : 'pointer',
+                    opacity: paginaActual === 1 ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Anterior
+                </button>
+
+                <span style={{
+                  padding: '8px 16px',
+                  color: '#f9fafb',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}>
+                  Página {paginaActual} de {totalPaginas}
+                </span>
+
+                <button
+                  onClick={() => setPaginaActual(prev => prev + 1)}
+                  disabled={paginaActual === totalPaginas}
+                  style={{
+                    padding: '8px 16px',
+                    background: paginaActual === totalPaginas ? 'rgba(55, 65, 81, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: paginaActual === totalPaginas ? '#6b7280' : '#60a5fa',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer',
+                    opacity: paginaActual === totalPaginas ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Siguiente
+                </button>
+
+                <button
+                  onClick={() => setPaginaActual(totalPaginas)}
+                  disabled={paginaActual === totalPaginas}
+                  style={{
+                    padding: '8px 16px',
+                    background: paginaActual === totalPaginas ? 'rgba(55, 65, 81, 0.3)' : 'rgba(59, 130, 246, 0.2)',
+                    border: '1px solid rgba(75, 85, 99, 0.5)',
+                    borderRadius: '8px',
+                    color: paginaActual === totalPaginas ? '#6b7280' : '#60a5fa',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: paginaActual === totalPaginas ? 'not-allowed' : 'pointer',
+                    opacity: paginaActual === totalPaginas ? 0.5 : 1,
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  Última
+                </button>
+              </div>
+            );
+
+            return turnosFiltrados.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '80px 24px',
+                background: 'rgba(31, 41, 55, 0.4)',
+                border: '1px solid rgba(75, 85, 99, 0.3)',
+                borderRadius: '16px'
+              }}>
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  background: 'rgba(55, 65, 81, 0.5)',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 20px'
+                }}>
+                  <Filter size={32} style={{ color: '#9ca3af' }} />
+                </div>
+                <h3 style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  color: '#f9fafb',
+                  marginBottom: '8px'
+                }}>
+                  {todosLosTurnos.length === 0 
+                    ? 'No hay turnos en el sistema'
+                    : 'No se encontraron turnos'
+                  }
+                </h3>
+                <p style={{ 
+                  color: '#9ca3af', 
+                  fontSize: '16px',
+                  marginTop: '8px'
+                }}>
+                  {todosLosTurnos.length === 0 
+                    ? 'Los turnos creados aparecerán aquí para gestionar'
+                    : 'Intenta ajustar los filtros de búsqueda'
+                  }
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Información y paginación superior */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '16px',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{
+                    fontSize: '14px',
+                    color: '#9ca3af'
+                  }}>
+                    Mostrando {indiceInicio + 1}-{Math.min(indiceFin, turnosFiltrados.length)} de {turnosFiltrados.length} turnos
+                    {turnosFiltrados.length !== todosLosTurnos.length && (
+                      <span style={{ color: '#6b7280' }}> (filtrados de {todosLosTurnos.length})</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Controles de paginación superiores */}
+                {totalPaginas > 1 && <ControlesPaginacion />}
+
+                <div style={{
+                  marginTop: totalPaginas > 1 ? '16px' : '0'
+                }}>
+                <div style={{
+                  background: 'rgba(31, 41, 55, 0.4)',
+                  border: '1px solid rgba(75, 85, 99, 0.3)',
+                  borderRadius: '12px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{
+                          background: 'rgba(31, 41, 55, 0.6)',
+                          borderBottom: '1px solid rgba(75, 85, 99, 0.3)'
+                        }}>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Fecha</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Hora</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Nombre</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Cancha</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Estado</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '12px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase' }}>Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {turnosPaginados.map((turno, index) => {
+                          const cancha = canchas.find(c => c.id === turno.cancha_id);
+                          return (
+                            <tr
+                              key={turno.id}
+                              style={{
+                                borderBottom: index < turnosPaginados.length - 1 ? '1px solid rgba(75, 85, 99, 0.2)' : 'none',
+                                transition: 'background 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(55, 65, 81, 0.3)'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              <td style={{ padding: '16px', color: '#f9fafb', fontSize: '14px' }}>
+                                {new Date(turno.fecha).toLocaleDateString('es-ES')}
+                              </td>
+                              <td style={{ padding: '16px', color: '#9ca3af', fontSize: '14px' }}>
+                                {turno.hora_inicio} - {turno.hora_fin}
+                              </td>
+                              <td style={{ padding: '16px', color: '#f9fafb', fontSize: '14px', fontWeight: '500' }}>
+                                {turno.nombre || `Turno #${turno.numero_turno_dia}`}
+                              </td>
+                              <td style={{ padding: '16px', color: '#9ca3af', fontSize: '14px' }}>
+                                {cancha?.nombre || 'N/A'}
+                              </td>
+                              <td style={{ padding: '16px', textAlign: 'center' }}>
+                                <span style={{
+                                  padding: '4px 12px',
+                                  borderRadius: '6px',
+                                  fontSize: '12px',
+                                  fontWeight: '500',
+                                  background: turno.estado === 'completado' 
+                                    ? 'rgba(16, 185, 129, 0.2)' 
+                                    : 'rgba(251, 191, 36, 0.2)',
+                                  color: turno.estado === 'completado' ? '#34d399' : '#fbbf24',
+                                  border: `1px solid ${turno.estado === 'completado' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(251, 191, 36, 0.3)'}`
+                                }}>
+                                  {turno.estado === 'completado' ? 'Completado' : 'En Progreso'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '16px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                                  <button
+                                    onClick={() => handleVerTurno(turno)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'rgba(59, 130, 246, 0.2)',
+                                      border: '1px solid rgba(59, 130, 246, 0.3)',
+                                      borderRadius: '6px',
+                                      color: '#60a5fa',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.3)';
+                                      e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)';
+                                      e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                                    }}
+                                  >
+                                    Ver
+                                  </button>
+                                  <button
+                                    onClick={() => handleEditarTurno(turno)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'rgba(168, 85, 247, 0.2)',
+                                      border: '1px solid rgba(168, 85, 247, 0.3)',
+                                      borderRadius: '6px',
+                                      color: '#a78bfa',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.3)';
+                                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(168, 85, 247, 0.2)';
+                                      e.currentTarget.style.borderColor = 'rgba(168, 85, 247, 0.3)';
+                                    }}
+                                  >
+                                    Editar
+                                  </button>
+                                  <button
+                                    onClick={() => handleEliminarTurno(turno)}
+                                    style={{
+                                      padding: '6px 12px',
+                                      background: 'rgba(239, 68, 68, 0.2)',
+                                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                                      borderRadius: '6px',
+                                      color: '#f87171',
+                                      fontSize: '12px',
+                                      fontWeight: '500',
+                                      cursor: 'pointer',
+                                      transition: 'all 0.2s ease'
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.3)';
+                                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                                      e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                </div>
+
+                {/* Controles de paginación inferiores */}
+                {totalPaginas > 1 && (
+                  <div style={{ marginTop: '20px' }}>
+                    <ControlesPaginacion />
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      ) : null}
 
       {/* Modales */}
       <CrearTurnoModal
@@ -1196,6 +1979,221 @@ export const TurnosPage: React.FC = () => {
         onConfirm={handleConfirmarEliminar}
         turno={eliminarTurnoModal.turno as any}
       />
+
+      {/* Modal de Papelera */}
+      {modalPapeleraAbierto && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <div>
+                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-r from-red-500/20 to-pink-500/20 rounded-full border border-red-500/30">
+                    <Trash2 className="w-6 h-6 text-red-400" />
+                  </div>
+                  Papelera de Turnos
+                </h2>
+                <p className="text-sm text-gray-400 mt-1">
+                  Los turnos se eliminarán permanentemente después de 30 días
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {turnosPapelera.length > 0 && (
+                  <button
+                    onClick={() => setModalVaciarPapelera(true)}
+                    className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors border border-red-500/30 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Vaciar Papelera
+                  </button>
+                )}
+                <button
+                  onClick={() => setModalPapeleraAbierto(false)}
+                  className="p-2 hover:bg-gray-800 rounded-xl transition-colors text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingPapelera ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4"></div>
+                    <p className="text-gray-400">Cargando papelera...</p>
+                  </div>
+                </div>
+              ) : turnosPapelera.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <Trash2 className="w-20 h-20 text-gray-600 mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-400 mb-2">
+                    Papelera vacía
+                  </h3>
+                  <p className="text-gray-500">
+                    No hay turnos eliminados
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {turnosPapelera.map((turno) => (
+                    <div
+                      key={turno.id}
+                      className="bg-gray-800 border border-red-500/30 rounded-xl p-4 hover:border-red-500/50 transition-all"
+                    >
+                      {/* Badge de eliminado */}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs font-bold rounded border border-red-500/30">
+                          ELIMINADO
+                        </span>
+                      </div>
+
+                      {/* Info del turno */}
+                      <div className="mb-4">
+                        <h4 className="text-white font-semibold mb-2">
+                          {turno.nombre || `Turno #${turno.id.slice(-6).toUpperCase()}`}
+                        </h4>
+                        <div className="text-sm text-gray-400 space-y-1">
+                          <div>📅 {new Date(turno.fecha).toLocaleDateString('es-ES')}</div>
+                          <div>⏰ {turno.hora_inicio} - {turno.hora_fin}</div>
+                          {turno.cancha && <div>🏟️ {turno.cancha.nombre}</div>}
+                        </div>
+                      </div>
+
+                      {/* Botones de acción */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleRestaurarTurno(turno.id)}
+                          className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                          Restaurar
+                        </button>
+                        <button
+                          onClick={() => handleEliminarPermanente(turno)}
+                          className="flex-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmación Vaciar Papelera */}
+      {modalVaciarPapelera && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-red-500/20 rounded-full border border-red-500/30">
+                  <Trash2 className="w-6 h-6 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-2">
+                    Vaciar Papelera
+                  </h3>
+                  <p className="text-gray-400 text-sm">
+                    Se eliminarán permanentemente <strong className="text-red-400">{turnosPapelera.length} turno(s)</strong>.
+                    Esta acción NO se puede deshacer.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setModalVaciarPapelera(false)}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleVaciarPapelera}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center gap-2 font-medium"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Vaciar Papelera
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmación Eliminar Permanentemente UN Turno */}
+      {modalEliminarPermanente && turnoAEliminarPermanente && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl max-w-lg w-full">
+            <div className="p-6">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-red-500/20 rounded-full border border-red-500/30 flex-shrink-0">
+                  <Trash2 className="w-6 h-6 text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-white mb-4">
+                    ¿Eliminar permanentemente este turno?
+                  </h3>
+                  
+                  {/* Información del turno */}
+                  <div className="bg-gray-800/50 rounded-lg p-4 mb-4 border border-gray-700">
+                    <p className="text-white font-semibold text-lg mb-3">{turnoAEliminarPermanente.nombre}</p>
+                    <div className="space-y-2 text-sm">
+                      <p className="text-gray-300">
+                        📅 <span className="text-white font-medium">{turnoAEliminarPermanente.fecha}</span>
+                      </p>
+                      <p className="text-gray-300">
+                        ⏰ <span className="text-white font-medium">{turnoAEliminarPermanente.hora_inicio} - {turnoAEliminarPermanente.hora_fin}</span>
+                      </p>
+                      {turnoAEliminarPermanente.canchaData && (
+                        <p className="text-gray-300">
+                          🎾 <span className="text-white font-medium">{turnoAEliminarPermanente.canchaData.nombre}</span>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Advertencia */}
+                  <div className="bg-red-500/10 border-2 border-red-500/30 rounded-lg p-4">
+                    <p className="text-red-400 font-bold text-sm flex items-start gap-2">
+                      <span className="text-2xl leading-none">⚠️</span>
+                      <span>
+                        Esta acción eliminará el turno <strong>PERMANENTEMENTE</strong> de la base de datos. 
+                        Se perderán todos los datos asociados y <strong>NO se puede deshacer</strong>.
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setModalEliminarPermanente(false);
+                    setTurnoAEliminarPermanente(null);
+                  }}
+                  className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmarEliminarPermanente}
+                  className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors font-semibold flex items-center justify-center gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar Permanentemente
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Finalización de Jornada */}
       {modalFinalizacionAbierto && (
@@ -1461,7 +2459,6 @@ export const TurnosPage: React.FC = () => {
           }
         `}
       </style>
-      <GlobalFooter />
     </AppLayout>
   );
 };

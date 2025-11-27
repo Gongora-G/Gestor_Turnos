@@ -66,9 +66,9 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
       // Mostrar notificación de éxito
       addToast({
         type: 'success',
-        title: 'Turno eliminado',
-        message: 'El turno se ha eliminado correctamente',
-        duration: 4000
+        title: 'Movido a papelera',
+        message: 'El turno se movió a la papelera. Se eliminará automáticamente en 30 días.',
+        duration: 5000
       });
       
       onClose();
@@ -126,21 +126,21 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
       return {
         tipo: 'warning',
         titulo: 'Turno en progreso',
-        mensaje: 'Este turno está actualmente en progreso. Eliminarlo podría afectar la operación actual.',
+        mensaje: 'Este turno se moverá a la papelera. Podrás restaurarlo dentro de 30 días antes de su eliminación permanente.',
         icono: 'warning'
       };
     } else if (estado === 'completado') {
       return {
         tipo: 'info',
         titulo: 'Turno completado',
-        mensaje: 'Este turno ya terminó. La eliminación solo afectará los registros históricos.',
+        mensaje: 'Este turno se moverá a la papelera y permanecerá allí durante 30 días antes de eliminarse permanentemente.',
         icono: 'info'
       };
     } else {
       return {
         tipo: 'normal',
-        titulo: 'Eliminar turno',
-        mensaje: '¿Está seguro que desea eliminar este turno? Esta acción no se puede deshacer.',
+        titulo: 'Mover a papelera',
+        mensaje: 'El turno se moverá a la papelera. Tendrás 30 días para restaurarlo antes de que se elimine permanentemente.',
         icono: 'delete'
       };
     }
@@ -154,10 +154,10 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-700">
           <h2 className="text-xl font-bold text-white flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-red-500/20 to-pink-500/20 rounded-full border border-red-500/30">
-              <AlertTriangle className="w-6 h-6 text-red-400" />
+            <div className="p-2 bg-gradient-to-r from-orange-500/20 to-yellow-500/20 rounded-full border border-orange-500/30">
+              <Trash2 className="w-6 h-6 text-orange-400" />
             </div>
-            Eliminar Turno
+            Mover a Papelera
           </h2>
           <button
             onClick={onClose}
@@ -248,10 +248,10 @@ export const EliminarTurnoModal: React.FC<EliminarTurnoModalProps> = ({
           <button
             onClick={handleConfirm}
             disabled={loading}
-            className="px-6 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl hover:from-red-700 hover:to-red-800 focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
+            className="px-6 py-2 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-xl hover:from-orange-700 hover:to-orange-800 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 font-semibold"
           >
             <Trash2 className="w-4 h-4" />
-            {loading ? 'Eliminando...' : 'Eliminar Turno'}
+            {loading ? 'Moviendo...' : 'Mover a Papelera'}
           </button>
         </div>
       </div>

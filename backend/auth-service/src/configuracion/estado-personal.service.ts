@@ -110,12 +110,12 @@ export class EstadoPersonalService {
       throw new BadRequestException('No se pueden eliminar estados del sistema');
     }
 
-    // Verificar que no haya personal con este estado
-    const personalConEstado = await this.estadoPersonalRepository
-      .createQueryBuilder('estado')
-      .leftJoin('estado.personal', 'personal')
-      .where('estado.id = :id', { id })
-      .andWhere('estado.clubId = :clubId', { clubId })
+    // Verificar si hay personal con este estado usando la tabla personal
+    const personalRepository = this.estadoPersonalRepository.manager.getRepository('personal');
+    const personalConEstado = await personalRepository
+      .createQueryBuilder('personal')
+      .where('personal.estado_id = :estadoId', { estadoId: id })
+      .andWhere('personal.clubId = :clubId', { clubId })
       .getCount();
 
     if (personalConEstado > 0) {

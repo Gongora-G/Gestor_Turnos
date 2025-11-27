@@ -62,6 +62,7 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
     hora_inicio: '',
     hora_fin: '',
     cancha_id: '',
+    estado: 'en_progreso' as 'en_progreso' | 'completado',
     observaciones: '',
     personal_asignado: [] as string[]
   });
@@ -99,6 +100,7 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
         hora_inicio: turno.hora_inicio,
         hora_fin: turno.hora_fin,
         cancha_id: turno.cancha_id,
+        estado: turno.estado,
         observaciones: turno.observaciones || '',
         personal_asignado: turno.personal_asignado || []
       });
@@ -168,6 +170,7 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
         hora_inicio: formData.hora_inicio,
         hora_fin: formData.hora_fin,
         cancha_id: formData.cancha_id,
+        estado: formData.estado,
         observaciones: formData.observaciones,
         personal_asignado: formData.personal_asignado
       });
@@ -318,9 +321,8 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
                 </p>
               )}
             </div>
-
             {/* Cancha */}
-            <div className="col-span-2">
+            <div>
               <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
                 <MapPin className="w-3.5 h-3.5 text-purple-400" />
                 Cancha
@@ -338,6 +340,25 @@ export const EditarTurnoModal: React.FC<EditarTurnoModalProps> = ({
                 ))}
               </select>
               {errors.cancha_id && <p className="text-red-400 text-xs mt-1">{errors.cancha_id}</p>}
+            </div>
+
+            {/* Estado del Turno */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-white mb-1.5">
+                <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                Estado
+              </label>
+              <select
+                value={formData.estado}
+                onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value as 'en_progreso' | 'completado' }))}
+                className="w-full px-2.5 py-1.5 text-sm bg-gray-800 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+              >
+                <option value="en_progreso" className="bg-gray-800 text-white">En Progreso</option>
+                <option value="completado" className="bg-gray-800 text-white">Completado</option>
+              </select>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {formData.estado === 'en_progreso' ? '🔵 Turno actualmente en curso' : '✅ Turno finalizado'}
+              </p>
             </div>
 
             {/* Duración calculada */}

@@ -122,4 +122,7 @@ export class FiltrosTurnosDto {
 
   @IsOptional()
   incluir_todas_las_jornadas?: boolean;
+
+  @IsOptional()
+  incluir_guardados?: boolean;
 }

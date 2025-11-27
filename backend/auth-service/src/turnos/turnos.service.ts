@@ -173,9 +173,15 @@ export class TurnosService {
     console.log('🔍 Estado de registro filtro:', EstadoRegistro.ACTIVO);
     
     const query = this.turnosRepository.createQueryBuilder('turno')
-      .where('turno.club_id = :clubId', { clubId })
-      // 🆕 FILTRO POR DEFECTO: Solo mostrar turnos ACTIVOS (no guardados)
-      .andWhere('(turno.estado_registro = :estadoActivo OR turno.estado_registro IS NULL)', { estadoActivo: EstadoRegistro.ACTIVO });
+      .where('turno.club_id = :clubId', { clubId });
+      
+    // 🗑️ FILTRO: Excluir turnos eliminados (papelera) por defecto
+    query.andWhere('(turno.eliminado = :eliminado OR turno.eliminado IS NULL)', { eliminado: false });
+      
+    // 🆕 FILTRO POR DEFECTO: Solo mostrar turnos ACTIVOS (no guardados) a menos que se especifique incluir_guardados
+    if (!filtros.incluir_guardados) {
+      query.andWhere('(turno.estado_registro = :estadoActivo OR turno.estado_registro IS NULL)', { estadoActivo: EstadoRegistro.ACTIVO });
+    }
 
     // Aplicar filtros de fecha si se especifican
     if (filtros.fecha_inicio && filtros.fecha_fin) {
@@ -349,7 +355,7 @@ export class TurnosService {
     return await this.turnosRepository.save(turno);
   }
 
-  async remove(id: string, clubId: string): Promise<void> {
+  async remove(id: string, clubId: string, userId?: string): Promise<{ mensaje: string }> {
     const turno = await this.findOne(id, clubId);
     
     // 🎯 AUTOMATIZACIÓN: Liberar personal asignado al eliminar turno
@@ -358,7 +364,18 @@ export class TurnosService {
       console.log(`✅ Turno eliminado - ${turno.personal_asignado.length} personal(es) liberado(s)`);
     }
 
-    await this.turnosRepository.remove(turno);
+    // Soft delete
+    turno.eliminado = true;
+    turno.fechaEliminacion = new Date();
+    turno.eliminadoPor = userId || null;
+
+    await this.turnosRepository.save(turno);
+
+    console.log(`🗑️ Turno ${id} movido a papelera por usuario ${userId}`);
+    
+    return { 
+      mensaje: 'Turno movido a la papelera. Se eliminará permanentemente en 30 días.' 
+    };
   }
 
   async cambiarEstado(id: string, estado: string, clubId: string): Promise<Turno> {
@@ -506,6 +523,144 @@ export class TurnosService {
       console.error(`❌ Error cambiando estado del personal a ${nombreEstado}:`, error);
       console.error(`❌ Error completo:`, error.stack);
       // No lanzar error para no bloquear la creación/actualización del turno
+    }
+  }
+
+  // 🗑️ MÉTODOS DE PAPELERA
+  
+  /**
+   * Restaurar un turno desde la papelera
+   */
+  async restaurarTurno(id: string, clubId: string): Promise<Turno> {
+    try {
+      const turno = await this.turnosRepository.findOne({ 
+        where: { id, club_id: clubId } 
+      });
+
+      if (!turno) {
+        throw new NotFoundException(`Turno con ID ${id} no encontrado`);
+      }
+
+      if (!turno.eliminado) {
+        throw new ForbiddenException('Este turno no está en la papelera');
+      }
+
+      // Restaurar
+      turno.eliminado = false;
+      turno.fechaEliminacion = null;
+      turno.eliminadoPor = null;
+
+      const turnoRestaurado = await this.turnosRepository.save(turno);
+
+      console.log(`♻️ Turno ${id} restaurado desde la papelera`);
+      
+      return turnoRestaurado;
+    } catch (error) {
+      console.error('❌ Error al restaurar turno:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtener turnos en la papelera
+   */
+  async obtenerPapelera(clubId: string): Promise<Turno[]> {
+    try {
+      const turnosEliminados = await this.turnosRepository.find({
+        where: { eliminado: true, club_id: clubId },
+        order: { fechaEliminacion: 'DESC' }
+      });
+
+      console.log(`📋 Se encontraron ${turnosEliminados.length} turnos en la papelera del club ${clubId}`);
+      
+      return turnosEliminados;
+    } catch (error) {
+      console.error('❌ Error al obtener papelera:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Eliminar permanentemente un turno (hard delete)
+   */
+  async eliminarPermanentemente(id: string, clubId: string): Promise<{ mensaje: string }> {
+    try {
+      const turno = await this.turnosRepository.findOne({ 
+        where: { id, club_id: clubId } 
+      });
+
+      if (!turno) {
+        throw new NotFoundException(`Turno con ID ${id} no encontrado`);
+      }
+
+      // Eliminar el turno
+      await this.turnosRepository.remove(turno);
+
+      console.log(`💥 Turno ${id} eliminado PERMANENTEMENTE`);
+      
+      return { 
+        mensaje: 'Turno eliminado permanentemente' 
+      };
+    } catch (error) {
+      console.error('❌ Error al eliminar permanentemente:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Limpiar turnos antiguos de la papelera (más de 30 días)
+   */
+  async limpiarPapeleraAutomaticamente(clubId: string): Promise<{ eliminados: number }> {
+    try {
+      const hace30Dias = new Date();
+      hace30Dias.setDate(hace30Dias.getDate() - 30);
+
+      const turnosAntiguos = await this.turnosRepository
+        .createQueryBuilder('turno')
+        .where('turno.club_id = :clubId', { clubId })
+        .andWhere('turno.eliminado = :eliminado', { eliminado: true })
+        .andWhere('turno.fechaEliminacion < :fecha', { fecha: hace30Dias })
+        .getMany();
+
+      let contador = 0;
+      for (const turno of turnosAntiguos) {
+        await this.turnosRepository.remove(turno);
+        contador++;
+      }
+
+      console.log(`🧹 Limpieza automática club ${clubId}: ${contador} turnos eliminados permanentemente`);
+      
+      return { eliminados: contador };
+    } catch (error) {
+      console.error('❌ Error en limpieza automática de papelera:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Vaciar completamente la papelera
+   */
+  async vaciarPapelera(clubId: string): Promise<{ mensaje: string; eliminados: number }> {
+    try {
+      const turnosEliminados = await this.turnosRepository.find({
+        where: { eliminado: true, club_id: clubId }
+      });
+
+      let contador = 0;
+      for (const turno of turnosEliminados) {
+        await this.turnosRepository.remove(turno);
+        contador++;
+      }
+
+      console.log(`🗑️💥 Papelera vaciada club ${clubId}: ${contador} turnos eliminados permanentemente`);
+      
+      return { 
+        mensaje: 'Papelera vaciada completamente',
+        eliminados: contador
+      };
+    } catch (error) {
+      console.error('❌ Error al vaciar papelera:', error);
+      throw error;
     }
   }
 }
